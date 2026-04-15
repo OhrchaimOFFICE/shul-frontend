@@ -1,30 +1,34 @@
-// We will update this with your actual Render URL next
-const BACKEND_URL = "https://your-render-url-goes-here.onrender.com"; 
+// Connected to your live Render backend
+const BACKEND_URL = "https://shul-backend.onrender.com"; 
 
-function displaySchedule() {
+async function displaySchedule() {
     const scheduleList = document.getElementById('schedule-list');
     
-    // Placeholder data to verify the large-print design is working
-    const dummyData = [
-        { name: "Shacharis", time: "6:55 AM" },
-        { name: "Mincha / Maariv", time: "7:30 PM" }
-    ];
+    try {
+        // This actually "calls" your Render server over the internet
+        const response = await fetch(`${BACKEND_URL}/api/schedule`);
+        const liveData = await response.json();
 
-    scheduleList.innerHTML = ''; 
+        scheduleList.innerHTML = ''; // Clears the "Connecting..." text
 
-    dummyData.forEach(item => {
-        const li = document.createElement('li');
-        
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = item.name;
-        
-        const timeSpan = document.createElement('span');
-        timeSpan.textContent = item.time;
-        
-        li.appendChild(nameSpan);
-        li.appendChild(timeSpan);
-        scheduleList.appendChild(li);
-    });
+        // Loops through the data sent by Render and creates the large text boxes
+        liveData.forEach(item => {
+            const li = document.createElement('li');
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = item.name;
+            
+            const timeSpan = document.createElement('span');
+            timeSpan.textContent = item.time;
+            
+            li.appendChild(nameSpan);
+            li.appendChild(timeSpan);
+            scheduleList.appendChild(li);
+        });
+    } catch (error) {
+        console.error("Connection failed:", error);
+        scheduleList.innerHTML = '<li><span>Cannot connect to server.</span><span>Please try again later.</span></li>';
+    }
 }
 
 window.onload = displaySchedule;
