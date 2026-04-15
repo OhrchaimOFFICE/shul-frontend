@@ -678,7 +678,7 @@ function App() {
     sidebarOpen&&React.createElement('div',{className:'sidebar-overlay show',onClick:()=>setSidebarOpen(false)}),
     React.createElement('nav',{className:'sidebar'+(sidebarOpen?' open':'')},
       React.createElement('div',{className:'sidebar-header'},
-        React.createElement('div',{className:'sidebar-logo'},'Congregation',React.createElement('br'),'Ohr Chaim'),
+        React.createElement('img',{src:'logo.png',alt:'Congregation Ohr Chaim',style:{width:'100%',maxWidth:180,marginBottom:8}}),
         React.createElement('div',{className:'sidebar-logo-sub'},'MIAMI BEACH, FL')),
       React.createElement('div',{className:'sidebar-nav'},
         navItems.map(item=>item.id==='divider'?React.createElement('div',{className:'nav-divider',key:'div'}):
