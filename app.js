@@ -62,21 +62,24 @@ function ZmanimPanel({onExpand}) {
   const isFriday=new Date().getDay()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
 
-  // Fullscreen overlay — designed for shul TV display
-  if(fullscreen) return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'auto',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:'100vh'}},
-    React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:48,height:48,fontSize:'1.5rem',cursor:'pointer'}},'✕'),
-    // Logo
-    React.createElement('img',{src:'logo.png',alt:'Congregation Ohr Chaim',style:{width:200,marginBottom:12,filter:'brightness(0) invert(1)'}}),
-    React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.2rem',marginBottom:4,letterSpacing:1}},'Congregation Ohr Chaim'),
-    React.createElement('p',{style:{color:'rgba(255,255,255,0.5)',fontSize:'1rem',marginBottom:28,letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'),
-    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:48,maxWidth:1000,width:'100%',padding:'0 40px'}},
+  // Fullscreen overlay — designed for shul TV display, fits in one screen
+  if(fullscreen) return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',height:'100vh',padding:'16px 40px'}},
+    React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:12,right:12,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:40,height:40,fontSize:'1.2rem',cursor:'pointer'}},'✕'),
+    // Header row with logo and name
+    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:16,marginBottom:8}},
+      React.createElement('img',{src:'logo.png',alt:'Congregation Ohr Chaim',style:{height:60,filter:'brightness(0) invert(1)'}}),
+      React.createElement('div',null,
+        React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'1.8rem',margin:0,letterSpacing:1}},'Congregation Ohr Chaim'),
+        React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'0.85rem',margin:0,letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
+    // Two columns filling remaining space
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1100,flex:1,minHeight:0,paddingTop:12}},
       // Left: MyZmanim
-      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:16,padding:28,border:'1px solid rgba(196,154,60,0.3)'}},
-        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'1.5rem',textAlign:'center'}},"Today's Zmanim"),
-        React.createElement('iframe',{srcdoc:'<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:8px;font-family:"Open Sans",sans-serif;background:transparent;}</style></head><body><script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=14&fcolor=ffffff&hcolor=243456&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>',style:{width:'100%',height:460,border:'none',borderRadius:8,background:'transparent'},title:'MyZmanim'})),
+      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:12,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column'}},
+        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:8,fontSize:'1.3rem',textAlign:'center'}},"Today's Zmanim"),
+        React.createElement('iframe',{srcdoc:'<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;background:transparent;}</style></head><body><script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=13&fcolor=ffffff&hcolor=243456&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>',style:{width:'100%',flex:1,border:'none',borderRadius:6,background:'transparent',minHeight:0},title:'MyZmanim'})),
       // Right: Davening + Shiurim
-      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:16,padding:28,border:'1px solid rgba(196,154,60,0.3)'}},
-        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'1.5rem',textAlign:'center'}},"Today's Schedule"),
+      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:12,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.3)'}},
+        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:12,fontSize:'1.3rem',textAlign:'center'}},"Today's Schedule"),
         schedule&&React.createElement('div',{style:{fontSize:'1.4rem',color:'#fff'}},
           schedule.davening?.shacharis&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Shacharis'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.shacharis)),
           schedule.davening?.earlyMincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Early Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.earlyMincha)),
@@ -90,7 +93,7 @@ function ZmanimPanel({onExpand}) {
             React.createElement('div',{style:{fontWeight:600}},s.title),
             React.createElement('div',{style:{color:'rgba(255,255,255,0.5)',fontSize:'0.95rem'}},[s.time,s.rabbi].filter(Boolean).join(' • '))))))),
     // Footer
-    React.createElement('p',{style:{color:'rgba(255,255,255,0.3)',fontSize:'0.75rem',marginTop:24}},'Powered by MyZmanim.com'));
+    React.createElement('p',{style:{color:'rgba(255,255,255,0.3)',fontSize:'0.65rem',position:'absolute',bottom:8,left:0,right:0,textAlign:'center'}},'Powered by MyZmanim.com'));
 
   // Normal sidebar panel
   return React.createElement('div',{className:'zmanim-panel'},
