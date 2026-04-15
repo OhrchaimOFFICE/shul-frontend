@@ -1,17 +1,14 @@
-// Connected to your live Render backend
 const BACKEND_URL = "https://shul-backend.onrender.com"; 
 
 async function displaySchedule() {
     const scheduleList = document.getElementById('schedule-list');
     
     try {
-        // This actually "calls" your Render server over the internet
         const response = await fetch(`${BACKEND_URL}/api/schedule`);
         const liveData = await response.json();
 
-        scheduleList.innerHTML = ''; // Clears the "Connecting..." text
+        scheduleList.innerHTML = ''; 
 
-        // Loops through the data sent by Render and creates the large text boxes
         liveData.forEach(item => {
             const li = document.createElement('li');
             
@@ -31,4 +28,14 @@ async function displaySchedule() {
     }
 }
 
-window.onload = displaySchedule;
+// Function to load dummy Zmanim data for now
+function loadZmanim() {
+    const zmanimText = document.getElementById('zmanim-text');
+    // We will eventually pull this from a live API based on Miami's zip code
+    zmanimText.textContent = "Alos: 5:21 AM | Netz: 6:45 AM | Chatzos: 1:15 PM | Shkiya: 7:42 PM";
+}
+
+window.onload = () => {
+    displaySchedule();
+    loadZmanim();
+};
