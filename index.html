@@ -3,25 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ohr Chaim Schedule</title>
+    <title>Ohr Chaim Schedule & Zmanim</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="zmanim-bar">
+        <strong>Today's Zmanim:</strong> <span id="zmanim-text">Loading times...</span>
+    </div>
+
     <header>
         <h1>Ohr Chaim</h1>
     </header>
     
     <main>
         <section class="card">
-            <h2>Today's Schedule</h2>
+            <h2>Today's Minyanim</h2>
             <ul id="schedule-list">
                 <li>Connecting to Shul Server...</li>
             </ul>
         </section>
 
-        <section class="card">
+        <section class="card" id="announcements-section">
             <h2>Announcements</h2>
-            <p id="announcement-text">Welcome to our new accessible website. The text is designed to be large and easy to read.</p>
+            <p><strong>Mazal Tov</strong> to the Cohen family on the birth of a baby girl!</p>
+            <p>Kiddush this week is sponsored by the Levy family.</p>
+        </section>
+
+        <section class="card center-content">
+            <h2>Support Our Shul</h2>
+            <p>Pay membership dues or make a secure donation online.</p>
+            <button id="donate-btn">Make a Payment / Donation</button>
         </section>
     </main>
 
