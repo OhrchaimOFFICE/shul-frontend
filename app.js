@@ -222,11 +222,15 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Schedule Overrides':t==='shiurim'?'Manage Shiurim':'Admin Accounts'))),
+      ['rules','overrides','shiurim','donations','members','pledges','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Schedule Overrides':t==='shiurim'?'Manage Shiurim':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='analytics'?'Analytics':'Admin Accounts'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
+    tab==='donations'&&React.createElement(AdminDonations),
+    tab==='members'&&React.createElement(AdminMembers),
+    tab==='pledges'&&React.createElement(AdminPledges),
+    tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='admins'&&React.createElement(AdminAccounts));
 }
 
@@ -347,12 +351,318 @@ function AdminAccounts() {
         React.createElement('tbody',null,admins.map(a=>React.createElement('tr',{key:a.id},React.createElement('td',null,a.email||a.id),React.createElement('td',null,React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>remove(a.id)},'Remove')))))))));
 }
 
-// ─── Donate Placeholder ──────────────────────────────────────────
+// ─── Phase 2 components ─────────────────────────────────────────
+// ─── Phase 2: Donations, Sponsorships, Accounts, Analytics ──────
+
+// ─── Donation Page ───────────────────────────────────────────────
 function DonatePage() {
-  return React.createElement('div',null,React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
-    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Donations'),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555',marginBottom:20}},'The donation portal will be available in the next phase. For now, please contact the shul office.'),
-    React.createElement('p',{style:{fontSize:'1.1rem',fontWeight:600,color:'#1a2744'}},'317 W 47th St, Miami Beach, FL 33140')));
+  const [reasons,setReasons]=useState([]);
+  const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:''});
+  const [loading,setLoading]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [step,setStep]=useState('form');
+  useEffect(()=>{apiFetch('/api/donations/reasons').then(setReasons).catch(()=>setReasons(['General Donation','Membership Dues','Building Fund','Torah Fund','Yahrzeit','In Honor Of','In Memory Of','Other']));},[]);
+  function upd(k,v){setForm(p=>({...p,[k]:v}));}
+  async function handleDonate(e){
+    e.preventDefault();
+    if(!form.amount||!form.firstName||!form.lastName||!form.email){setMsg('Please fill all required fields.');return;}
+    setLoading(true);setMsg('');
+    try{
+      const pi=await apiFetch('/api/donations/create-payment',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),type:'donation'})});
+      await apiFetch('/api/donations/confirm',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),paymentIntentId:pi.paymentIntentId,type:'donation'})});
+      setStep('done');
+    }catch(err){setMsg('Error: '+err.message);}
+    setLoading(false);
+  }
+  if(step==='done') return React.createElement('div',null,React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
+    React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'✅'),
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Thank You!'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your donation of $'+form.amount+' has been recorded. A receipt will be sent to '+form.email+'.'),
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setStep('form');setForm({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:''});}},'Make Another Donation')));
+  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Make a Donation'),
+      React.createElement('p',{style:{marginBottom:20,color:'#555'}},'Support Congregation Ohr Chaim. All donations are tax-deductible.'),
+      msg&&React.createElement('div',{className:'message message-error'},msg),
+      React.createElement('form',{onSubmit:handleDonate},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:form.firstName,onChange:e=>upd('firstName',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true}))),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),
+          React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:form.amount,onChange:e=>upd('amount',e.target.value),required:true,style:{fontSize:'1.2rem',fontWeight:700}})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason for Donation'),
+          React.createElement('select',{className:'form-input',value:form.reason,onChange:e=>upd('reason',e.target.value)},
+            reasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note / Dedication (optional)'),
+          React.createElement('input',{className:'form-input',value:form.note,onChange:e=>upd('note',e.target.value),placeholder:'In honor of... / In memory of...'})),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading,style:{marginTop:8,fontSize:'1.1rem',padding:'14px 28px'}},
+          loading?'Processing...':'💝 Donate $'+(form.amount||'0')))));
+}
+
+// ─── Sponsorship Page ────────────────────────────────────────────
+function SponsorshipPage() {
+  const [data,setData]=useState(null);const [loading,setLoading]=useState(true);
+  const [selectedDate,setSelectedDate]=useState('');const [selectedType,setSelectedType]=useState('kiddush');
+  const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',dedication:''});
+  const [booking,setBooking]=useState(false);const [msg,setMsg]=useState('');const [done,setDone]=useState(false);
+  useEffect(()=>{apiFetch('/api/sponsorships').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  function upd(k,v){setForm(p=>({...p,[k]:v}));}
+  async function handleBook(e){
+    e.preventDefault();
+    if(!selectedDate||!form.firstName||!form.lastName||!form.email){setMsg('Please fill all required fields.');return;}
+    setBooking(true);setMsg('');
+    try{await apiFetch('/api/sponsorships/book',{method:'POST',body:JSON.stringify({date:selectedDate,type:selectedType,...form})});setDone(true);}catch(err){setMsg(err.message);}
+    setBooking(false);
+  }
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'🎉'),
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Sponsorship Confirmed!'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+(selectedType==='kiddush'?'Kiddush':'Seudas Shlishis')+' for '+formatDisplayDate(selectedDate)+' has been confirmed.'),
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',dedication:''});setSelectedDate('');}},'Back'));
+  if(!data) return React.createElement('p',null,'Unable to load.');
+  const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};
+  return React.createElement('div',{style:{maxWidth:700,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Sponsor Kiddush or Seudas Shlishis'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'Choose an upcoming Shabbos below. Reservation cutoff: Wednesday at 8:00 PM.'),
+      React.createElement('p',{style:{marginBottom:20,fontSize:'0.9rem',color:'#888'}},'Kiddush: $'+(pricing.kiddushPrice||'TBD')+' • Seudas Shlishis: $'+(pricing.seudasShlishisPrice||'TBD')),
+      React.createElement('div',{className:'form-group'},
+        React.createElement('label',{className:'form-label'},'Select Shabbos'),
+        React.createElement('select',{className:'form-input',value:selectedDate,onChange:e=>setSelectedDate(e.target.value)},
+          React.createElement('option',{value:''},'-- Choose a Shabbos --'),
+          upcoming.map(d=>React.createElement('option',{key:d,value:d},formatDisplayDate(d))))),
+      selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}},
+        ['kiddush','seudasShlishis'].map(t=>{
+          const res=reservations[selectedDate]?.[t];const taken=!!res;
+          const label=t==='kiddush'?'Kiddush':'Seudas Shlishis';
+          return React.createElement('div',{key:t,className:'sponsor-card'+(taken?' taken':' available'),
+            style:{cursor:taken?'default':'pointer',border:selectedType===t&&!taken?'3px solid #c49a3c':undefined},
+            onClick:()=>{if(!taken)setSelectedType(t);}},
+            React.createElement('div',{className:'sponsor-status '+(taken?'taken':'available')},taken?'TAKEN':'AVAILABLE'),
+            React.createElement('div',{style:{fontSize:'1.1rem',fontWeight:700,color:'#1a2744'}},label),
+            taken&&res&&React.createElement('div',{style:{fontSize:'0.85rem',color:'#555',marginTop:8}},'Sponsored by '+res.displayName));
+        })),
+      selectedDate&&!reservations[selectedDate]?.[selectedType]&&React.createElement('div',null,
+        msg&&React.createElement('div',{className:'message message-error'},msg),
+        React.createElement('form',{onSubmit:handleBook},
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:form.firstName,onChange:e=>upd('firstName',e.target.value),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true}))),
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)}))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Dedication (e.g. In honor of...)'),React.createElement('input',{className:'form-input',value:form.dedication,onChange:e=>upd('dedication',e.target.value)})),
+          React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:booking,style:{marginTop:8}},booking?'Booking...':'Confirm Sponsorship')))));
+}
+
+// ─── Account Page ────────────────────────────────────────────────
+function AccountPage() {
+  const [user,setUser]=useState(null);const [profile,setProfile]=useState(null);const [loading,setLoading]=useState(true);
+  const [authMode,setAuthMode]=useState('login');
+  const [loginForm,setLoginForm]=useState({email:'',password:''});
+  const [regForm,setRegForm]=useState({firstName:'',lastName:'',email:'',phone:'',address:'',password:'',spouseEmail:''});
+  const [error,setError]=useState('');const [editing,setEditing]=useState(false);const [editForm,setEditForm]=useState({});const [msg,setMsg]=useState('');
+  useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);setLoading(false);});return unsub;},[]);
+  useEffect(()=>{if(user){apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});}},[user]);
+  useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
+
+  async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(err.message);}}
+  async function handleRegister(e){e.preventDefault();setError('');
+    if(!regForm.firstName||!regForm.lastName||!regForm.email||!regForm.password){setError('All required fields must be filled.');return;}
+    try{const hash=window.location.hash;const token=hash.includes('token=')?hash.split('token=')[1]?.split('&')[0]:null;
+      if(token){await apiFetch('/api/auth/claim-prefill',{method:'POST',body:JSON.stringify({token,password:regForm.password})});
+      }else{await apiFetch('/api/auth/register',{method:'POST',body:JSON.stringify(regForm)});}
+      await firebase.auth().signInWithEmailAndPassword(regForm.email,regForm.password);
+    }catch(err){setError(err.message);}}
+  async function saveProfile(){setMsg('');try{await apiFetch('/api/auth/profile',{method:'PUT',body:JSON.stringify(editForm)});setProfile(p=>({...p,...editForm}));setEditing(false);setMsg('Profile updated!');}catch(e){setMsg('Error: '+e.message);}}
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(!user) return React.createElement('div',{className:'auth-container'},
+    React.createElement('div',{className:'auth-title'},authMode==='prefill'?'Complete Your Account':'My Account'),
+    React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
+    error&&React.createElement('div',{className:'message message-error'},error),
+    authMode==='login'?React.createElement('form',{onSubmit:handleLogin},
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:loginForm.email,onChange:e=>setLoginForm(p=>({...p,email:e.target.value})),required:true})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Password'),React.createElement('input',{className:'form-input',type:'password',value:loginForm.password,onChange:e=>setLoginForm(p=>({...p,password:e.target.value})),required:true})),
+      React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Sign In'),
+      React.createElement('p',{style:{marginTop:16,textAlign:'center',color:'#888'}},'No account? ',React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setAuthMode('register');},style:{color:'#c49a3c',fontWeight:600}},'Create one'))
+    ):React.createElement('form',{onSubmit:handleRegister},
+      authMode==='prefill'&&React.createElement('div',{className:'message message-success',style:{marginBottom:16}},'Your info is pre-filled! Just create a password.'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:regForm.firstName,onChange:e=>setRegForm(p=>({...p,firstName:e.target.value})),required:true})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:regForm.lastName,onChange:e=>setRegForm(p=>({...p,lastName:e.target.value})),required:true}))),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:regForm.email,onChange:e=>setRegForm(p=>({...p,email:e.target.value})),required:true,readOnly:authMode==='prefill'})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:regForm.phone,onChange:e=>setRegForm(p=>({...p,phone:e.target.value}))})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Address'),React.createElement('input',{className:'form-input',value:regForm.address,onChange:e=>setRegForm(p=>({...p,address:e.target.value}))})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Spouse Email (optional)'),React.createElement('input',{className:'form-input',type:'email',value:regForm.spouseEmail,onChange:e=>setRegForm(p=>({...p,spouseEmail:e.target.value}))})),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Password *'),React.createElement('input',{className:'form-input',type:'password',value:regForm.password,onChange:e=>setRegForm(p=>({...p,password:e.target.value})),required:true,minLength:6})),
+      React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Create Account'),
+      authMode!=='prefill'&&React.createElement('p',{style:{marginTop:16,textAlign:'center',color:'#888'}},'Have an account? ',React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setAuthMode('login');},style:{color:'#c49a3c',fontWeight:600}},'Sign in'))));
+  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'My Profile'),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+        React.createElement('div',null,
+          React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:'#1a2744'}},profile?.displayName||user.email),
+          React.createElement('div',{style:{color:'#888'}},profile?.email)),
+        React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
+      editing?React.createElement('div',null,
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name'),React.createElement('input',{className:'form-input',value:editForm.firstName,onChange:e=>setEditForm(p=>({...p,firstName:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name'),React.createElement('input',{className:'form-input',value:editForm.lastName,onChange:e=>setEditForm(p=>({...p,lastName:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',value:editForm.phone,onChange:e=>setEditForm(p=>({...p,phone:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Address'),React.createElement('input',{className:'form-input',value:editForm.address,onChange:e=>setEditForm(p=>({...p,address:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Bio'),React.createElement('textarea',{className:'form-input',rows:3,value:editForm.bio,onChange:e=>setEditForm(p=>({...p,bio:e.target.value}))})),
+        React.createElement('div',{style:{display:'flex',gap:12}},React.createElement('button',{className:'btn btn-primary',onClick:saveProfile},'Save'),React.createElement('button',{className:'btn btn-outline',onClick:()=>setEditing(false)},'Cancel'))
+      ):React.createElement('div',null,
+        [['Phone',profile?.phone],['Address',profile?.address],['Bio',profile?.bio],['Spouse',profile?.spouseEmail]].filter(([_,v])=>v).map(([l,v])=>
+          React.createElement('div',{key:l,style:{padding:'8px 0',borderBottom:'1px solid #f0ece3'}},React.createElement('span',{style:{color:'#888',marginRight:12}},l+':'),React.createElement('span',{style:{fontWeight:500}},v))),
+        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:16},onClick:()=>setEditing(true)},'Edit Profile'))));
+}
+
+// ─── Admin Donations ─────────────────────────────────────────────
+function AdminDonations() {
+  const [donations,setDonations]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
+  const [year,setYear]=useState(new Date().getFullYear());
+  const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});
+  const [reasons,setReasons]=useState([]);
+  useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});},[year]);
+  async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
+  async function recordManual(e){e.preventDefault();setMsg('');
+    try{await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify({...mf,amount:parseFloat(mf.amount),type:'donation'})});setMsg('Payment recorded!');setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});load();}catch(err){setMsg('Error: '+err.message);}}
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Record Manual Payment (Check / Cash / Zelle)'),
+      React.createElement('form',{onSubmit:recordManual},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:mf.firstName,onChange:e=>setMf(p=>({...p,firstName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:mf.lastName,onChange:e=>setMf(p=>({...p,lastName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:mf.email,onChange:e=>setMf(p=>({...p,email:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:mf.amount,onChange:e=>setMf(p=>({...p,amount:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('select',{className:'form-input',value:mf.reason,onChange:e=>setMf(p=>({...p,reason:e.target.value}))},reasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Method'),React.createElement('select',{className:'form-input',value:mf.paymentMethod,onChange:e=>setMf(p=>({...p,paymentMethod:e.target.value}))},['check','cash','zelle','venmo','other'].map(m=>React.createElement('option',{key:m,value:m},m.charAt(0).toUpperCase()+m.slice(1))))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
+        React.createElement('select',{className:'form-input',style:{width:120},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027].map(y=>React.createElement('option',{key:y,value:y},y)))),
+      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Reason','Method'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,donations.map(d=>React.createElement('tr',{key:d.id},
+          React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),React.createElement('td',null,d.displayName||'-'),
+          React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'))))))));
+}
+
+// ─── Admin Analytics ─────────────────────────────────────────────
+function AdminAnalytics() {
+  const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [year,setYear]=useState(new Date().getFullYear());
+  useEffect(()=>{setLoading(true);apiFetch('/api/admin/donation-analytics?year='+year).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[year]);
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(!data) return React.createElement('p',null,'Unable to load.');
+  const topDonors=Object.entries(data.byPerson||{}).sort((a,b)=>b[1].total-a[1].total).slice(0,20);
+  const byMonthArr=Object.entries(data.byMonth||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const byReasonArr=Object.entries(data.byReason||{}).sort((a,b)=>b[1].total-a[1].total);
+  return React.createElement('div',null,
+    React.createElement('div',{style:{display:'flex',justifyContent:'flex-end',marginBottom:20}},
+      React.createElement('select',{className:'form-input',style:{width:120},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027].map(y=>React.createElement('option',{key:y,value:y},y)))),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:16,marginBottom:24}},
+      [['Total Donations','$'+data.totalAmount.toFixed(2)],['Transactions',data.totalCount],['Unique Donors',Object.keys(data.byPerson||{}).length],['Avg Donation','$'+(data.totalCount?(data.totalAmount/data.totalCount).toFixed(2):'0')]].map(([l,v])=>
+        React.createElement('div',{key:l,className:'card',style:{textAlign:'center',marginBottom:0}},
+          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888',marginBottom:4}},l),
+          React.createElement('div',{style:{fontSize:'1.5rem',fontWeight:700,color:'#1a2744'}},v)))),
+    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Category'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Category','Count','Total'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,byReasonArr.map(([r,d])=>React.createElement('tr',{key:r},React.createElement('td',null,r),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))))),
+    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Month'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Month','Count','Total'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,byMonthArr.map(([m,d])=>React.createElement('tr',{key:m},React.createElement('td',null,m),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))))),
+    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'Top Donors'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Donations','Total','Categories'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,topDonors.map(([name,d])=>React.createElement('tr',{key:name},React.createElement('td',null,name),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)),React.createElement('td',{style:{fontSize:'0.85rem'}},Object.keys(d.reasons||{}).join(', ')))))))));
+}
+
+// ─── Admin Members ───────────────────────────────────────────────
+function AdminMembers() {
+  const [members,setMembers]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
+  const [prefilled,setPrefilled]=useState([]);const [uploading,setUploading]=useState(false);
+  useEffect(()=>{load();},[]);
+  async function load(){setLoading(true);try{setMembers(await apiFetch('/api/admin/members'));}catch(e){}try{setPrefilled(await apiFetch('/api/admin/prefilled-accounts'));}catch(e){}setLoading(false);}
+  async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
+    const fd=new FormData();fd.append('file',file);
+    try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
+      if(res.ok){setMsg('Created '+data.created+' pre-filled accounts.'+(data.errors?.length?' Errors: '+data.errors.join('; '):''));load();}else setMsg('Error: '+(data.error||'failed'));
+    }catch(err){setMsg('Error: '+err.message);}setUploading(false);e.target.value='';}
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Upload Member Roster (Excel)'),
+      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Upload Excel with: First Name, Last Name, Email, Phone, Address, Spouse Email. Creates pre-filled signup links.'),
+      React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'📤 Upload Excel File',
+        React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:handleUpload,style:{display:'none'}}))),
+    prefilled.length>0&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Pre-filled Signup Links ('+prefilled.length+')'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Status','Link'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,prefilled.slice(0,50).map(a=>React.createElement('tr',{key:a.token},
+          React.createElement('td',null,(a.firstName||'')+' '+(a.lastName||'')),React.createElement('td',null,a.email),
+          React.createElement('td',null,a.claimed?React.createElement('span',{style:{color:'#27ae60',fontWeight:600}},'✓ Claimed'):React.createElement('span',{style:{color:'#c49a3c'}},'Pending')),
+          React.createElement('td',null,!a.claimed&&React.createElement('code',{style:{fontSize:'0.7rem',background:'#f0ece3',padding:'2px 6px',borderRadius:4,wordBreak:'break-all'}},'#signup?token='+a.token)))))))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Members ('+members.length+')'),
+      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Phone','Role'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,members.map(m=>React.createElement('tr',{key:m.uid},
+          React.createElement('td',null,m.displayName||'-'),React.createElement('td',null,m.email||'-'),React.createElement('td',null,m.phone||'-'),
+          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')))))))));
+}
+
+// ─── Admin Pledges ───────────────────────────────────────────────
+function AdminPledges() {
+  const [pledges,setPledges]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
+  const [form,setForm]=useState({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});
+  useEffect(()=>{load();},[]);
+  async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
+  async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
+  async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
+  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Add Pledge / Billing Item'),
+      React.createElement('form',{onSubmit:add},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Member Name *'),React.createElement('input',{className:'form-input',value:form.memberName,onChange:e=>setForm(p=>({...p,memberName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:form.memberEmail,onChange:e=>setForm(p=>({...p,memberEmail:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:form.amount,onChange:e=>setForm(p=>({...p,amount:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('input',{className:'form-input',value:form.reason,onChange:e=>setForm(p=>({...p,reason:e.target.value})),placeholder:'Membership, pledge, etc.'})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Due Date'),React.createElement('input',{className:'form-input',type:'date',value:form.dueDate,onChange:e=>setForm(p=>({...p,dueDate:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>setForm(p=>({...p,notes:e.target.value}))}))),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add'))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Pledges & Billing'),
+      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
+      pledges.length===0?React.createElement('p',{style:{color:'#888'}},'No pledges yet.'):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Amount','Reason','Due','Status','Actions'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,pledges.map(p=>React.createElement('tr',{key:p.id},
+          React.createElement('td',null,p.memberName||'-'),React.createElement('td',{style:{fontWeight:700}},'$'+(p.amount||0).toFixed(2)),
+          React.createElement('td',null,p.reason||'-'),React.createElement('td',null,p.dueDate||'-'),
+          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:p.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:p.status==='paid'?'#27ae60':'#c0392b'}},p.status==='paid'?'Paid':'Unpaid')),
+          React.createElement('td',null,
+            p.status!=='paid'&&React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>markPaid(p.id),style:{marginRight:4}},'Mark Paid'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(p.id)},'Delete')))))))));
 }
 
 // ─── Main App ────────────────────────────────────────────────────
@@ -361,8 +671,8 @@ function App() {
   const [sidebarOpen,setSidebarOpen]=useState(false);
   useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setSidebarOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
   function navigate(p){window.location.hash=p;setPage(p);setSidebarOpen(false);}
-  const navItems=[{id:'home',label:'Home',icon:'🏠'},{id:'schedule',label:'Davening Times',icon:'🕐'},{id:'calendar',label:'Calendar',icon:'🗓'},{id:'zmanim',label:'Zmanim',icon:'☀️'},{id:'shiurim',label:'Shiurim',icon:'📖'},{id:'donate',label:'Donations',icon:'💝'},{id:'divider'},{id:'admin',label:'Admin Panel',icon:'⚙️'}];
-  const titles={home:'Home',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',admin:'Admin Panel'};
+  const navItems=[{id:'home',label:'Home',icon:'🏠'},{id:'schedule',label:'Davening Times',icon:'🕐'},{id:'calendar',label:'Calendar',icon:'🗓'},{id:'zmanim',label:'Zmanim',icon:'☀️'},{id:'shiurim',label:'Shiurim',icon:'📖'},{id:'donate',label:'Donations',icon:'💝'},{id:'sponsorship',label:'Kiddush / Seuda',icon:'🍷'},{id:'divider'},{id:'account',label:'My Account',icon:'👤'},{id:'admin',label:'Admin Panel',icon:'⚙️'}];
+  const titles={home:'Home',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',account:'My Account',admin:'Admin Panel'};
   const today=new Date();
   const secDate=today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   return React.createElement('div',{className:'app-layout'},
@@ -389,6 +699,9 @@ function App() {
         page==='zmanim'&&React.createElement(ZmanimPage),
         page==='shiurim'&&React.createElement(ShiurimPage),
         page==='donate'&&React.createElement(DonatePage),
+        page==='sponsorship'&&React.createElement(SponsorshipPage),
+        page==='account'&&React.createElement(AccountPage),
+        page==='signup'&&React.createElement(AccountPage),
         page==='admin'&&React.createElement(AdminPanel))));
 }
 
