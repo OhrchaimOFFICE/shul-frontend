@@ -28,13 +28,13 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .menu-toggle { display: none; position: fixed; top: 16px; left: 16px; z-index: 200; background: var(--navy); color: var(--gold); border: none; width: 48px; height: 48px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; box-shadow: var(--shadow-lg); align-items: center; justify-content: center; }
 
 /* Main */
-.main-content { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+.main-content { margin-left: var(--sidebar-width); flex: 1; min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 .main-header { background: var(--white); padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; min-height: var(--header-height); position: sticky; top: 0; z-index: 50; }
 .main-header h1 { font-family: var(--font-display); font-size: 1.6rem; color: var(--navy); font-weight: 700; }
 .header-date { text-align: right; }
 .header-date-secular { font-size: 1rem; color: var(--text-medium); }
 .header-date-hebrew { font-size: 1.1rem; color: var(--navy); font-weight: 600; font-family: var(--font-display); }
-.page-content { padding: 28px 32px; flex: 1; }
+.page-content { padding: 28px 32px; flex: 1; overflow-x: hidden; max-width: 100%; }
 
 /* Ticker */
 .zmanim-ticker { background: var(--navy); color: var(--gold-light); padding: 10px 0; overflow: hidden; white-space: nowrap; font-size: 0.95rem; font-weight: 500; }
@@ -68,7 +68,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .holiday-badge { display: inline-block; background: #c0392b; color: var(--white); padding: 3px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-top: 4px; margin-right: 4px; }
 
 /* Zmanim Panel */
-.content-with-zmanim { display: grid; grid-template-columns: 1fr 280px; gap: 24px; }
+.content-with-zmanim { display: grid; grid-template-columns: 1fr 300px; gap: 24px; max-width: 100%; min-width: 0; }
 .zmanim-panel { background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 20px; position: sticky; top: 100px; }
 .zmanim-panel-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--navy); font-weight: 700; text-align: center; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--gold); }
 .zman-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--cream-dark); font-size: 0.95rem; }
