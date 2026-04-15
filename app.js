@@ -516,7 +516,7 @@ function SponsorshipPage() {
     React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+(selectedType==='kiddush'?'Kiddush':'Seudas Shlishis')+' for '+formatDisplayDate(selectedDate)+' has been confirmed.'),
     React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',dedication:''});setSelectedDate('');}},'Back'));
   if(!data) return React.createElement('p',null,'Unable to load.');
-  const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};
+  const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};const parshaMap=data.parshaMap||{};
   return React.createElement('div',{style:{maxWidth:700,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Sponsor Kiddush or Seudas Shlishis'),
@@ -526,7 +526,7 @@ function SponsorshipPage() {
         React.createElement('label',{className:'form-label'},'Select Shabbos'),
         React.createElement('select',{className:'form-input',value:selectedDate,onChange:e=>setSelectedDate(e.target.value)},
           React.createElement('option',{value:''},'-- Choose a Shabbos --'),
-          upcoming.map(d=>React.createElement('option',{key:d,value:d},formatDisplayDate(d))))),
+          upcoming.map(d=>React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(parshaMap[d]?' — '+parshaMap[d]:''))))),
       selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}},
         ['kiddush','seudasShlishis'].map(t=>{
           const res=reservations[selectedDate]?.[t];const taken=!!res;
