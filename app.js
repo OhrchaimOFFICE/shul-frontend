@@ -1,5 +1,5 @@
 const BACKEND_URL = "https://shul-backend.onrender.com";
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect, useCallback, useRef } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function getTodayStr() { return new Date().toLocaleDateString('en-CA'); }
@@ -15,21 +15,21 @@ async function apiFetch(path, options={}) {
 }
 function fmtZ(iso) { if(!iso) return '--'; return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}); }
 
-// ─── Zmanim Panel ────────────────────────────────────────────────
+// ─── Zmanim Panel (MyZmanim Official Widget) ────────────────────
 function ZmanimPanel({onExpand}) {
-  const [data,setData]=useState(null);
-  const [loading,setLoading]=useState(true);
-  useEffect(()=>{apiFetch('/api/zmanim/today').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
-  if(loading) return React.createElement('div',{className:'zmanim-panel'},React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'));
-  if(!data) return null;
-  const z=data.zmanim;
-  const list=[['Alot HaShachar',z.alotHaShachar],['Misheyakir',z.misheyakir],['Sunrise',z.sunrise],['Sof Zman Shma (MGA)',z.sofZmanShmaMGA],['Sof Zman Shma (GRA)',z.sofZmanShma],['Chatzos',z.chatzot],['Mincha Gedola',z.minchaGedola],['Plag HaMincha',z.plagHaMincha],['Sunset',z.sunset],['Tzeis',z.tzeit]].filter(([_,v])=>v);
+  const containerRef = useRef(null);
+  useEffect(()=>{
+    if(!containerRef.current) return;
+    containerRef.current.innerHTML='';
+    const script=document.createElement('script');
+    script.type='text/javascript';
+    script.charset='UTF-8';
+    script.src='https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=12&fcolor=1a2744&hcolor=faf8f3&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC';
+    containerRef.current.appendChild(script);
+  },[]);
   return React.createElement('div',{className:'zmanim-panel'},
     React.createElement('div',{className:'zmanim-panel-title'},"Today's Zmanim"),
-    data.hebrewDate?.hebrew&&React.createElement('div',{style:{fontSize:'0.85rem',textAlign:'center',color:'#888',marginBottom:12}},data.hebrewDate.hebrew),
-    list.map(([n,v])=>React.createElement('div',{className:'zman-row',key:n},React.createElement('span',{className:'zman-name'},n),React.createElement('span',{className:'zman-time'},fmtZ(v)))),
-    z.candleLighting&&React.createElement('div',{className:'zman-row',style:{background:'rgba(196,154,60,0.08)',margin:'4px -8px',padding:'7px 8px',borderRadius:4}},
-      React.createElement('span',{style:{color:'#c49a3c',fontWeight:600}},'🕯 Candle Lighting'),React.createElement('span',{style:{color:'#c49a3c',fontWeight:600}},fmtZ(z.candleLighting))),
+    React.createElement('div',{ref:containerRef,style:{minHeight:200}}),
     onExpand&&React.createElement('button',{className:'zmanim-expand-btn',onClick:onExpand},'View Full Zmanim Page')
   );
 }
@@ -691,7 +691,10 @@ function App() {
       React.createElement(ZmanimTicker),
       React.createElement('header',{className:'main-header'},
         React.createElement('h1',null,titles[page]||'Congregation Ohr Chaim'),
-        React.createElement('div',{className:'header-date'},React.createElement('div',{className:'header-date-secular'},secDate))),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:()=>navigate('donate'),style:{whiteSpace:'nowrap'}},'💝 Donate'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>navigate('sponsorship'),style:{whiteSpace:'nowrap',fontSize:'0.85rem'}},'🍷 Sponsor Kiddush'),
+          React.createElement('div',{className:'header-date'},React.createElement('div',{className:'header-date-secular'},secDate)))),
       React.createElement('div',{className:'page-content'},
         page==='home'&&React.createElement(HomePage,{navigate}),
         page==='schedule'&&React.createElement(SchedulePage,{navigate}),
