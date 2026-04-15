@@ -314,14 +314,16 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','donations','members','pledges','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Schedule Overrides':t==='shiurim'?'Manage Shiurim':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='analytics'?'Analytics':'Admin Accounts'))),
+      ['rules','overrides','shiurim','emails','donations','members','pledges','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
+    tab==='emails'&&React.createElement(AdminEmailCenter),
     tab==='donations'&&React.createElement(AdminDonations),
     tab==='members'&&React.createElement(AdminMembers),
     tab==='pledges'&&React.createElement(AdminPledges),
+    tab==='highholidays'&&React.createElement(AdminHighHolidays),
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='admins'&&React.createElement(AdminAccounts));
 }
@@ -757,14 +759,268 @@ function AdminPledges() {
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(p.id)},'Delete')))))))));
 }
 
+// ─── Phase 3: Email Center, High Holidays, Seating Chart ────────
+
+// ─── Admin Email Center ──────────────────────────────────────────
+function AdminEmailCenter() {
+  const [subTab,setSubTab]=useState('compose');
+  const [templates,setTemplates]=useState([]);
+  const [recipients,setRecipients]=useState([]);
+  const [log,setLog]=useState([]);
+  const [msg,setMsg]=useState('');
+  const [loading,setLoading]=useState(false);
+  // Compose form
+  const [composeForm,setComposeForm]=useState({subject:'',html:'',targetGroup:'all'});
+  const [sending,setSending]=useState(false);
+  // Template form
+  const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
+
+  useEffect(()=>{
+    apiFetch('/api/admin/email/recipients').then(setRecipients).catch(()=>{});
+    apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});
+    apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+  },[]);
+
+  async function sendBlast(e){
+    e.preventDefault();setSending(true);setMsg('');
+    try{
+      let targetEmails=recipients.map(r=>r.email);
+      if(composeForm.targetGroup==='members') targetEmails=recipients.filter(r=>r.role==='member').map(r=>r.email);
+      if(composeForm.targetGroup==='unpaid') targetEmails=recipients.filter(r=>!r.membershipPaid&&!r.autoPayment).map(r=>r.email);
+      if(composeForm.targetGroup==='admins') targetEmails=recipients.filter(r=>r.role==='admin').map(r=>r.email);
+      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html})});
+      setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
+      apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+    }catch(err){setMsg('Error: '+err.message);}
+    setSending(false);
+  }
+
+  async function sendWeeklySchedule(){
+    setSending(true);setMsg('');
+    try{
+      const targetEmails=recipients.map(r=>r.email);
+      const res=await apiFetch('/api/admin/email/send-weekly-schedule',{method:'POST',body:JSON.stringify({recipients:targetEmails})});
+      setMsg('Weekly schedule sent to '+res.sent+' recipients');
+    }catch(err){setMsg('Error: '+err.message);}
+    setSending(false);
+  }
+
+  async function saveTemplate(e){
+    e.preventDefault();setMsg('');
+    try{await apiFetch('/api/admin/email/templates',{method:'POST',body:JSON.stringify(tplForm)});setMsg('Template saved!');setTplForm({name:'',subject:'',html:''});
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(err){setMsg('Error: '+err.message);}
+  }
+
+  async function deleteTemplate(id){if(!confirm('Delete template?'))return;
+    try{await apiFetch('/api/admin/email/templates/'+id,{method:'DELETE'});setTemplates(t=>t.filter(x=>x.id!==id));}catch(e){setMsg('Error: '+e.message);}
+  }
+
+  function loadTemplate(tpl){setComposeForm({subject:tpl.subject||'',html:tpl.html||'',targetGroup:composeForm.targetGroup});setSubTab('compose');}
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    // Sub-tabs
+    React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16}},
+      ['compose','weekly','templates','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
+        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='templates'?'Templates':'Email Log'))),
+
+    // Compose
+    subTab==='compose'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Compose Email Blast'),
+      React.createElement('form',{onSubmit:sendBlast},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
+          React.createElement('select',{className:'form-input',value:composeForm.targetGroup,onChange:e=>setComposeForm(p=>({...p,targetGroup:e.target.value}))},
+            React.createElement('option',{value:'all'},'All Members ('+recipients.length+')'),
+            React.createElement('option',{value:'members'},'Members Only'),
+            React.createElement('option',{value:'unpaid'},'Unpaid Members'),
+            React.createElement('option',{value:'admins'},'Admins Only'))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
+          React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value})),required:true})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
+          React.createElement('textarea',{className:'form-input',rows:10,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),placeholder:'Write your email content here. You can use HTML for formatting.'})),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:sending},sending?'Sending...':'Send Email'))),
+
+    // Weekly schedule
+    subTab==='weekly'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Send Weekly Schedule Email'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'This will send the current week\'s davening schedule and shiurim to all members. The email includes day-by-day times with candle lighting and parsha info.'),
+      React.createElement('button',{className:'btn btn-primary',onClick:sendWeeklySchedule,disabled:sending},sending?'Sending...':'Send Weekly Schedule to All ('+recipients.length+' members)')),
+
+    // Templates
+    subTab==='templates'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Create Email Template'),
+        React.createElement('form',{onSubmit:saveTemplate},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Template Name'),React.createElement('input',{className:'form-input',value:tplForm.name,onChange:e=>setTplForm(p=>({...p,name:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:tplForm.subject,onChange:e=>setTplForm(p=>({...p,subject:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body'),React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value}))})),
+          React.createElement('button',{className:'btn btn-primary',type:'submit'},'Save Template'))),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Saved Templates ('+templates.length+')'),
+        templates.length===0?React.createElement('p',{style:{color:'#888'}},'No templates yet.'):
+        templates.map(t=>React.createElement('div',{key:t.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid #e0dcd4'}},
+          React.createElement('div',null,React.createElement('div',{style:{fontWeight:600}},t.name),React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},t.subject||'No subject')),
+          React.createElement('div',{style:{display:'flex',gap:6}},
+            React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>loadTemplate(t)},'Use'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>deleteTemplate(t.id)},'Delete')))))),
+
+    // Log
+    subTab==='log'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Email Log (Last 100)'),
+      log.length===0?React.createElement('p',{style:{color:'#888'}},'No emails sent yet.'):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Date','To','Subject','Status'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,log.map(l=>React.createElement('tr',{key:l.id},
+          React.createElement('td',null,l.sentAt?.substring(0,16)||'-'),
+          React.createElement('td',null,l.to||'-'),
+          React.createElement('td',null,l.subject||'-'),
+          React.createElement('td',null,React.createElement('span',{style:{color:l.status==='sent'?'#27ae60':'#c0392b',fontWeight:600}},l.status||'-')))))))));
+}
+
+// ─── High Holiday Seats Page (Public) ────────────────────────────
+function HighHolidaySeatsPage() {
+  const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');const [done,setDone]=useState(false);
+  const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',notes:''});
+  useEffect(()=>{apiFetch('/api/high-holidays/seats').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  function upd(k,v){setForm(p=>({...p,[k]:v}));}
+  async function handleReserve(e){
+    e.preventDefault();setMsg('');
+    try{await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify(form)});setDone(true);}catch(err){setMsg(err.message);}
+  }
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation Confirmed!'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+form.numSeats+' seat(s) have been reserved. A confirmation will be sent to '+form.email+'.'),
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',notes:''});}},'Back'));
+  if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'High Holiday Seats'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Seat reservations are not currently open. Please check back closer to the holidays.'));
+  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Reserve High Holiday Seats'),
+      React.createElement('p',{style:{marginBottom:8,color:'#555'}},'Reserve your seats for the upcoming High Holidays.'),
+      React.createElement('div',{style:{display:'flex',gap:20,marginBottom:20}},
+        React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,flex:1,textAlign:'center'}},
+          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},'Price per seat'),
+          React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:'#1a2744'}},'$'+(data.settings.seatPrice||0))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,flex:1,textAlign:'center'}},
+          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},'Seats available'),
+          React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:data.availableCount>0?'#27ae60':'#c0392b'}},data.availableCount))),
+      msg&&React.createElement('div',{className:'message message-error'},msg),
+      data.availableCount>0&&React.createElement('form',{onSubmit:handleReserve},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:form.firstName,onChange:e=>upd('firstName',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true}))),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)}))),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Number of Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',max:data.availableCount,value:form.numSeats,onChange:e=>upd('numSeats',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>upd('notes',e.target.value),placeholder:'Special requests'}))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,marginBottom:16,textAlign:'center'}},
+          React.createElement('span',{style:{fontSize:'1.1rem',fontWeight:700,color:'#1a2744'}},'Total: $'+((data.settings.seatPrice||0)*parseInt(form.numSeats||1)).toFixed(2))),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Reserve Seats'))));
+}
+
+// ─── Admin High Holidays Tab ─────────────────────────────────────
+function AdminHighHolidays() {
+  const [subTab,setSubTab]=useState('settings');
+  const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
+  const [reservations,setReservations]=useState([]);
+  const [seatingData,setSeatingData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState('');
+
+  useEffect(()=>{load();},[]);
+  async function load(){setLoading(true);
+    try{const s=await apiFetch('/api/admin/high-holidays/settings');setSettings(s);}catch(e){}
+    try{const r=await apiFetch('/api/admin/high-holidays/reservations');setReservations(r);}catch(e){}
+    try{const c=await apiFetch('/api/admin/high-holidays/seating-chart');setSeatingData(c);}catch(e){}
+    setLoading(false);
+  }
+
+  async function saveSettings(){setMsg('');
+    try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}
+  }
+
+  async function assignSeat(resId,seatId){
+    const res=reservations.find(r=>r.id===resId);if(!res)return;
+    const assignments=[...(res.seatAssignments||[]),seatId];
+    try{await apiFetch('/api/admin/high-holidays/assign-seat',{method:'PUT',body:JSON.stringify({reservationId:resId,seatAssignments:assignments})});load();}catch(e){setMsg('Error: '+e.message);}
+  }
+
+  const totalReserved=reservations.reduce((sum,r)=>sum+(r.numSeats||0),0);
+  const totalRevenue=reservations.reduce((sum,r)=>sum+(r.totalAmount||0),0);
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16}},
+      ['settings','reservations','seating'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
+        t==='settings'?'Settings':t==='reservations'?'Reservations':'Seating Chart'))),
+
+    // Settings
+    subTab==='settings'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'High Holiday Settings'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Enabled'),
+          React.createElement('select',{className:'form-input',value:settings.enabled?'yes':'no',onChange:e=>setSettings(p=>({...p,enabled:e.target.value==='yes'}))},
+            React.createElement('option',{value:'no'},'No — Reservations Closed'),React.createElement('option',{value:'yes'},'Yes — Reservations Open'))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Price per Seat ($)'),React.createElement('input',{className:'form-input',type:'number',value:settings.seatPrice,onChange:e=>setSettings(p=>({...p,seatPrice:parseFloat(e.target.value)||0}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats Available'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Rows'),React.createElement('input',{className:'form-input',type:'number',value:settings.rows,onChange:e=>setSettings(p=>({...p,rows:parseInt(e.target.value)||0}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats per Row'),React.createElement('input',{className:'form-input',type:'number',value:settings.seatsPerRow,onChange:e=>setSettings(p=>({...p,seatsPerRow:parseInt(e.target.value)||0}))}))),
+      React.createElement('button',{className:'btn btn-primary',onClick:saveSettings,style:{marginTop:8}},'Save Settings'),
+      // Stats
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginTop:20}},
+        [['Seats Reserved',totalReserved+'/'+(settings.totalSeats||0)],['Reservations',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
+          React.createElement('div',{key:l,style:{background:'#faf8f3',padding:12,borderRadius:8,textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:'#1a2744'}},v))))),
+
+    // Reservations list
+    subTab==='reservations'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Reservations ('+reservations.length+')'),
+      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
+      reservations.length===0?React.createElement('p',{style:{color:'#888'}},'No reservations yet.'):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Seat #s'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
+          React.createElement('td',null,r.displayName||'-'),React.createElement('td',null,r.email||'-'),
+          React.createElement('td',null,r.numSeats||0),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
+          React.createElement('td',null,r.paymentMethod||'-'),
+          React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'Unassigned'))))))),
+
+    // Seating chart
+    subTab==='seating'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Seating Chart'),
+      React.createElement('p',{style:{marginBottom:16,color:'#888',fontSize:'0.9rem'}},'Click a seat to assign it to a reservation. Green = available, Gold = assigned.'),
+      React.createElement('div',{style:{textAlign:'center',marginBottom:16}},
+        React.createElement('div',{style:{background:'#1a2744',color:'#c49a3c',padding:'8px 40px',display:'inline-block',borderRadius:'4px 4px 0 0',fontWeight:700,fontSize:'0.9rem'}},'ARON KODESH')),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
+        Array.from({length:settings.rows||10},(_,row)=>
+          React.createElement('div',{key:row,style:{display:'flex',gap:4,alignItems:'center'}},
+            React.createElement('span',{style:{width:30,textAlign:'right',fontSize:'0.75rem',color:'#888',marginRight:4}},'R'+(row+1)),
+            Array.from({length:settings.seatsPerRow||10},(_,col)=>{
+              const seatId='R'+(row+1)+'-S'+(col+1);
+              const assigned=seatingData?.seatMap?.[seatId];
+              return React.createElement('div',{key:col,
+                style:{width:32,height:32,borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.6rem',fontWeight:600,cursor:'pointer',
+                  background:assigned?'#c49a3c':'#27ae60',color:'#fff',border:'2px solid '+(assigned?'#a67d2e':'#1e8449')},
+                title:assigned?assigned.name+' ('+seatId+')':seatId+' — Available',
+                onClick:()=>{if(!assigned){
+                  const resId=prompt('Enter reservation ID to assign seat '+seatId+':');
+                  if(resId)assignSeat(resId,seatId);
+                }}},
+                col+1);
+            }))))));
+}
 // ─── Main App ────────────────────────────────────────────────────
 function App() {
   const [page,setPage]=useState(window.location.hash.replace('#','')||'home');
   const [sidebarOpen,setSidebarOpen]=useState(false);
   useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setSidebarOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
   function navigate(p){window.location.hash=p;setPage(p);setSidebarOpen(false);}
-  const navItems=[{id:'home',label:'Home'},{id:'schedule',label:'Davening Times'},{id:'calendar',label:'Calendar'},{id:'zmanim',label:'Zmanim'},{id:'shiurim',label:'Shiurim'},{id:'donate',label:'Donations'},{id:'sponsorship',label:'Kiddush / Seuda'},{id:'divider'},{id:'account',label:'My Account'},{id:'admin',label:'Admin Panel'}];
-  const titles={home:'Home',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',account:'My Account',admin:'Admin Panel'};
+  const navItems=[{id:'home',label:'Home'},{id:'schedule',label:'Davening Times'},{id:'calendar',label:'Calendar'},{id:'zmanim',label:'Zmanim'},{id:'shiurim',label:'Shiurim'},{id:'donate',label:'Donations'},{id:'sponsorship',label:'Kiddush / Seuda'},{id:'highholidays',label:'High Holiday Seats'},{id:'divider'},{id:'account',label:'My Account'},{id:'admin',label:'Admin Panel'}];
+  const titles={home:'Home',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',highholidays:'High Holiday Seat Reservations',account:'My Account',admin:'Admin Panel'};
   const today=new Date();
   const secDate=today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   return React.createElement('div',{className:'app-layout'},
@@ -794,6 +1050,7 @@ function App() {
         page==='shiurim'&&React.createElement(ShiurimPage),
         page==='donate'&&React.createElement(DonatePage),
         page==='sponsorship'&&React.createElement(SponsorshipPage),
+        page==='highholidays'&&React.createElement(HighHolidaySeatsPage),
         page==='account'&&React.createElement(AccountPage),
         page==='signup'&&React.createElement(AccountPage),
         page==='admin'&&React.createElement(AdminPanel))));
