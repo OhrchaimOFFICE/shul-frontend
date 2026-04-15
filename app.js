@@ -15,21 +15,19 @@ async function apiFetch(path, options={}) {
 }
 function fmtZ(iso) { if(!iso) return '--'; return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}); }
 
-// ─── Zmanim Panel (MyZmanim Official Widget) ────────────────────
+// ─── Zmanim Panel (MyZmanim Widget via iframe) ──────────────────
 function ZmanimPanel({onExpand}) {
-  const containerRef = useRef(null);
+  const iframeRef = useRef(null);
   useEffect(()=>{
-    if(!containerRef.current) return;
-    containerRef.current.innerHTML='';
-    const script=document.createElement('script');
-    script.type='text/javascript';
-    script.charset='UTF-8';
-    script.src='https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=12&fcolor=1a2744&hcolor=faf8f3&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC';
-    containerRef.current.appendChild(script);
+    if(!iframeRef.current) return;
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:8px;font-family:"Open Sans",sans-serif;}</style></head><body>' +
+      '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=12&fcolor=1a2744&hcolor=faf8f3&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script>' +
+      '<noscript>Find your daily zmanim at <a href="http://www.myzmanim.com/">MyZmanim.com</a>.</noscript></body></html>';
+    iframeRef.current.srcdoc = html;
   },[]);
   return React.createElement('div',{className:'zmanim-panel'},
     React.createElement('div',{className:'zmanim-panel-title'},"Today's Zmanim"),
-    React.createElement('div',{ref:containerRef,style:{minHeight:200}}),
+    React.createElement('iframe',{ref:iframeRef,style:{width:'100%',minHeight:420,border:'none',borderRadius:4},title:'MyZmanim'}),
     onExpand&&React.createElement('button',{className:'zmanim-expand-btn',onClick:onExpand},'View Full Zmanim Page')
   );
 }
@@ -691,9 +689,8 @@ function App() {
       React.createElement(ZmanimTicker),
       React.createElement('header',{className:'main-header'},
         React.createElement('h1',null,titles[page]||'Congregation Ohr Chaim'),
-        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},
-          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:()=>navigate('donate'),style:{whiteSpace:'nowrap'}},'💝 Donate'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>navigate('sponsorship'),style:{whiteSpace:'nowrap',fontSize:'0.85rem'}},'🍷 Sponsor Kiddush'),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flexShrink:0}},
+          React.createElement('button',{className:'btn btn-primary',onClick:()=>navigate('donate'),style:{whiteSpace:'nowrap',padding:'8px 16px',fontSize:'0.85rem'}},'💝 Donate'),
           React.createElement('div',{className:'header-date'},React.createElement('div',{className:'header-date-secular'},secDate)))),
       React.createElement('div',{className:'page-content'},
         page==='home'&&React.createElement(HomePage,{navigate}),
