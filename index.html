@@ -1,41 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ohr Chaim Schedule & Zmanim</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Congregation Ohr Chaim</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-    <div id="zmanim-bar">
-        <strong>Today's Zmanim:</strong> <span id="zmanim-text">Loading times...</span>
-    </div>
-
-    <header>
-        <h1>Ohr Chaim</h1>
-    </header>
-    
-    <main>
-        <section class="card">
-            <h2>Today's Minyanim</h2>
-            <ul id="schedule-list">
-                <li>Connecting to Shul Server...</li>
-            </ul>
-        </section>
-
-        <section class="card" id="announcements-section">
-            <h2>Announcements</h2>
-            <p><strong>Mazal Tov</strong> to the Cohen family on the birth of a baby girl!</p>
-            <p>Kiddush this week is sponsored by the Levy family.</p>
-        </section>
-
-        <section class="card center-content">
-            <h2>Support Our Shul</h2>
-            <p>Pay membership dues or make a secure donation online.</p>
-            <button id="donate-btn">Make a Payment / Donation</button>
-        </section>
-    </main>
-
-    <script src="app.js"></script>
+  <div id="root"></div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDummyKeyReplace",
+      authDomain: "ohr-chaim-site.firebaseapp.com",
+      projectId: "ohr-chaim-site",
+      storageBucket: "ohr-chaim-site.appspot.com",
+      messagingSenderId: "000000000000",
+      appId: "1:000000000000:web:0000000000000000"
+    };
+    firebase.initializeApp(firebaseConfig);
+  </script>
+  <script type="text/babel" src="app.js"></script>
 </body>
 </html>
