@@ -28,6 +28,8 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .top-nav-item.active { color: #fff; background: rgba(196,154,60,0.18); }
 .top-donate-btn { background: var(--gold); color: var(--navy); border: none; padding: 7px 22px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; margin-left: 8px; font-family: var(--font-body); }
 .top-donate-btn:hover { background: var(--gold-light); }
+.top-sponsor-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); padding: 6px 16px; border-radius: 6px; font-size: 0.68rem; font-weight: 600; cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
+.top-sponsor-btn:hover { background: rgba(196,154,60,0.12); }
 
 /* ─── Ticker ───────────────────────────────────────────────────── */
 .zmanim-ticker { background: var(--navy-dark); padding: 8px 0; overflow: hidden; white-space: nowrap; }
