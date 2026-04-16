@@ -85,7 +85,7 @@ function ZmanimPanel({onExpand}) {
       React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:44,height:44,fontSize:'1.3rem',cursor:'pointer'}},'✕'),
       // Header with logo
       React.createElement('div',{style:{display:'flex',alignItems:'center',gap:20,marginBottom:20}},
-        React.createElement('img',{src:'logo.png',alt:'Ohr Chaim',style:{height:80,filter:'brightness(0) invert(1)'}}),
+        React.createElement('img',{src:'logo-tree.png',alt:'Ohr Chaim',style:{height:90,background:'rgba(255,255,255,0.95)',borderRadius:'50%',padding:8}}),
         React.createElement('div',null,
           React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.4rem',margin:0,letterSpacing:1,fontWeight:700}},'Congregation Ohr Chaim'),
           React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
@@ -117,7 +117,9 @@ function ZmanimPanel({onExpand}) {
 
   // Normal sidebar panel
   return React.createElement('div',{className:'zmanim-panel'},
-    React.createElement('div',{className:'zmanim-panel-title'},"Today's Zmanim & Schedule"),
+    React.createElement('div',{className:'zmanim-panel-title'},
+      React.createElement('img',{src:'logo-tree.png',alt:'',className:'panel-tree-icon'}),
+      "Today's Zmanim & Schedule"),
     React.createElement('iframe',{ref:iframeRef,style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
     // Davening times
     schedule&&React.createElement('div',{style:{marginTop:8,borderTop:'2px solid #c49a3c',paddingTop:8}},
@@ -659,6 +661,7 @@ function AccountPage() {
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(!user) return React.createElement('div',{className:'auth-container'},
+    React.createElement('img',{src:'logo-full.png',alt:'Congregation Ohr Chaim',className:'auth-logo'}),
     React.createElement('div',{className:'auth-title'},authMode==='prefill'?'Complete Your Account':'My Account'),
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
     error&&React.createElement('div',{className:'message message-error'},error),
@@ -1461,7 +1464,7 @@ function App() {
     React.createElement('div',{className:'top-bar'},
       React.createElement('div',{className:'top-bar-inner'},
         React.createElement('div',{className:'top-logo',onClick:()=>navigate('home')},
-          React.createElement('img',{src:'logo.png',alt:'Ohr Chaim'}),
+          React.createElement('img',{src:'logo-tree.png',alt:'Ohr Chaim',className:'top-logo-img'}),
           React.createElement('div',{className:'top-logo-text'},
             React.createElement('h2',null,'Ohr Chaim'),
             React.createElement('span',null,'Miami Beach, FL'))),
@@ -1476,8 +1479,9 @@ function App() {
       React.createElement('button',{className:'mobile-nav-item',onClick:()=>navigate('donate'),style:{color:'#c49a3c'}},'Donate')),
     // Ticker
     React.createElement(ZmanimTicker),
-    // Hero (home only)
+    // Hero (home only) — with decorative tree
     showHero&&React.createElement('div',{className:'hero-banner'},
+      React.createElement('img',{src:'logo-tree.png',alt:'',className:'hero-tree-bg'}),
       React.createElement('div',{className:'hero-inner'},
         React.createElement('div',{className:'hero-text'},
           React.createElement('h1',null,'Welcome to ',React.createElement('em',null,'Congregation Ohr Chaim')),
@@ -1488,7 +1492,9 @@ function App() {
     // Page header (non-home pages)
     !showHero&&titles[page]&&React.createElement('div',{className:'page-wrap',style:{paddingBottom:0}},
       React.createElement('div',{className:'page-header'},
-        React.createElement('h1',null,titles[page]),
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},
+          React.createElement('img',{src:'logo-tree.png',alt:'',className:'page-header-tree'}),
+          React.createElement('h1',null,titles[page])),
         React.createElement('div',{className:'page-header-date'},secDate))),
     // Page content
     React.createElement('div',{className:'page-wrap'},
@@ -1504,7 +1510,9 @@ function App() {
       page==='signup'&&React.createElement(AccountPage),
       page==='admin'&&React.createElement(AdminPanel)),
     // Footer
-    React.createElement('div',{className:'site-footer'},'© '+today.getFullYear()+' Congregation Ohr Chaim'));
+    React.createElement('div',{className:'site-footer'},
+      React.createElement('img',{src:'logo-full.png',alt:'Congregation Ohr Chaim',className:'footer-logo'}),
+      React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL')));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
