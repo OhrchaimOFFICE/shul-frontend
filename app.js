@@ -726,7 +726,8 @@ function AdminMembers() {
 function AdminPledges() {
   const [pledges,setPledges]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [form,setForm]=useState({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});
-  useEffect(()=>{load();},[]);
+  const [pledgeReasons,setPledgeReasons]=useState([]);
+  useEffect(()=>{load();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
   async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
   async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
@@ -740,7 +741,7 @@ function AdminPledges() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Member Name *'),React.createElement('input',{className:'form-input',value:form.memberName,onChange:e=>setForm(p=>({...p,memberName:e.target.value})),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:form.memberEmail,onChange:e=>setForm(p=>({...p,memberEmail:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:form.amount,onChange:e=>setForm(p=>({...p,amount:e.target.value})),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('input',{className:'form-input',value:form.reason,onChange:e=>setForm(p=>({...p,reason:e.target.value})),placeholder:'Membership, pledge, etc.'})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('select',{className:'form-input',value:form.reason,onChange:e=>setForm(p=>({...p,reason:e.target.value}))},React.createElement('option',{value:''},'-- Select --'),pledgeReasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Due Date'),React.createElement('input',{className:'form-input',type:'date',value:form.dueDate,onChange:e=>setForm(p=>({...p,dueDate:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>setForm(p=>({...p,notes:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add'))),
@@ -759,19 +760,25 @@ function AdminPledges() {
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(p.id)},'Delete')))))))));
 }
 
-// ─── Phase 3: Email Center, High Holidays, Seating Chart ────────
+// ─── Phase 3 UPDATED: Email Center, Analytics, High Holidays ────
 
-// ─── Admin Email Center ──────────────────────────────────────────
+// ─── Admin Email Center (Full Rewrite) ───────────────────────────
 function AdminEmailCenter() {
   const [subTab,setSubTab]=useState('compose');
   const [templates,setTemplates]=useState([]);
   const [recipients,setRecipients]=useState([]);
   const [log,setLog]=useState([]);
   const [msg,setMsg]=useState('');
-  const [loading,setLoading]=useState(false);
-  // Compose form
-  const [composeForm,setComposeForm]=useState({subject:'',html:'',targetGroup:'all'});
   const [sending,setSending]=useState(false);
+  // Compose form with preview
+  const [composeForm,setComposeForm]=useState({subject:'',html:'',targetGroup:'all'});
+  const [showPreview,setShowPreview]=useState(false);
+  // Weekly schedule
+  const [weeklyStartDate,setWeeklyStartDate]=useState(getTodayStr());
+  const [weeklyCustomText,setWeeklyCustomText]=useState('');
+  const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule — Congregation Ohr Chaim");
+  const [weeklyPreviewHtml,setWeeklyPreviewHtml]=useState('');
+  const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
 
@@ -781,13 +788,17 @@ function AdminEmailCenter() {
     apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
   },[]);
 
+  function getTargetEmails(group){
+    if(group==='members') return recipients.filter(r=>r.role==='member').map(r=>r.email);
+    if(group==='unpaid') return recipients.filter(r=>!r.membershipPaid&&!r.autoPayment).map(r=>r.email);
+    if(group==='admins') return recipients.filter(r=>r.role==='admin').map(r=>r.email);
+    return recipients.map(r=>r.email);
+  }
+
   async function sendBlast(e){
     e.preventDefault();setSending(true);setMsg('');
     try{
-      let targetEmails=recipients.map(r=>r.email);
-      if(composeForm.targetGroup==='members') targetEmails=recipients.filter(r=>r.role==='member').map(r=>r.email);
-      if(composeForm.targetGroup==='unpaid') targetEmails=recipients.filter(r=>!r.membershipPaid&&!r.autoPayment).map(r=>r.email);
-      if(composeForm.targetGroup==='admins') targetEmails=recipients.filter(r=>r.role==='admin').map(r=>r.email);
+      const targetEmails=getTargetEmails(composeForm.targetGroup);
       const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html})});
       setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
       apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
@@ -795,12 +806,23 @@ function AdminEmailCenter() {
     setSending(false);
   }
 
-  async function sendWeeklySchedule(){
+  async function previewWeekly(){
+    setMsg('');
+    try{
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate})});
+      let html=res.html||'';
+      if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
+      setWeeklyPreviewHtml(html);
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
+  async function sendWeeklyCustom(){
     setSending(true);setMsg('');
     try{
-      const targetEmails=recipients.map(r=>r.email);
-      const res=await apiFetch('/api/admin/email/send-weekly-schedule',{method:'POST',body:JSON.stringify({recipients:targetEmails})});
-      setMsg('Weekly schedule sent to '+res.sent+' recipients');
+      const targetEmails=getTargetEmails(weeklyTargetGroup);
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,customText:weeklyCustomText,subject:weeklySubject})});
+      setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
+      apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -815,19 +837,23 @@ function AdminEmailCenter() {
     try{await apiFetch('/api/admin/email/templates/'+id,{method:'DELETE'});setTemplates(t=>t.filter(x=>x.id!==id));}catch(e){setMsg('Error: '+e.message);}
   }
 
+  async function seedDefaults(){setMsg('');
+    try{const res=await apiFetch('/api/admin/email/seed-templates',{method:'POST'});setMsg('Created '+res.created+' default templates');
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
+  }
+
   function loadTemplate(tpl){setComposeForm({subject:tpl.subject||'',html:tpl.html||'',targetGroup:composeForm.targetGroup});setSubTab('compose');}
 
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
-    // Sub-tabs
-    React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16}},
+    React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
       ['compose','weekly','templates','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
         t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='templates'?'Templates':'Email Log'))),
 
-    // Compose
-    subTab==='compose'&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Compose Email Blast'),
-      React.createElement('form',{onSubmit:sendBlast},
+    // ── Compose with live preview ──
+    subTab==='compose'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Compose Email'),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
           React.createElement('select',{className:'form-input',value:composeForm.targetGroup,onChange:e=>setComposeForm(p=>({...p,targetGroup:e.target.value}))},
             React.createElement('option',{value:'all'},'All Members ('+recipients.length+')'),
@@ -835,36 +861,66 @@ function AdminEmailCenter() {
             React.createElement('option',{value:'unpaid'},'Unpaid Members'),
             React.createElement('option',{value:'admins'},'Admins Only'))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
-          React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value})),required:true})),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
-          React.createElement('textarea',{className:'form-input',rows:10,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),placeholder:'Write your email content here. You can use HTML for formatting.'})),
-        React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:sending},sending?'Sending...':'Send Email'))),
+          React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML — you can paste images as <img> tags or use inline styles)'),
+          React.createElement('textarea',{className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('button',{className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
+          React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
+      showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
+        React.createElement('div',{className:'card-header'},'Email Preview'),
+        React.createElement('div',{style:{border:'1px solid #e0dcd4',borderRadius:6,padding:16,background:'#fff'},dangerouslySetInnerHTML:{__html:composeForm.html}}))),
 
-    // Weekly schedule
-    subTab==='weekly'&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Send Weekly Schedule Email'),
-      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'This will send the current week\'s davening schedule and shiurim to all members. The email includes day-by-day times with candle lighting and parsha info.'),
-      React.createElement('button',{className:'btn btn-primary',onClick:sendWeeklySchedule,disabled:sending},sending?'Sending...':'Send Weekly Schedule to All ('+recipients.length+' members)')),
+    // ── Weekly schedule with date range + custom text + preview ──
+    subTab==='weekly'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Weekly Schedule Email'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Start Date (Sunday)'),
+            React.createElement('input',{className:'form-input',type:'date',value:weeklyStartDate,onChange:e=>setWeeklyStartDate(e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
+            React.createElement('select',{className:'form-input',value:weeklyTargetGroup,onChange:e=>setWeeklyTargetGroup(e.target.value)},
+              React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
+              React.createElement('option',{value:'members'},'Members'),
+              React.createElement('option',{value:'admins'},'Admins'))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
+            React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule — supports HTML, <img> tags for images)'),
+          React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
+          React.createElement('button',{className:'btn btn-primary',onClick:sendWeeklyCustom,disabled:sending},sending?'Sending...':'Send Weekly Email'))),
+      weeklyPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setWeeklyPreviewHtml('')},'Close')),
+        React.createElement('div',{style:{border:'1px solid #e0dcd4',borderRadius:6,padding:16,background:'#fff',marginTop:12},dangerouslySetInnerHTML:{__html:weeklyPreviewHtml}}))),
 
-    // Templates
+    // ── Templates ──
     subTab==='templates'&&React.createElement('div',null,
       React.createElement('div',{className:'card'},
-        React.createElement('div',{className:'card-header'},'Create Email Template'),
-        React.createElement('form',{onSubmit:saveTemplate},
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Template Name'),React.createElement('input',{className:'form-input',value:tplForm.name,onChange:e=>setTplForm(p=>({...p,name:e.target.value})),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:tplForm.subject,onChange:e=>setTplForm(p=>({...p,subject:e.target.value}))})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body'),React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value}))})),
-          React.createElement('button',{className:'btn btn-primary',type:'submit'},'Save Template'))),
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Email Templates'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:seedDefaults},'Load Default Templates')),
+        React.createElement('div',{style:{marginTop:16}},
+          React.createElement('form',{onSubmit:saveTemplate},
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+              React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Template Name'),React.createElement('input',{className:'form-input',value:tplForm.name,onChange:e=>setTplForm(p=>({...p,name:e.target.value})),required:true})),
+              React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:tplForm.subject,onChange:e=>setTplForm(p=>({...p,subject:e.target.value}))}))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body (use {{variable}} for placeholders)'),
+              React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
+            React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Save Template')))),
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Saved Templates ('+templates.length+')'),
-        templates.length===0?React.createElement('p',{style:{color:'#888'}},'No templates yet.'):
+        templates.length===0?React.createElement('p',{style:{color:'#888'}},'No templates. Click "Load Default Templates" above to create standard ones.'):
         templates.map(t=>React.createElement('div',{key:t.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid #e0dcd4'}},
-          React.createElement('div',null,React.createElement('div',{style:{fontWeight:600}},t.name),React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},t.subject||'No subject')),
+          React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontWeight:600}},t.name||t.id),React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},t.subject||'')),
           React.createElement('div',{style:{display:'flex',gap:6}},
-            React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>loadTemplate(t)},'Use'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>{setTplForm({name:t.name||t.id,subject:t.subject||'',html:t.html||''})}},'Edit'),
+            React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>loadTemplate(t)},'Use in Compose'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>deleteTemplate(t.id)},'Delete')))))),
 
-    // Log
+    // ── Log ──
     subTab==='log'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Email Log (Last 100)'),
       log.length===0?React.createElement('p',{style:{color:'#888'}},'No emails sent yet.'):
@@ -873,8 +929,137 @@ function AdminEmailCenter() {
         React.createElement('tbody',null,log.map(l=>React.createElement('tr',{key:l.id},
           React.createElement('td',null,l.sentAt?.substring(0,16)||'-'),
           React.createElement('td',null,l.to||'-'),
-          React.createElement('td',null,l.subject||'-'),
+          React.createElement('td',null,(l.subject||'-').substring(0,40)),
           React.createElement('td',null,React.createElement('span',{style:{color:l.status==='sent'?'#27ae60':'#c0392b',fontWeight:600}},l.status||'-')))))))));
+}
+
+// ─── Admin Analytics (Full Interactive Rewrite) ──────────────────
+function AdminAnalytics() {
+  const [data,setData]=useState(null);const [loading,setLoading]=useState(true);
+  const [filters,setFilters]=useState({startDate:'',endDate:'',reason:'all',person:'all',method:'all'});
+  const [selectedPerson,setSelectedPerson]=useState(null);
+  const [view,setView]=useState('overview'); // overview, byCategory, byMonth, byDonor, donorDetail
+
+  useEffect(()=>{loadData();},[]);
+  function loadData(){
+    setLoading(true);
+    const params=new URLSearchParams();
+    if(filters.startDate)params.set('startDate',filters.startDate);
+    if(filters.endDate)params.set('endDate',filters.endDate);
+    if(filters.reason!=='all')params.set('reason',filters.reason);
+    if(filters.person!=='all')params.set('person',filters.person);
+    if(filters.method!=='all')params.set('method',filters.method);
+    apiFetch('/api/admin/donation-analytics-advanced?'+params.toString()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));
+  }
+
+  function applyFilters(){loadData();}
+  function clearFilters(){setFilters({startDate:'',endDate:'',reason:'all',person:'all',method:'all'});setTimeout(loadData,100);}
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(!data) return React.createElement('p',null,'Unable to load.');
+
+  const topDonors=Object.entries(data.byPerson||{}).sort((a,b)=>b[1].total-a[1].total);
+  const byMonthArr=Object.entries(data.byMonth||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  const byReasonArr=Object.entries(data.byReason||{}).sort((a,b)=>b[1].total-a[1].total);
+  const byMethodArr=Object.entries(data.byMethod||{}).sort((a,b)=>b[1].total-a[1].total);
+
+  return React.createElement('div',null,
+    // Filters bar
+    React.createElement('div',{className:'card',style:{marginBottom:16}},
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:10,alignItems:'end'}},
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Start Date'),
+          React.createElement('input',{className:'form-input',type:'date',value:filters.startDate,onChange:e=>setFilters(p=>({...p,startDate:e.target.value})),style:{fontSize:'0.85rem'}})),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'End Date'),
+          React.createElement('input',{className:'form-input',type:'date',value:filters.endDate,onChange:e=>setFilters(p=>({...p,endDate:e.target.value})),style:{fontSize:'0.85rem'}})),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Category'),
+          React.createElement('select',{className:'form-input',value:filters.reason,onChange:e=>setFilters(p=>({...p,reason:e.target.value})),style:{fontSize:'0.85rem'}},
+            React.createElement('option',{value:'all'},'All Categories'),
+            (data.allReasons||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Donor'),
+          React.createElement('select',{className:'form-input',value:filters.person,onChange:e=>setFilters(p=>({...p,person:e.target.value})),style:{fontSize:'0.85rem'}},
+            React.createElement('option',{value:'all'},'All Donors'),
+            (data.allPersons||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Method'),
+          React.createElement('select',{className:'form-input',value:filters.method,onChange:e=>setFilters(p=>({...p,method:e.target.value})),style:{fontSize:'0.85rem'}},
+            React.createElement('option',{value:'all'},'All Methods'),
+            (data.allMethods||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
+        React.createElement('div',{style:{display:'flex',gap:6}},
+          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:applyFilters},'Apply'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearFilters},'Clear')))),
+
+    // Summary cards
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12,marginBottom:16}},
+      [['Total','$'+data.totalAmount.toFixed(2)],['Transactions',data.totalCount],['Donors',data.uniqueDonors],['Average','$'+(data.totalCount?(data.totalAmount/data.totalCount).toFixed(2):'0')]].map(([l,v])=>
+        React.createElement('div',{key:l,className:'card',style:{textAlign:'center',marginBottom:0,padding:16}},
+          React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.4rem',fontWeight:700,color:'#1a2744'}},v)))),
+
+    // View tabs
+    React.createElement('div',{style:{display:'flex',gap:6,marginBottom:12}},
+      ['overview','byCategory','byMonth','byDonor','transactions'].map(v=>React.createElement('button',{key:v,className:'btn btn-sm '+(view===v?'btn-secondary':'btn-outline'),onClick:()=>{setView(v);setSelectedPerson(null);}},
+        v==='overview'?'Overview':v==='byCategory'?'By Category':v==='byMonth'?'By Month':v==='byDonor'?'By Donor':'All Transactions'))),
+
+    // Overview
+    view==='overview'&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}},
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Category'),
+        byReasonArr.map(([r,d])=>React.createElement('div',{key:r,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #f0ece3',cursor:'pointer'},onClick:()=>{setFilters(p=>({...p,reason:r}));loadData();setView('transactions');}},
+          React.createElement('span',null,r+' ('+d.count+')'),React.createElement('span',{style:{fontWeight:700}},'$'+d.total.toFixed(2))))),
+      React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Payment Method'),
+        byMethodArr.map(([m,d])=>React.createElement('div',{key:m,style:{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid #f0ece3',cursor:'pointer'},onClick:()=>{setFilters(p=>({...p,method:m}));loadData();setView('transactions');}},
+          React.createElement('span',null,m+' ('+d.count+')'),React.createElement('span',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))),
+
+    // By Category
+    view==='byCategory'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Donations by Category'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Category','Count','Total','Avg'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,byReasonArr.map(([r,d])=>React.createElement('tr',{key:r,style:{cursor:'pointer'},onClick:()=>{setFilters(p=>({...p,reason:r}));loadData();setView('transactions');}},
+          React.createElement('td',null,r),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)),
+          React.createElement('td',null,'$'+(d.count?d.total/d.count:0).toFixed(2)))))))),
+
+    // By Month
+    view==='byMonth'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Donations by Month'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Month','Count','Total'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,byMonthArr.map(([m,d])=>React.createElement('tr',{key:m},
+          React.createElement('td',null,m),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))))),
+
+    // By Donor (clickable to see details)
+    view==='byDonor'&&!selectedPerson&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Donors ('+topDonors.length+')'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Donations','Total','Last Donation'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,topDonors.map(([name,d])=>React.createElement('tr',{key:name,style:{cursor:'pointer'},onClick:()=>setSelectedPerson(name)},
+          React.createElement('td',{style:{color:'#2980b9',fontWeight:600}},name),React.createElement('td',null,d.count),
+          React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)),
+          React.createElement('td',null,d.donations?.[d.donations.length-1]?.date||'-'))))))),
+
+    // Donor detail view
+    view==='byDonor'&&selectedPerson&&React.createElement('div',{className:'card'},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},selectedPerson),
+        React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSelectedPerson(null)},'Back to All Donors')),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}},
+        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Total'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},'$'+(data.byPerson[selectedPerson]?.total||0).toFixed(2))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Donations'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},data.byPerson[selectedPerson]?.count||0)),
+        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Email'),React.createElement('div',{style:{fontSize:'0.9rem'}},data.byPerson[selectedPerson]?.email||'-'))),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Amount','Category','Method'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,(data.byPerson[selectedPerson]?.donations||[]).map((d,i)=>React.createElement('tr',{key:i},
+          React.createElement('td',null,d.date||'-'),React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),
+          React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.method||'-'))))))),
+
+    // All transactions
+    view==='transactions'&&React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Transactions ('+data.totalCount+')'),
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Category','Method','Note'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,(data.donations||[]).map(d=>React.createElement('tr',{key:d.id},
+          React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),
+          React.createElement('td',{style:{cursor:'pointer',color:'#2980b9'},onClick:()=>{setSelectedPerson(d.displayName);setView('byDonor');}},d.displayName||'-'),
+          React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),
+          React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
+          React.createElement('td',{style:{fontSize:'0.85rem',color:'#888'}},d.note||'-'))))))));
 }
 
 // ─── High Holiday Seats Page (Public) ────────────────────────────
@@ -890,67 +1075,60 @@ function HighHolidaySeatsPage() {
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation Confirmed!'),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+form.numSeats+' seat(s) have been reserved. A confirmation will be sent to '+form.email+'.'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+form.numSeats+' seat(s) have been reserved.'),
     React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',notes:''});}},'Back'));
   if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'High Holiday Seats'),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Seat reservations are not currently open. Please check back closer to the holidays.'));
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Seat reservations are not currently open.'));
   return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Reserve High Holiday Seats'),
-      React.createElement('p',{style:{marginBottom:8,color:'#555'}},'Reserve your seats for the upcoming High Holidays.'),
       React.createElement('div',{style:{display:'flex',gap:20,marginBottom:20}},
         React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,flex:1,textAlign:'center'}},
           React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},'Price per seat'),
           React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:'#1a2744'}},'$'+(data.settings.seatPrice||0))),
         React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,flex:1,textAlign:'center'}},
-          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},'Seats available'),
+          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},'Available'),
           React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:data.availableCount>0?'#27ae60':'#c0392b'}},data.availableCount))),
       msg&&React.createElement('div',{className:'message message-error'},msg),
       data.availableCount>0&&React.createElement('form',{onSubmit:handleReserve},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:form.firstName,onChange:e=>upd('firstName',e.target.value),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true}))),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)}))),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Number of Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',max:data.availableCount,value:form.numSeats,onChange:e=>upd('numSeats',e.target.value),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>upd('notes',e.target.value),placeholder:'Special requests'}))),
-        React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,marginBottom:16,textAlign:'center'}},
-          React.createElement('span',{style:{fontSize:'1.1rem',fontWeight:700,color:'#1a2744'}},'Total: $'+((data.settings.seatPrice||0)*parseInt(form.numSeats||1)).toFixed(2))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',max:data.availableCount,value:form.numSeats,onChange:e=>upd('numSeats',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>upd('notes',e.target.value)}))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,margin:'12px 0',textAlign:'center'}},
+          React.createElement('span',{style:{fontSize:'1.1rem',fontWeight:700}},'Total: $'+((data.settings.seatPrice||0)*parseInt(form.numSeats||1)).toFixed(2))),
         React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Reserve Seats'))));
 }
 
-// ─── Admin High Holidays Tab ─────────────────────────────────────
+// ─── Admin High Holidays ─────────────────────────────────────────
 function AdminHighHolidays() {
   const [subTab,setSubTab]=useState('settings');
   const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
   const [reservations,setReservations]=useState([]);
   const [seatingData,setSeatingData]=useState(null);
-  const [loading,setLoading]=useState(true);
-  const [msg,setMsg]=useState('');
+  const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
 
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
-    try{const s=await apiFetch('/api/admin/high-holidays/settings');setSettings(s);}catch(e){}
-    try{const r=await apiFetch('/api/admin/high-holidays/reservations');setReservations(r);}catch(e){}
-    try{const c=await apiFetch('/api/admin/high-holidays/seating-chart');setSeatingData(c);}catch(e){}
-    setLoading(false);
-  }
+    try{setSettings(await apiFetch('/api/admin/high-holidays/settings'));}catch(e){}
+    try{setReservations(await apiFetch('/api/admin/high-holidays/reservations'));}catch(e){}
+    try{setSeatingData(await apiFetch('/api/admin/high-holidays/seating-chart'));}catch(e){}
+    setLoading(false);}
 
   async function saveSettings(){setMsg('');
-    try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}
-  }
+    try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}}
 
   async function assignSeat(resId,seatId){
     const res=reservations.find(r=>r.id===resId);if(!res)return;
     const assignments=[...(res.seatAssignments||[]),seatId];
-    try{await apiFetch('/api/admin/high-holidays/assign-seat',{method:'PUT',body:JSON.stringify({reservationId:resId,seatAssignments:assignments})});load();}catch(e){setMsg('Error: '+e.message);}
-  }
+    try{await apiFetch('/api/admin/high-holidays/assign-seat',{method:'PUT',body:JSON.stringify({reservationId:resId,seatAssignments:assignments})});load();}catch(e){setMsg('Error: '+e.message);}}
 
-  const totalReserved=reservations.reduce((sum,r)=>sum+(r.numSeats||0),0);
-  const totalRevenue=reservations.reduce((sum,r)=>sum+(r.totalAmount||0),0);
+  const totalReserved=reservations.reduce((s,r)=>s+(r.numSeats||0),0);
+  const totalRevenue=reservations.reduce((s,r)=>s+(r.totalAmount||0),0);
 
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
@@ -958,60 +1136,46 @@ function AdminHighHolidays() {
       ['settings','reservations','seating'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
         t==='settings'?'Settings':t==='reservations'?'Reservations':'Seating Chart'))),
 
-    // Settings
     subTab==='settings'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'High Holiday Settings'),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Enabled'),
           React.createElement('select',{className:'form-input',value:settings.enabled?'yes':'no',onChange:e=>setSettings(p=>({...p,enabled:e.target.value==='yes'}))},
-            React.createElement('option',{value:'no'},'No — Reservations Closed'),React.createElement('option',{value:'yes'},'Yes — Reservations Open'))),
+            React.createElement('option',{value:'no'},'Closed'),React.createElement('option',{value:'yes'},'Open'))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Price per Seat ($)'),React.createElement('input',{className:'form-input',type:'number',value:settings.seatPrice,onChange:e=>setSettings(p=>({...p,seatPrice:parseFloat(e.target.value)||0}))})),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats Available'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Rows'),React.createElement('input',{className:'form-input',type:'number',value:settings.rows,onChange:e=>setSettings(p=>({...p,rows:parseInt(e.target.value)||0}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats per Row'),React.createElement('input',{className:'form-input',type:'number',value:settings.seatsPerRow,onChange:e=>setSettings(p=>({...p,seatsPerRow:parseInt(e.target.value)||0}))}))),
-      React.createElement('button',{className:'btn btn-primary',onClick:saveSettings,style:{marginTop:8}},'Save Settings'),
-      // Stats
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginTop:20}},
-        [['Seats Reserved',totalReserved+'/'+(settings.totalSeats||0)],['Reservations',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
-          React.createElement('div',{key:l,style:{background:'#faf8f3',padding:12,borderRadius:8,textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700,color:'#1a2744'}},v))))),
+      React.createElement('button',{className:'btn btn-primary',onClick:saveSettings,style:{marginTop:8}},'Save'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginTop:16}},
+        [['Reserved',totalReserved+'/'+(settings.totalSeats||0)],['Bookings',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
+          React.createElement('div',{key:l,style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.2rem',fontWeight:700}},v))))),
 
-    // Reservations list
     subTab==='reservations'&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'All Reservations ('+reservations.length+')'),
-      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      reservations.length===0?React.createElement('p',{style:{color:'#888'}},'No reservations yet.'):
+      React.createElement('div',{className:'card-header'},'Reservations ('+reservations.length+')'),
+      reservations.length===0?React.createElement('p',{style:{color:'#888'}},'None yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Seat #s'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Assigned'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
-          React.createElement('td',null,r.displayName||'-'),React.createElement('td',null,r.email||'-'),
-          React.createElement('td',null,r.numSeats||0),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
-          React.createElement('td',null,r.paymentMethod||'-'),
-          React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'Unassigned'))))))),
+          React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
+          React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
+          React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'—'))))))),
 
-    // Seating chart
     subTab==='seating'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Seating Chart'),
-      React.createElement('p',{style:{marginBottom:16,color:'#888',fontSize:'0.9rem'}},'Click a seat to assign it to a reservation. Green = available, Gold = assigned.'),
-      React.createElement('div',{style:{textAlign:'center',marginBottom:16}},
-        React.createElement('div',{style:{background:'#1a2744',color:'#c49a3c',padding:'8px 40px',display:'inline-block',borderRadius:'4px 4px 0 0',fontWeight:700,fontSize:'0.9rem'}},'ARON KODESH')),
-      React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:4}},
+      React.createElement('div',{style:{textAlign:'center',marginBottom:12}},
+        React.createElement('div',{style:{background:'#1a2744',color:'#c49a3c',padding:'6px 40px',display:'inline-block',borderRadius:'4px 4px 0 0',fontWeight:700,fontSize:'0.85rem'}},'ARON KODESH')),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:3}},
         Array.from({length:settings.rows||10},(_,row)=>
-          React.createElement('div',{key:row,style:{display:'flex',gap:4,alignItems:'center'}},
-            React.createElement('span',{style:{width:30,textAlign:'right',fontSize:'0.75rem',color:'#888',marginRight:4}},'R'+(row+1)),
+          React.createElement('div',{key:row,style:{display:'flex',gap:3,alignItems:'center'}},
+            React.createElement('span',{style:{width:28,textAlign:'right',fontSize:'0.7rem',color:'#888',marginRight:3}},'R'+(row+1)),
             Array.from({length:settings.seatsPerRow||10},(_,col)=>{
               const seatId='R'+(row+1)+'-S'+(col+1);
               const assigned=seatingData?.seatMap?.[seatId];
-              return React.createElement('div',{key:col,
-                style:{width:32,height:32,borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.6rem',fontWeight:600,cursor:'pointer',
-                  background:assigned?'#c49a3c':'#27ae60',color:'#fff',border:'2px solid '+(assigned?'#a67d2e':'#1e8449')},
-                title:assigned?assigned.name+' ('+seatId+')':seatId+' — Available',
-                onClick:()=>{if(!assigned){
-                  const resId=prompt('Enter reservation ID to assign seat '+seatId+':');
-                  if(resId)assignSeat(resId,seatId);
-                }}},
-                col+1);
-            }))))));
+              return React.createElement('div',{key:col,style:{width:28,height:28,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.55rem',fontWeight:600,cursor:'pointer',background:assigned?'#c49a3c':'#27ae60',color:'#fff'},
+                title:assigned?assigned.name:seatId+' — Available',
+                onClick:()=>{if(!assigned){const resId=prompt('Reservation ID for seat '+seatId+':');if(resId)assignSeat(resId,seatId);}}},col+1);}))))));
 }
 // ─── Main App ────────────────────────────────────────────────────
 function App() {
