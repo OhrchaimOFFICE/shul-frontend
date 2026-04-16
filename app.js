@@ -314,8 +314,8 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','donations','members','pledges','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
+      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Manage Reasons':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -323,6 +323,7 @@ function AdminPanel() {
     tab==='donations'&&React.createElement(AdminDonations),
     tab==='members'&&React.createElement(AdminMembers),
     tab==='pledges'&&React.createElement(AdminPledges),
+    tab==='reasons'&&React.createElement(AdminReasons),
     tab==='highholidays'&&React.createElement(AdminHighHolidays),
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='admins'&&React.createElement(AdminAccounts));
@@ -696,6 +697,61 @@ function AdminMembers() {
 }
 
 // ─── Admin Pledges ───────────────────────────────────────────────
+// ─── Admin Manage Reasons (Donation + Pledge dropdowns) ─────────
+function AdminReasons() {
+  const [donationReasons,setDonationReasons]=useState([]);
+  const [pledgeReasons,setPledgeReasons]=useState([]);
+  const [newDonation,setNewDonation]=useState('');
+  const [newPledge,setNewPledge]=useState('');
+  const [msg,setMsg]=useState('');
+  const [loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    Promise.all([
+      apiFetch('/api/donations/reasons').then(setDonationReasons).catch(()=>setDonationReasons([])),
+      apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons([]))
+    ]).then(()=>setLoading(false));
+  },[]);
+
+  async function saveDonationReasons(list){
+    try{await apiFetch('/api/admin/donation-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setDonationReasons(list);setMsg('Donation reasons saved!');}catch(e){setMsg('Error: '+e.message);}
+  }
+  async function savePledgeReasons(list){
+    try{await apiFetch('/api/admin/pledge-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setPledgeReasons(list);setMsg('Pledge reasons saved!');}catch(e){setMsg('Error: '+e.message);}
+  }
+  function addDonationReason(){if(!newDonation.trim())return;saveDonationReasons([...donationReasons,newDonation.trim()]);setNewDonation('');}
+  function removeDonationReason(i){saveDonationReasons(donationReasons.filter((_,idx)=>idx!==i));}
+  function addPledgeReason(){if(!newPledge.trim())return;savePledgeReasons([...pledgeReasons,newPledge.trim()]);setNewPledge('');}
+  function removePledgeReason(i){savePledgeReasons(pledgeReasons.filter((_,idx)=>idx!==i));}
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}},
+      // Donation reasons
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Donation Reasons'),
+        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:12}},'These appear as dropdown options when making a donation or recording a manual payment.'),
+        donationReasons.map((r,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #f0ece3'}},
+          React.createElement('span',null,r),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeDonationReason(i),style:{padding:'4px 10px',fontSize:'0.75rem'}},'Remove'))),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('input',{className:'form-input',value:newDonation,onChange:e=>setNewDonation(e.target.value),placeholder:'New reason...',style:{flex:1},onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addDonationReason();}}}),
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addDonationReason},'Add'))),
+      // Pledge reasons
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Pledge / Billing Reasons'),
+        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:12}},'These appear as dropdown options when creating a pledge or billing item.'),
+        pledgeReasons.map((r,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #f0ece3'}},
+          React.createElement('span',null,r),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removePledgeReason(i),style:{padding:'4px 10px',fontSize:'0.75rem'}},'Remove'))),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('input',{className:'form-input',value:newPledge,onChange:e=>setNewPledge(e.target.value),placeholder:'New reason...',style:{flex:1},onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addPledgeReason();}}}),
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addPledgeReason},'Add')))));
+}
+
+// ─── Admin Pledges ───────────────────────────────────────────────
 function AdminPledges() {
   const [pledges,setPledges]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [form,setForm]=useState({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});
@@ -815,6 +871,23 @@ function AdminEmailCenter() {
       apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
   }
 
+  function handleImageUpload(target){
+    const input=document.createElement('input');
+    input.type='file';input.accept='image/*';
+    input.onchange=function(e){
+      const file=e.target.files[0];if(!file)return;
+      const reader=new FileReader();
+      reader.onload=function(ev){
+        const imgTag='<img src="'+ev.target.result+'" style="max-width:100%;height:auto;border-radius:8px;margin:12px 0;" />';
+        if(target==='compose') setComposeForm(p=>({...p,html:p.html+'\n'+imgTag}));
+        else if(target==='weekly') setWeeklyCustomText(p=>p+'\n'+imgTag);
+        else if(target==='template') setTplForm(p=>({...p,html:p.html+'\n'+imgTag}));
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
   function loadTemplate(tpl){setComposeForm({subject:tpl.subject||'',html:tpl.html||'',targetGroup:composeForm.targetGroup});setSubTab('compose');}
 
   return React.createElement('div',null,
@@ -835,10 +908,11 @@ function AdminEmailCenter() {
             React.createElement('option',{value:'admins'},'Admins Only'))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML — you can paste images as <img> tags or use inline styles)'),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
           React.createElement('textarea',{className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
-          React.createElement('button',{className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
+          React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('compose')},'Upload Image'),
+          React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{className:'card-header'},'Email Preview'),
@@ -861,6 +935,7 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule — supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendWeeklyCustom,disabled:sending},sending?'Sending...':'Send Weekly Email'))),
       weeklyPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
@@ -882,7 +957,9 @@ function AdminEmailCenter() {
               React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:tplForm.subject,onChange:e=>setTplForm(p=>({...p,subject:e.target.value}))}))),
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body (use {{variable}} for placeholders)'),
               React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
-            React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Save Template')))),
+            React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
+              React.createElement('button',{type:'button',className:'btn btn-outline btn-sm',onClick:()=>handleImageUpload('template')},'Upload Image'),
+              React.createElement('button',{className:'btn btn-primary',type:'submit'},'Save Template'))))),
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Saved Templates ('+templates.length+')'),
         templates.length===0?React.createElement('p',{style:{color:'#888'}},'No templates. Click "Load Default Templates" above to create standard ones.'):
