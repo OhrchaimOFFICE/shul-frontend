@@ -655,36 +655,9 @@ function AdminDonations() {
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'))))))));
 }
 
-// ─── Admin Analytics ─────────────────────────────────────────────
-function AdminAnalytics() {
-  const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [year,setYear]=useState(new Date().getFullYear());
-  useEffect(()=>{setLoading(true);apiFetch('/api/admin/donation-analytics?year='+year).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[year]);
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
-  if(!data) return React.createElement('p',null,'Unable to load.');
-  const topDonors=Object.entries(data.byPerson||{}).sort((a,b)=>b[1].total-a[1].total).slice(0,20);
-  const byMonthArr=Object.entries(data.byMonth||{}).sort((a,b)=>a[0].localeCompare(b[0]));
-  const byReasonArr=Object.entries(data.byReason||{}).sort((a,b)=>b[1].total-a[1].total);
-  return React.createElement('div',null,
-    React.createElement('div',{style:{display:'flex',justifyContent:'flex-end',marginBottom:20}},
-      React.createElement('select',{className:'form-input',style:{width:120},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027].map(y=>React.createElement('option',{key:y,value:y},y)))),
-    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:16,marginBottom:24}},
-      [['Total Donations','$'+data.totalAmount.toFixed(2)],['Transactions',data.totalCount],['Unique Donors',Object.keys(data.byPerson||{}).length],['Avg Donation','$'+(data.totalCount?(data.totalAmount/data.totalCount).toFixed(2):'0')]].map(([l,v])=>
-        React.createElement('div',{key:l,className:'card',style:{textAlign:'center',marginBottom:0}},
-          React.createElement('div',{style:{fontSize:'0.85rem',color:'#888',marginBottom:4}},l),
-          React.createElement('div',{style:{fontSize:'1.5rem',fontWeight:700,color:'#1a2744'}},v)))),
-    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Category'),
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Category','Count','Total'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,byReasonArr.map(([r,d])=>React.createElement('tr',{key:r},React.createElement('td',null,r),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))))),
-    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'By Month'),
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Month','Count','Total'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,byMonthArr.map(([m,d])=>React.createElement('tr',{key:m},React.createElement('td',null,m),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)))))))),
-    React.createElement('div',{className:'card'},React.createElement('div',{className:'card-header'},'Top Donors'),
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Name','Donations','Total','Categories'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,topDonors.map(([name,d])=>React.createElement('tr',{key:name},React.createElement('td',null,name),React.createElement('td',null,d.count),React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)),React.createElement('td',{style:{fontSize:'0.85rem'}},Object.keys(d.reasons||{}).join(', ')))))))));
-}
+// ─── Admin Analytics moved to Phase 3 section below ─────────────
+
+
 
 // ─── Admin Members ───────────────────────────────────────────────
 function AdminMembers() {
