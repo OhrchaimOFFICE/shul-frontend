@@ -125,11 +125,13 @@ function ZmanimTicker() {
   useEffect(()=>{apiFetch('/api/zmanim/today').then(setData).catch(()=>{});},[]);
   if(!data) return null;
   const z=data.zmanim;
-  const items=[['Sunrise',z.sunrise],['Sof Zman Shma',z.sofZmanShma],['Chatzos',z.chatzot],['Plag',z.plagHaMincha],['Sunset',z.sunset],['Tzeis',z.tzeit]].filter(([_,v])=>v);
-  if(z.candleLighting) items.push(['🕯 Candle Lighting',z.candleLighting]);
+  const isFri=new Date().getDay()===5;
+  const items=[['Sunrise',z.sunrise],['Shma',z.sofZmanShma],['Chatzos',z.chatzot],['Plag',z.plagHaMincha],['Sunset',z.sunset]].filter(([_,v])=>v);
+  const showCandle=isFri&&z.candleLighting;
   return React.createElement('div',{className:'zmanim-ticker'},
-    React.createElement('div',{className:'ticker-content'},
-      items.concat(items).map(([l,v],i)=>React.createElement('span',{className:'ticker-item',key:l+i},React.createElement('span',{className:'ticker-label'},l+':'),' '+fmtZ(v)))
+    React.createElement('div',{className:'ticker-inner'},
+      items.map(([l,v])=>React.createElement('span',{key:l},l+' ',React.createElement('b',null,fmtZ(v)))),
+      showCandle&&React.createElement('span',{className:'ticker-hl'},'Candle Lighting ',React.createElement('b',null,fmtZ(z.candleLighting)))
     ));
 }
 
@@ -138,32 +140,47 @@ function HomePage({navigate}) {
   const [schedule,setSchedule]=useState(null);
   const [loading,setLoading]=useState(true);
   useEffect(()=>{apiFetch('/api/schedule/today').then(d=>{setSchedule(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
-  return React.createElement('div',{className:'content-with-zmanim'},
-    React.createElement('div',null,
-      React.createElement('div',{className:'card'},
-        React.createElement('div',{className:'card-header'},'Welcome to Congregation Ohr Chaim'),
-        React.createElement('p',{style:{fontSize:'1.05rem',lineHeight:1.7}},'Located at 317 W 47th Street, Miami Beach. Join us for davening, shiurim, and community events.'),
-        React.createElement('div',{style:{display:'flex',gap:12,marginTop:16,flexWrap:'wrap'}},
-          React.createElement('button',{className:'btn btn-primary',onClick:()=>navigate('schedule')},'This Week\'s Schedule'),
-          React.createElement('button',{className:'btn btn-outline',onClick:()=>navigate('donate')},'Make a Donation'))),
-      React.createElement('div',{className:'card'},
-        React.createElement('div',{className:'card-header'},"Today's Davening Times"),
-        loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
-        schedule?React.createElement('div',null,
-          schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:12}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
-          schedule.davening?.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
-          schedule.davening?.earlyMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Mincha (Plag)'),React.createElement('span',{className:'time-value'},schedule.davening.earlyMincha)),
-          schedule.davening?.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
-          schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
-          schedule.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
-          (new Date().getDay()===5||schedule.dayType==='yomTov')&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
-        ):React.createElement('p',null,'Unable to load schedule.')),
-      React.createElement('div',{className:'card'},
-        React.createElement('div',{className:'card-header'},'Quick Links'),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
-          [['Weekly Schedule','schedule'],['Calendar','calendar'],['Shiurim','shiurim'],['Full Zmanim','zmanim']].map(([l,p])=>
-            React.createElement('button',{key:p,className:'btn btn-outline btn-block',onClick:()=>navigate(p),style:{justifyContent:'flex-start',padding:'14px 18px',fontSize:'1.05rem'}},l))))),
-    React.createElement(ZmanimPanel,{onExpand:()=>navigate('zmanim')}));
+
+  const isFriday=new Date().getDay()===5;
+  const showCandles=isFriday||(schedule?.dayType==='yomTov');
+
+  return React.createElement('div',null,
+    React.createElement('div',{className:'home-grid'},
+      // Column 1: Today's davening
+      React.createElement('div',null,
+        React.createElement('div',{className:'card'},
+          React.createElement('div',{className:'card-header'},"Today's davening"),
+          loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
+          schedule?React.createElement('div',null,
+            schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
+            schedule.davening?.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
+            schedule.davening?.earlyMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.earlyMincha)),
+            schedule.davening?.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
+            schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
+            schedule.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
+            showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
+          ):React.createElement('p',{style:{color:'#888'}},'Unable to load.'))),
+      // Column 2: This Shabbos + sponsorship
+      React.createElement('div',null,
+        React.createElement('div',{className:'card'},
+          React.createElement('div',{className:'card-header'},'This Shabbos',schedule?.parsha&&React.createElement('span',{className:'badge'},schedule.parsha)),
+          schedule?.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting)),
+          React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},'9:00 AM')),
+          React.createElement('div',{style:{marginTop:10,paddingTop:10,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
+            React.createElement('div',{style:{fontSize:'0.75rem',color:'#888',marginBottom:6}},'Sponsor this Shabbos'),
+            React.createElement('div',{className:'sponsor-row'},
+              React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
+                React.createElement('div',{className:'sponsor-label'},'Kiddush'),
+                React.createElement('div',{className:'sponsor-status'},'Available')),
+              React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
+                React.createElement('div',{className:'sponsor-label'},'Seudas Shlishis'),
+                React.createElement('div',{className:'sponsor-status'},'Available')))))),
+      // Column 3: Zmanim panel
+      React.createElement(ZmanimPanel,{onExpand:()=>navigate('zmanim')})),
+    // Quick links
+    React.createElement('div',{className:'quick-links'},
+      [['Weekly Schedule','schedule'],['Calendar','calendar'],['Shiurim','shiurim'],['Full Zmanim','zmanim']].map(([l,p])=>
+        React.createElement('div',{key:p,className:'quick-link',onClick:()=>navigate(p)},l))));
 }
 
 // ─── Schedule ────────────────────────────────────────────────────
@@ -199,7 +216,7 @@ function SchedulePage({navigate}) {
               day.davening?.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},day.davening.mincha)),
               day.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},day.davening.minchaMaariv)),
               day.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},day.davening.maariv)),
-              day.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'🕯 Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.candleLighting)),
+              (new Date(day.date+'T12:00:00').getDay()===5||day.dayType==='yomTov')&&day.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.candleLighting)),
               React.createElement('div',{style:{marginTop:8,paddingTop:8,borderTop:'1px solid #f0ece3'}},
                 React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'0.85rem',color:'#888'}},
                   React.createElement('span',null,'Sunrise: '+(day.zmanim?.sunrise||'--')),
@@ -258,7 +275,7 @@ function ZmanimPage() {
   const col1=[['Alot HaShachar',z.alotHaShachar],['Misheyakir',z.misheyakir],['Sunrise (HaNetz)',z.sunrise],['Sof Zman Shma (MGA)',z.sofZmanShmaMGA],['Sof Zman Shma (GRA)',z.sofZmanShma],['Sof Zman Tfilla (MGA)',z.sofZmanTfillaMGA],['Sof Zman Tfilla (GRA)',z.sofZmanTfilla]].filter(([_,v])=>v);
   const col2=[['Chatzos',z.chatzot],['Mincha Gedola',z.minchaGedola],['Mincha Ketana',z.minchaKetana],['Plag HaMincha',z.plagHaMincha],['Sunset (Shkia)',z.sunset],['Tzeis HaKochavim',z.tzeit]].filter(([_,v])=>v);
   // Only show candle lighting on Friday or if it exists (Yom Tov)
-  const showCandles=z.candleLighting&&(new Date(dateStr+'T12:00:00').getDay()===5||z.candleLighting);
+  const showCandles=z.candleLighting&&(new Date(dateStr+'T12:00:00').getDay()===5);
   return React.createElement('div',{style:{maxWidth:800,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
@@ -1320,47 +1337,71 @@ function AdminHighHolidays() {
                 title:assigned?assigned.name:seatId+' — Available',
                 onClick:()=>{if(!assigned){const resId=prompt('Reservation ID for seat '+seatId+':');if(resId)assignSeat(resId,seatId);}}},col+1);}))))));
 }
-// ─── Main App ────────────────────────────────────────────────────
+// ─── Main App (Top Nav Layout) ───────────────────────────────────
 function App() {
   const [page,setPage]=useState(window.location.hash.replace('#','')||'home');
-  const [sidebarOpen,setSidebarOpen]=useState(false);
-  useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setSidebarOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
-  function navigate(p){window.location.hash=p;setPage(p);setSidebarOpen(false);}
-  const navItems=[{id:'home',label:'Home'},{id:'schedule',label:'Davening Times'},{id:'calendar',label:'Calendar'},{id:'zmanim',label:'Zmanim'},{id:'shiurim',label:'Shiurim'},{id:'donate',label:'Donations'},{id:'sponsorship',label:'Kiddush / Seuda'},{id:'highholidays',label:'High Holiday Seats'},{id:'divider'},{id:'account',label:'My Account'},{id:'admin',label:'Admin Panel'}];
-  const titles={home:'Home',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',highholidays:'High Holiday Seat Reservations',account:'My Account',admin:'Admin Panel'};
+  const [mobileOpen,setMobileOpen]=useState(false);
+  useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setMobileOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
+  function navigate(p){window.location.hash=p;setPage(p);setMobileOpen(false);}
+
+  const navItems=[
+    {id:'home',label:'Home'},{id:'schedule',label:'Davening'},{id:'calendar',label:'Calendar'},
+    {id:'zmanim',label:'Zmanim'},{id:'shiurim',label:'Shiurim'},{id:'sponsorship',label:'Kiddush'},
+    {id:'highholidays',label:'Seats'},{id:'account',label:'Account'},{id:'admin',label:'Admin'}
+  ];
+  const titles={home:'',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',highholidays:'High Holiday Seat Reservations',account:'My Account',admin:'Admin Panel'};
   const today=new Date();
   const secDate=today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  return React.createElement('div',{className:'app-layout'},
-    React.createElement('button',{className:'menu-toggle',onClick:()=>setSidebarOpen(!sidebarOpen)},sidebarOpen?'✕':'☰'),
-    sidebarOpen&&React.createElement('div',{className:'sidebar-overlay show',onClick:()=>setSidebarOpen(false)}),
-    React.createElement('nav',{className:'sidebar'+(sidebarOpen?' open':'')},
-      React.createElement('div',{className:'sidebar-header'},
-        React.createElement('img',{src:'logo.png',alt:'Congregation Ohr Chaim',style:{width:'100%',maxWidth:180,marginBottom:8,filter:'brightness(0) invert(1)'}}),
-        React.createElement('div',{className:'sidebar-logo-sub'},'MIAMI BEACH, FL')),
-      React.createElement('div',{className:'sidebar-nav'},
-        navItems.map(item=>item.id==='divider'?React.createElement('div',{className:'nav-divider',key:'div'}):
-          React.createElement('button',{key:item.id,className:'nav-item'+(page===item.id?' active':''),onClick:()=>navigate(item.id)},
-            item.label))),
-      React.createElement('div',{className:'sidebar-footer'},'© '+today.getFullYear()+' Congregation Ohr Chaim')),
-    React.createElement('main',{className:'main-content'},
-      React.createElement(ZmanimTicker),
-      React.createElement('header',{className:'main-header'},
-        React.createElement('h1',null,titles[page]||'Congregation Ohr Chaim'),
-        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,flexShrink:0}},
-          React.createElement('button',{className:'btn btn-primary',onClick:()=>navigate('donate'),style:{whiteSpace:'nowrap',padding:'8px 16px',fontSize:'0.85rem'}},'Donate'),
-          React.createElement('div',{className:'header-date'},React.createElement('div',{className:'header-date-secular'},secDate)))),
-      React.createElement('div',{className:'page-content'},
-        page==='home'&&React.createElement(HomePage,{navigate}),
-        page==='schedule'&&React.createElement(SchedulePage,{navigate}),
-        page==='calendar'&&React.createElement(CalendarPage),
-        page==='zmanim'&&React.createElement(ZmanimPage),
-        page==='shiurim'&&React.createElement(ShiurimPage),
-        page==='donate'&&React.createElement(DonatePage),
-        page==='sponsorship'&&React.createElement(SponsorshipPage),
-        page==='highholidays'&&React.createElement(HighHolidaySeatsPage),
-        page==='account'&&React.createElement(AccountPage),
-        page==='signup'&&React.createElement(AccountPage),
-        page==='admin'&&React.createElement(AdminPanel))));
+  const showHero=page==='home';
+
+  return React.createElement('div',null,
+    // Top bar
+    React.createElement('div',{className:'top-bar'},
+      React.createElement('div',{className:'top-bar-inner'},
+        React.createElement('div',{className:'top-logo',onClick:()=>navigate('home')},
+          React.createElement('img',{src:'logo.png',alt:'Ohr Chaim'}),
+          React.createElement('div',{className:'top-logo-text'},
+            React.createElement('h2',null,'Ohr Chaim'),
+            React.createElement('span',null,'Miami Beach, FL'))),
+        React.createElement('div',{className:'top-nav'},
+          navItems.map(item=>React.createElement('button',{key:item.id,className:'top-nav-item'+(page===item.id?' active':''),onClick:()=>navigate(item.id)},item.label)),
+          React.createElement('button',{className:'top-donate-btn',onClick:()=>navigate('donate')},'Donate')))),
+    // Mobile menu toggle
+    React.createElement('button',{className:'menu-toggle',onClick:()=>setMobileOpen(!mobileOpen)},mobileOpen?'✕':'☰'),
+    React.createElement('div',{className:'mobile-nav'+(mobileOpen?' open':'')},
+      navItems.map(item=>React.createElement('button',{key:item.id,className:'mobile-nav-item'+(page===item.id?' active':''),onClick:()=>navigate(item.id)},item.label)),
+      React.createElement('button',{className:'mobile-nav-item',onClick:()=>navigate('donate'),style:{color:'#c49a3c'}},'Donate')),
+    // Ticker
+    React.createElement(ZmanimTicker),
+    // Hero (home only)
+    showHero&&React.createElement('div',{className:'hero-banner'},
+      React.createElement('div',{className:'hero-inner'},
+        React.createElement('div',{className:'hero-text'},
+          React.createElement('h1',null,'Welcome to ',React.createElement('em',null,'Congregation Ohr Chaim')),
+          React.createElement('p',null,'317 W 47th Street, Miami Beach, FL 33140')),
+        React.createElement('div',{className:'hero-cta'},
+          React.createElement('button',{className:'hero-cta-primary',onClick:()=>navigate('donate')},'Make a Donation'),
+          React.createElement('button',{className:'hero-cta-secondary',onClick:()=>navigate('schedule')},"This Week's Schedule")))),
+    // Page header (non-home pages)
+    !showHero&&titles[page]&&React.createElement('div',{className:'page-wrap',style:{paddingBottom:0}},
+      React.createElement('div',{className:'page-header'},
+        React.createElement('h1',null,titles[page]),
+        React.createElement('div',{className:'page-header-date'},secDate))),
+    // Page content
+    React.createElement('div',{className:'page-wrap'},
+      page==='home'&&React.createElement(HomePage,{navigate}),
+      page==='schedule'&&React.createElement(SchedulePage,{navigate}),
+      page==='calendar'&&React.createElement(CalendarPage),
+      page==='zmanim'&&React.createElement(ZmanimPage),
+      page==='shiurim'&&React.createElement(ShiurimPage),
+      page==='donate'&&React.createElement(DonatePage),
+      page==='sponsorship'&&React.createElement(SponsorshipPage),
+      page==='highholidays'&&React.createElement(HighHolidaySeatsPage),
+      page==='account'&&React.createElement(AccountPage),
+      page==='signup'&&React.createElement(AccountPage),
+      page==='admin'&&React.createElement(AdminPanel)),
+    // Footer
+    React.createElement('div',{className:'site-footer'},'© '+today.getFullYear()+' Congregation Ohr Chaim'));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
