@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://shul-backend-v2.onrender.com";
+const BACKEND_URL = "https://shul-backend.onrender.com";
 const { useState, useEffect, useCallback, useRef } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
