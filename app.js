@@ -20,11 +20,13 @@ function ZmanimPanel({onExpand}) {
   const iframeRef = useRef(null);
   const [schedule,setSchedule]=useState(null);
   const [shiurim,setShiurim]=useState([]);
+  const [fullZmanim,setFullZmanim]=useState(null);
   const [fullscreen,setFullscreen]=useState(false);
 
   function loadData(){
     apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{});
     apiFetch('/api/shiurim').then(setShiurim).catch(()=>{});
+    apiFetch('/api/zmanim/today').then(setFullZmanim).catch(()=>{});
   }
 
   useEffect(()=>{
@@ -62,38 +64,56 @@ function ZmanimPanel({onExpand}) {
   const isFriday=new Date().getDay()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
 
-  // Fullscreen overlay — designed for shul TV display, fits in one screen
-  if(fullscreen) return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',height:'100vh',padding:'16px 40px'}},
-    React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:12,right:12,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:40,height:40,fontSize:'1.2rem',cursor:'pointer'}},'✕'),
-    // Header row with logo and name
-    React.createElement('div',{style:{display:'flex',alignItems:'center',gap:16,marginBottom:8}},
-      React.createElement('img',{src:'logo.png',alt:'Congregation Ohr Chaim',style:{height:60,filter:'brightness(0) invert(1)'}}),
-      React.createElement('div',null,
-        React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'1.8rem',margin:0,letterSpacing:1}},'Congregation Ohr Chaim'),
-        React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'0.85rem',margin:0,letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
-    // Two columns filling remaining space
-    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1100,flex:1,minHeight:0,paddingTop:12}},
-      // Left: MyZmanim
-      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:12,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column'}},
-        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:8,fontSize:'1.3rem',textAlign:'center'}},"Today's Zmanim"),
-        React.createElement('iframe',{srcdoc:'<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;background:transparent;}</style></head><body><script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=13&fcolor=ffffff&hcolor=243456&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>',style:{width:'100%',flex:1,border:'none',borderRadius:6,background:'transparent',minHeight:0},title:'MyZmanim'})),
-      // Right: Davening + Shiurim
-      React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:12,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.3)'}},
-        React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:12,fontSize:'1.3rem',textAlign:'center'}},"Today's Schedule"),
-        schedule&&React.createElement('div',{style:{fontSize:'1.4rem',color:'#fff'}},
-          schedule.davening?.shacharis&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Shacharis'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.shacharis)),
-          schedule.davening?.earlyMincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Early Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.earlyMincha)),
-          schedule.davening?.mincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.mincha)),
-          schedule.davening?.minchaMaariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha / Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.minchaMaariv)),
-          schedule.davening?.maariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.1)'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff'}},schedule.davening.maariv)),
-          showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',marginTop:4,background:'rgba(196,154,60,0.15)',borderRadius:8,padding:'14px 12px'}},React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},'Candle Lighting'),React.createElement('span',{style:{fontWeight:700,color:'#c49a3c'}},schedule.zmanim.candleLighting))),
-        todayShiurim.length>0&&React.createElement('div',{style:{marginTop:24}},
-          React.createElement('h3',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:10,fontSize:'1.2rem'}},'Shiurim Today'),
-          todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.1rem',color:'#fff'}},
-            React.createElement('div',{style:{fontWeight:600}},s.title),
-            React.createElement('div',{style:{color:'rgba(255,255,255,0.5)',fontSize:'0.95rem'}},[s.time,s.rabbi].filter(Boolean).join(' • '))))))),
-    // Footer
-    React.createElement('p',{style:{color:'rgba(255,255,255,0.3)',fontSize:'0.65rem',position:'absolute',bottom:8,left:0,right:0,textAlign:'center'}},'Powered by MyZmanim.com'));
+  // Fullscreen overlay — designed for shul TV display, fills entire viewport
+  if(fullscreen){
+    const zTimes=fullZmanim?.zmanim||schedule?.zmanim||{};
+    const zmanimList=[
+      ['Alot HaShachar',zTimes.alotHaShachar],
+      ['Earliest Talis',zTimes.misheyakir],
+      ['Sunrise',zTimes.sunrise],
+      ['Latest Shema (MGA)',zTimes.sofZmanShmaMGA],
+      ['Latest Shema (GRA)',zTimes.sofZmanShma],
+      ['Latest Shacharis',zTimes.sofZmanTfilla],
+      ['Chatzos',zTimes.chatzot],
+      ['Earliest Mincha',zTimes.minchaGedola],
+      ['Plag HaMincha',zTimes.plagHaMincha],
+      ['Sunset',zTimes.sunset],
+      ['Tzeis HaKochavim',zTimes.tzeit]
+    ].filter(([_,v])=>v).map(([n,v])=>[n,fmtZ(v)]);
+
+    return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',height:'100vh',width:'100vw',padding:'20px 40px'}},
+      React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:44,height:44,fontSize:'1.3rem',cursor:'pointer'}},'✕'),
+      // Header with logo
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:20,marginBottom:20}},
+        React.createElement('img',{src:'logo.png',alt:'Ohr Chaim',style:{height:80,filter:'brightness(0) invert(1)'}}),
+        React.createElement('div',null,
+          React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.4rem',margin:0,letterSpacing:1,fontWeight:700}},'Congregation Ohr Chaim'),
+          React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
+      // Two columns filling remaining space
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1600,flex:1,minHeight:0,paddingBottom:20}},
+        // Left: All Zmanim
+        React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
+          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2rem',textAlign:'center',fontWeight:700}},"Today's Zmanim"),
+          React.createElement('div',{style:{flex:1,display:'flex',flexDirection:'column',justifyContent:'space-around'}},
+            zmanimList.map(([n,v])=>React.createElement('div',{key:n,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',fontSize:'1.4rem'}},
+              React.createElement('span',{style:{color:'rgba(255,255,255,0.7)'}},n),
+              React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)',fontSize:'1.5rem'}},v))))),
+        // Right: Davening + Shiurim
+        React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
+          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2rem',textAlign:'center',fontWeight:700}},"Today's Schedule"),
+          schedule&&React.createElement('div',{style:{color:'#fff'}},
+            schedule.davening?.shacharis&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Shacharis'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.shacharis)),
+            schedule.davening?.earlyMincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Early Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.earlyMincha)),
+            schedule.davening?.mincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.mincha)),
+            schedule.davening?.minchaMaariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha / Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.minchaMaariv)),
+            schedule.davening?.maariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.maariv)),
+            showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'16px 20px',marginTop:8,background:'rgba(196,154,60,0.15)',borderRadius:10,fontSize:'1.6rem'}},React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},'Candle Lighting'),React.createElement('span',{style:{fontWeight:700,color:'#c49a3c',fontFamily:'var(--font-display)'}},schedule.zmanim.candleLighting))),
+          todayShiurim.length>0&&React.createElement('div',{style:{marginTop:20,paddingTop:16,borderTop:'1px solid rgba(255,255,255,0.1)'}},
+            React.createElement('h3',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:10,fontSize:'1.4rem',fontWeight:700}},'Shiurim Today'),
+            todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',color:'#fff'}},
+              React.createElement('div',{style:{fontWeight:700,fontSize:'1.15rem'}},s.title),
+              React.createElement('div',{style:{color:'rgba(255,255,255,0.5)',fontSize:'1rem',marginTop:2}},[s.time,s.rabbi].filter(Boolean).join(' • '))))))));
+  }
 
   // Normal sidebar panel
   return React.createElement('div',{className:'zmanim-panel'},
@@ -298,20 +318,29 @@ function ZmanimPage() {
   const z=data.zmanim;
   const col1=[['Alot HaShachar',z.alotHaShachar],['Misheyakir',z.misheyakir],['Sunrise (HaNetz)',z.sunrise],['Sof Zman Shma (MGA)',z.sofZmanShmaMGA],['Sof Zman Shma (GRA)',z.sofZmanShma],['Sof Zman Tfilla (MGA)',z.sofZmanTfillaMGA],['Sof Zman Tfilla (GRA)',z.sofZmanTfilla]].filter(([_,v])=>v);
   const col2=[['Chatzos',z.chatzot],['Mincha Gedola',z.minchaGedola],['Mincha Ketana',z.minchaKetana],['Plag HaMincha',z.plagHaMincha],['Sunset (Shkia)',z.sunset],['Tzeis HaKochavim',z.tzeit]].filter(([_,v])=>v);
-  // Only show candle lighting on Friday or if it exists (Yom Tov)
   const showCandles=z.candleLighting&&(new Date(dateStr+'T12:00:00').getDay()===5);
-  return React.createElement('div',{style:{maxWidth:800,margin:'0 auto'}},
-    React.createElement('div',{className:'card'},
-      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
-        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Zmanim for '+formatDisplayDate(dateStr)),
-        React.createElement('input',{type:'date',value:dateStr,onChange:e=>setDateStr(e.target.value),className:'form-input',style:{width:160}})),
-      data.hebrewDate?.hebrew&&React.createElement('p',{style:{fontSize:'1rem',color:'#1a2744',fontWeight:600,marginBottom:12}},data.hebrewDate.hebrew),
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:24}},
-        React.createElement('div',null,col1.map(([n,v])=>React.createElement('div',{className:'zman-row',key:n},React.createElement('span',{className:'zman-name'},n),React.createElement('span',{className:'zman-time'},fmtZ(v))))),
-        React.createElement('div',null,col2.map(([n,v])=>React.createElement('div',{className:'zman-row',key:n},React.createElement('span',{className:'zman-name'},n),React.createElement('span',{className:'zman-time'},fmtZ(v)))))),
-      showCandles&&React.createElement('div',{style:{background:'rgba(196,154,60,0.1)',padding:'10px 16px',borderRadius:6,marginTop:12,display:'flex',justifyContent:'space-between',fontSize:'1.05rem'}},
-        React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},'Candle Lighting'),React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},fmtZ(z.candleLighting))),
-      React.createElement('p',{style:{textAlign:'center',marginTop:12,fontSize:'0.75rem',color:'#888'}},'317 W 47th St, Miami Beach • Powered by KosherZmanim')));
+  const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 20px',fontSize:'1.25rem',borderBottom:'1px solid rgba(0,0,0,0.06)'};
+  const nameStyle={color:'#555',fontWeight:500};
+  const timeStyle={color:'#1a2744',fontWeight:700,fontFamily:"'Playfair Display', serif"};
+  return React.createElement('div',{style:{width:'100%'}},
+    React.createElement('div',{className:'card',style:{padding:'28px 32px'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:12}},
+        React.createElement('h2',{style:{fontFamily:"'Playfair Display', serif",fontSize:'2rem',color:'#1a2744',fontWeight:700,margin:0}},'Zmanim for '+formatDisplayDate(dateStr)),
+        React.createElement('input',{type:'date',value:dateStr,onChange:e=>setDateStr(e.target.value),className:'form-input',style:{width:200,fontSize:'1.1rem'}})),
+      data.hebrewDate?.hebrew&&React.createElement('p',{style:{fontSize:'1.3rem',color:'#c49a3c',fontWeight:700,marginBottom:20,textAlign:'center',fontFamily:"'Playfair Display', serif"}},data.hebrewDate.hebrew),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:40}},
+        React.createElement('div',{style:{background:'rgba(196,154,60,0.03)',borderRadius:8,padding:'8px 0',border:'0.5px solid rgba(196,154,60,0.15)'}},
+          col1.map(([n,v])=>React.createElement('div',{style:rowStyle,key:n},
+            React.createElement('span',{style:nameStyle},n),
+            React.createElement('span',{style:timeStyle},fmtZ(v))))),
+        React.createElement('div',{style:{background:'rgba(196,154,60,0.03)',borderRadius:8,padding:'8px 0',border:'0.5px solid rgba(196,154,60,0.15)'}},
+          col2.map(([n,v])=>React.createElement('div',{style:rowStyle,key:n},
+            React.createElement('span',{style:nameStyle},n),
+            React.createElement('span',{style:timeStyle},fmtZ(v)))))),
+      showCandles&&React.createElement('div',{style:{background:'#c49a3c',padding:'16px 24px',borderRadius:8,marginTop:20,display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        React.createElement('span',{style:{color:'#1a2744',fontWeight:700,fontSize:'1.3rem'}},'Candle Lighting'),
+        React.createElement('span',{style:{color:'#1a2744',fontWeight:700,fontSize:'1.5rem',fontFamily:"'Playfair Display', serif"}},fmtZ(z.candleLighting))),
+      React.createElement('p',{style:{textAlign:'center',marginTop:20,fontSize:'0.85rem',color:'#888'}},'317 W 47th St, Miami Beach')));
 }
 
 // ─── Shiurim ─────────────────────────────────────────────────────
@@ -385,6 +414,7 @@ function AdminRulesEditor() {
     {key:'cholHamoedShacharis',label:'Chol HaMoed Shacharis',def:'8:15 AM',desc:'Intermediate days of Sukkos/Pesach'},
     {key:'selichosShacharis',label:'Selichos Days Shacharis',def:'6:45 AM',desc:'Days with Selichos (Ashkenaz)'},
     {key:'asereYemeiShacharis',label:'Aseres Yemei Teshuva Shacharis',def:'6:35 AM',desc:'Ten Days of Repentance'},
+    {key:'roshChodeshShacharis',label:'Rosh Chodesh Shacharis',def:'6:45 AM',desc:'Rosh Chodesh morning (not on Shabbos)'},
     {key:'shabbosYomTovShacharis',label:'Shabbos & Yom Tov Shacharis',def:'9:00 AM',desc:'Shabbos and Yom Tov mornings'},
     {key:'shabbosMinchaMinsBefore',label:'Shabbos Mincha (mins before shkia)',def:30,desc:'Rounded down to nearest 5 min',type:'number'},
     {key:'fridayStdMinchaMinsBefore',label:'Friday Mincha Std Time (mins before shkia)',def:15,desc:'Also used for Yom Tov Mincha',type:'number'},
@@ -678,10 +708,25 @@ function AdminDonations() {
   const [year,setYear]=useState(new Date().getFullYear());
   const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});
   const [reasons,setReasons]=useState([]);
+  const [uploading,setUploading]=useState(false);
   useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});},[year]);
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
   async function recordManual(e){e.preventDefault();setMsg('');
     try{await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify({...mf,amount:parseFloat(mf.amount),type:'donation'})});setMsg('Payment recorded!');setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});load();}catch(err){setMsg('Error: '+err.message);}}
+  async function uploadPayments(e){
+    const file=e.target.files[0];if(!file)return;
+    setUploading(true);setMsg('Uploading...');
+    try{
+      const token=await firebase.auth().currentUser.getIdToken();
+      const fd=new FormData();fd.append('file',file);
+      const r=await fetch(BACKEND_URL+'/api/admin/upload-payments',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
+      const data=await r.json();
+      if(r.ok){setMsg('Imported '+data.created+' of '+data.total+' payments.'+(data.errors?.length?' Errors: '+data.errors.slice(0,3).join('; ')+(data.errors.length>3?' (+'+(data.errors.length-3)+' more)':''):''));load();}
+      else setMsg('Error: '+(data.error||'upload failed'));
+    }catch(err){setMsg('Error: '+err.message);}
+    setUploading(false);
+    e.target.value='';
+  }
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
@@ -696,6 +741,11 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Method'),React.createElement('select',{className:'form-input',value:mf.paymentMethod,onChange:e=>setMf(p=>({...p,paymentMethod:e.target.value}))},['check','cash','zelle','venmo','other'].map(m=>React.createElement('option',{key:m,value:m},m.charAt(0).toUpperCase()+m.slice(1))))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Batch Import Payments from Excel'),
+      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'Upload a spreadsheet with columns: First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Only First Name, Last Name, and Amount are required.'),
+      React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'Upload Excel / CSV',
+        React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:uploadPayments,style:{display:'none'},disabled:uploading}))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
