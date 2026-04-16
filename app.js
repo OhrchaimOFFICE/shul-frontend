@@ -537,17 +537,20 @@ function SponsorshipPage() {
     React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+(selectedType==='kiddush'?'Kiddush':'Seudas Shlishis')+' for '+formatDisplayDate(selectedDate)+' has been confirmed.'),
     React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',dedication:''});setSelectedDate('');}},'Back'));
   if(!data) return React.createElement('p',null,'Unable to load.');
-  const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};const parshaMap=data.parshaMap||{};
+  const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};const parshaMap=data.parshaMap||{};const dateLabels=data.dateLabels||{};
   return React.createElement('div',{style:{maxWidth:700,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Sponsor Kiddush or Seudas Shlishis'),
-      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'Choose an upcoming Shabbos below. Reservation cutoff: Wednesday at 8:00 PM.'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'Choose an upcoming Shabbos or Yom Tov below. Reservation cutoff: Wednesday at 8:00 PM.'),
       React.createElement('p',{style:{marginBottom:20,fontSize:'0.9rem',color:'#888'}},'Kiddush: $'+(pricing.kiddushPrice||'TBD')+' • Seudas Shlishis: $'+(pricing.seudasShlishisPrice||'TBD')),
       React.createElement('div',{className:'form-group'},
-        React.createElement('label',{className:'form-label'},'Select Shabbos'),
+        React.createElement('label',{className:'form-label'},'Select Shabbos / Yom Tov'),
         React.createElement('select',{className:'form-input',value:selectedDate,onChange:e=>setSelectedDate(e.target.value)},
-          React.createElement('option',{value:''},'-- Choose a Shabbos --'),
-          upcoming.map(d=>React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(parshaMap[d]?' — '+parshaMap[d]:''))))),
+          React.createElement('option',{value:''},'-- Choose a Date --'),
+          upcoming.map(d=>{
+            const label=dateLabels[d]?dateLabels[d]:parshaMap[d]?parshaMap[d]:'';
+            return React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(label?' — '+label:''));
+          }))),
       selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}},
         ['kiddush','seudasShlishis'].map(t=>{
           const res=reservations[selectedDate]?.[t];const taken=!!res;
@@ -663,15 +666,21 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
     React.createElement('div',{className:'card'},
-      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
-        React.createElement('select',{className:'form-input',style:{width:120},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027].map(y=>React.createElement('option',{key:y,value:y},y)))),
+        React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center'}},
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg('Error: '+e.message);}}},'Match to Members'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg('Error: '+e.message);}}},'Send '+year+' Tax Receipts'),
+          React.createElement('select',{className:'form-input',style:{width:100},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027,2028].map(y=>React.createElement('option',{key:y,value:y},y))))),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Reason','Method'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Reason','Method','Receipt'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,donations.map(d=>React.createElement('tr',{key:d.id},
           React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),React.createElement('td',null,d.displayName||'-'),
-          React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'))))))));
+          React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
+          React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'#27ae60',fontSize:'0.8rem'}},'Sent'):
+            d.email?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg('Error: '+e.message);}}},'Send'):
+            React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')))))))));
 }
 
 // ─── Admin Analytics moved to Phase 3 section below ─────────────
@@ -697,8 +706,20 @@ function AdminMembers() {
       React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'📤 Upload Excel File',
         React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:handleUpload,style:{display:'none'}}))),
     prefilled.length>0&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Pre-filled Signup Links ('+prefilled.length+')'),
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Pre-filled Signup Links ('+prefilled.length+')'),
+        React.createElement('button',{className:'btn btn-sm btn-primary',onClick:async()=>{
+          const pending=prefilled.filter(a=>!a.claimed&&a.email);
+          if(!pending.length){setMsg('No pending invites to send.');return;}
+          if(!confirm('Send signup emails to '+pending.length+' pending members?'))return;
+          setMsg('Sending...');
+          try{
+            const siteUrl=window.location.origin+window.location.pathname;
+            const res=await apiFetch('/api/admin/send-signup-invites',{method:'POST',body:JSON.stringify({accounts:pending.map(a=>({email:a.email,firstName:a.firstName,lastName:a.lastName,token:a.token})),siteUrl})});
+            setMsg('Sent '+res.sent+' invite emails'+(res.failed?' ('+res.failed+' failed)':''));
+          }catch(e){setMsg('Error: '+e.message);}
+        }},'Send All Invites ('+prefilled.filter(a=>!a.claimed).length+')')),
+      React.createElement('div',{className:'table-container',style:{marginTop:12}},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Status','Link'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,prefilled.slice(0,50).map(a=>React.createElement('tr',{key:a.token},
           React.createElement('td',null,(a.firstName||'')+' '+(a.lastName||'')),React.createElement('td',null,a.email),
@@ -1365,6 +1386,7 @@ function App() {
             React.createElement('span',null,'Miami Beach, FL'))),
         React.createElement('div',{className:'top-nav'},
           navItems.map(item=>React.createElement('button',{key:item.id,className:'top-nav-item'+(page===item.id?' active':''),onClick:()=>navigate(item.id)},item.label)),
+          React.createElement('button',{className:'top-sponsor-btn',onClick:()=>navigate('sponsorship')},'Sponsor Kiddush'),
           React.createElement('button',{className:'top-donate-btn',onClick:()=>navigate('donate')},'Donate')))),
     // Mobile menu toggle
     React.createElement('button',{className:'menu-toggle',onClick:()=>setMobileOpen(!mobileOpen)},mobileOpen?'✕':'☰'),
