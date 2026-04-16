@@ -12,7 +12,7 @@
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body: 'Source Sans 3', -apple-system, sans-serif;
 }
-html { font-size: 17px; }
+html { font-size: 19px; }
 body { font-family: var(--font-body); background: var(--cream); color: var(--text-dark); line-height: 1.6; min-height: 100vh; }
 
 /* ─── Top Bar ──────────────────────────────────────────────────── */
@@ -123,34 +123,34 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .quick-link { padding: 10px 8px; text-align: center; background: var(--cream-dark); border-radius: var(--radius); font-size: 0.88rem; color: var(--navy); font-weight: 600; cursor: pointer; transition: all 0.2s; border: 0.5px solid transparent; }
 .quick-link:hover { border-color: var(--gold); background: rgba(196,154,60,0.06); }
 
-/* ─── Calendar ─────────────────────────────────────────────────── */
-.calendar-nav { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 20px; }
-.calendar-nav button { background: var(--navy); color: #fff; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-body); }
+/* ─── Calendar (Dark, high contrast, large text) ────────────────── */
+.calendar-nav { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 20px; }
+.calendar-nav button { background: var(--navy); color: var(--gold); border: none; width: 48px; height: 48px; border-radius: 50%; font-size: 1.3rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--font-body); }
 .calendar-nav button:hover { background: var(--navy-light); }
-.calendar-month-label { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--navy); min-width: 220px; text-align: center; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; background: var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-.calendar-day-header { background: var(--navy); color: #fff; text-align: center; padding: 8px 4px; font-weight: 600; font-size: 0.78rem; }
-.calendar-day { background: var(--white); padding: 8px 6px; min-height: 80px; cursor: pointer; transition: background 0.2s; }
+.calendar-month-label { font-family: var(--font-display); font-size: 1.8rem; font-weight: 700; color: var(--navy); min-width: 280px; text-align: center; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; background: var(--navy); border-radius: var(--radius-lg); overflow: hidden; border: 2px solid var(--navy); }
+.calendar-day-header { background: var(--navy); color: var(--gold); text-align: center; padding: 12px 4px; font-weight: 700; font-size: 1rem; letter-spacing: 1px; }
+.calendar-day { background: var(--white); padding: 10px 8px; min-height: 110px; cursor: pointer; transition: background 0.2s; border: 1px solid var(--cream-dark); }
 .calendar-day:hover { background: var(--cream); }
-.calendar-day.today { background: rgba(196,154,60,0.08); border: 2px solid var(--gold); }
-.calendar-day.shabbos { background: rgba(26,39,68,0.03); }
+.calendar-day.today { background: rgba(196,154,60,0.12); border: 3px solid var(--gold); }
+.calendar-day.shabbos { background: rgba(26,39,68,0.06); }
 .calendar-day.empty { background: var(--cream-dark); cursor: default; }
-.calendar-day-number { font-weight: 700; font-size: 0.88rem; color: var(--navy); }
-.calendar-day-hebrew { font-size: 0.65rem; color: var(--text-light); margin-top: 1px; }
-.calendar-day-events { margin-top: 3px; }
-.calendar-event { font-size: 0.6rem; padding: 1px 3px; border-radius: 3px; margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.calendar-event.holiday { background: rgba(192,57,43,0.1); color: var(--red); }
-.calendar-event.candle { background: rgba(196,154,60,0.12); color: var(--gold); }
-.calendar-event.shiur { background: rgba(41,128,185,0.1); color: var(--blue); }
+.calendar-day-number { font-weight: 700; font-size: 1.15rem; color: var(--navy); }
+.calendar-day-hebrew { font-size: 0.8rem; color: var(--gold-dark); margin-top: 2px; font-weight: 600; }
+.calendar-day-events { margin-top: 4px; }
+.calendar-event { font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+.calendar-event.holiday { background: rgba(192,57,43,0.15); color: var(--red); }
+.calendar-event.candle { background: rgba(196,154,60,0.18); color: var(--gold-dark); }
+.calendar-event.shiur { background: rgba(41,128,185,0.12); color: var(--blue); }
 
 /* ─── Forms ────────────────────────────────────────────────────── */
 .form-group { margin-bottom: 16px; text-align: left; }
-.form-label { display: block; font-weight: 600; color: var(--text-dark); margin-bottom: 5px; font-size: 0.82rem; }
-.form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 0.88rem; font-family: var(--font-body); transition: border-color 0.2s; background: var(--white); }
+.form-label { display: block; font-weight: 600; color: var(--text-dark); margin-bottom: 5px; font-size: 0.95rem; }
+.form-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 1rem; font-family: var(--font-body); transition: border-color 0.2s; background: var(--white); }
 .form-input:focus { outline: none; border-color: var(--gold); }
 
 /* ─── Buttons ──────────────────────────────────────────────────── */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 24px; border: none; border-radius: var(--radius); font-size: 0.88rem; font-weight: 600; font-family: var(--font-body); cursor: pointer; transition: all 0.2s; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 24px; border: none; border-radius: var(--radius); font-size: 0.95rem; font-weight: 600; font-family: var(--font-body); cursor: pointer; transition: all 0.2s; }
 .btn-primary { background: var(--gold); color: var(--navy); }
 .btn-primary:hover { background: var(--gold-light); }
 .btn-secondary { background: var(--navy); color: #fff; }
@@ -159,40 +159,40 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .btn-outline:hover { background: var(--navy); color: #fff; }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-block { width: 100%; }
-.btn-sm { padding: 7px 14px; font-size: 0.78rem; }
+.btn-sm { padding: 7px 14px; font-size: 0.85rem; }
 
 /* ─── Auth ─────────────────────────────────────────────────────── */
 .auth-container { max-width: 420px; margin: 60px auto; background: var(--white); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 36px; text-align: center; }
-.auth-title { font-family: var(--font-display); font-size: 1.4rem; color: var(--navy); margin-bottom: 6px; }
-.auth-subtitle { color: var(--text-light); margin-bottom: 24px; font-size: 0.85rem; }
+.auth-title { font-family: var(--font-display); font-size: 1.6rem; color: var(--navy); margin-bottom: 6px; }
+.auth-subtitle { color: var(--text-light); margin-bottom: 24px; font-size: 0.95rem; }
 
 /* ─── Admin Tabs ───────────────────────────────────────────────── */
 .admin-tabs { display: flex; gap: 3px; border-bottom: 2px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; }
-.admin-tab { padding: 10px 16px; border: none; background: none; color: var(--text-medium); font-size: 0.78rem; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: var(--font-body); }
+.admin-tab { padding: 10px 16px; border: none; background: none; color: var(--text-medium); font-size: 0.9rem; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: var(--font-body); }
 .admin-tab:hover { color: var(--navy); }
 .admin-tab.active { color: var(--navy); border-bottom-color: var(--gold); }
 
 /* ─── Rules grid ───────────────────────────────────────────────── */
 .rules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .rule-card { background: var(--cream); border-radius: var(--radius); padding: 14px; border: 1px solid var(--border); }
-.rule-card-title { font-weight: 700; color: var(--navy); margin-bottom: 6px; font-size: 0.82rem; }
-.rule-card input, .rule-card select { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 0.88rem; font-family: var(--font-body); }
+.rule-card-title { font-weight: 700; color: var(--navy); margin-bottom: 6px; font-size: 0.95rem; }
+.rule-card input, .rule-card select { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 1rem; font-family: var(--font-body); }
 .rule-card input:focus, .rule-card select:focus { outline: none; border-color: var(--gold); }
-.rule-description { font-size: 0.68rem; color: var(--text-light); margin-top: 3px; }
+.rule-description { font-size: 0.8rem; color: var(--text-light); margin-top: 3px; }
 
 /* ─── Tables ───────────────────────────────────────────────────── */
 .table-container { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-th { background: var(--navy); color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 0.78rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+th { background: var(--navy); color: #fff; padding: 10px 12px; text-align: left; font-weight: 600; font-size: 0.9rem; }
 td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); }
 tr:hover { background: var(--cream); }
 
 /* ─── Shiurim ──────────────────────────────────────────────────── */
 .shiur-card { display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--cream); border-radius: var(--radius); margin-bottom: 8px; border: 0.5px solid var(--border); }
-.shiur-day { background: var(--navy); color: var(--gold); padding: 5px 10px; border-radius: var(--radius); font-weight: 700; font-size: 0.72rem; min-width: 50px; text-align: center; }
+.shiur-day { background: var(--navy); color: var(--gold); padding: 5px 10px; border-radius: var(--radius); font-weight: 700; font-size: 0.85rem; min-width: 60px; text-align: center; }
 .shiur-info { flex: 1; }
-.shiur-title { font-weight: 700; color: var(--navy); font-size: 0.92rem; }
-.shiur-details { font-size: 0.75rem; color: var(--text-medium); margin-top: 2px; }
+.shiur-title { font-weight: 700; color: var(--navy); font-size: 1.05rem; }
+.shiur-details { font-size: 0.9rem; color: var(--text-medium); margin-top: 2px; }
 
 /* ─── Loading & Messages ───────────────────────────────────────── */
 .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-light); font-size: 1rem; }
