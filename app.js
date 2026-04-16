@@ -138,11 +138,22 @@ function ZmanimTicker() {
 // ─── Home ────────────────────────────────────────────────────────
 function HomePage({navigate}) {
   const [schedule,setSchedule]=useState(null);
+  const [shabbosData,setShabbosData]=useState(null);
+  const [shiurim,setShiurim]=useState([]);
   const [loading,setLoading]=useState(true);
-  useEffect(()=>{apiFetch('/api/schedule/today').then(d=>{setSchedule(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+
+  useEffect(()=>{
+    Promise.all([
+      apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{}),
+      apiFetch('/api/schedule/shabbos').then(setShabbosData).catch(()=>{}),
+      apiFetch('/api/shiurim').then(setShiurim).catch(()=>{})
+    ]).then(()=>setLoading(false));
+  },[]);
 
   const isFriday=new Date().getDay()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
+  const shabbosShiurim=shiurim.filter(s=>s.dayOfWeek===6);
+  const sb=shabbosData; // shorthand
 
   return React.createElement('div',null,
     React.createElement('div',{className:'home-grid'},
@@ -160,21 +171,41 @@ function HomePage({navigate}) {
             schedule.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
             showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
           ):React.createElement('p',{style:{color:'#888'}},'Unable to load.'))),
-      // Column 2: This Shabbos + sponsorship
+      // Column 2: This Shabbos — full schedule
       React.createElement('div',null,
         React.createElement('div',{className:'card'},
-          React.createElement('div',{className:'card-header'},'This Shabbos',schedule?.parsha&&React.createElement('span',{className:'badge'},schedule.parsha)),
-          schedule?.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting)),
-          React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},'9:00 AM')),
-          React.createElement('div',{style:{marginTop:10,paddingTop:10,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
-            React.createElement('div',{style:{fontSize:'0.75rem',color:'#888',marginBottom:6}},'Sponsor this Shabbos'),
-            React.createElement('div',{className:'sponsor-row'},
-              React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
-                React.createElement('div',{className:'sponsor-label'},'Kiddush'),
-                React.createElement('div',{className:'sponsor-status'},'Available')),
-              React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
-                React.createElement('div',{className:'sponsor-label'},'Seudas Shlishis'),
-                React.createElement('div',{className:'sponsor-status'},'Available')))))),
+          React.createElement('div',{className:'card-header'},'This Shabbos',sb?.parsha&&React.createElement('span',{className:'badge'},sb.parsha)),
+          sb?React.createElement('div',null,
+            // Friday night
+            React.createElement('div',{style:{fontSize:'0.72rem',fontWeight:600,color:'#c49a3c',marginBottom:4,letterSpacing:0.5}},'FRIDAY NIGHT'),
+            sb.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.candleLighting)),
+            sb.fridayMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Kabbalas Shabbos'),React.createElement('span',{className:'time-value'},sb.fridayMincha)),
+            // Shabbos day
+            React.createElement('div',{style:{fontSize:'0.72rem',fontWeight:600,color:'#c49a3c',marginTop:10,marginBottom:4,letterSpacing:0.5}},'SHABBOS DAY'),
+            sb.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},sb.shacharis)),
+            sb.sofZmanShma&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Latest Shema'),React.createElement('span',{className:'time-value'},sb.sofZmanShma)),
+            sb.chatzos&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Chatzos'),React.createElement('span',{className:'time-value'},sb.chatzos)),
+            sb.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},sb.mincha)),
+            sb.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},sb.maariv)),
+            sb.sunset&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Sunset'),React.createElement('span',{className:'time-value'},sb.sunset)),
+            sb.shabbosEnds&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shabbos Ends'),React.createElement('span',{className:'time-value'},sb.shabbosEnds)),
+            // Shabbos shiurim
+            shabbosShiurim.length>0&&React.createElement('div',{style:{marginTop:10,paddingTop:10,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
+              React.createElement('div',{style:{fontSize:'0.72rem',fontWeight:600,color:'#1a2744',marginBottom:6}},'SHIURIM'),
+              shabbosShiurim.map(s=>React.createElement('div',{key:s.id,style:{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'0.82rem'}},
+                React.createElement('span',{style:{color:'#555'}},s.title+(s.rabbi?' — '+s.rabbi:'')),
+                React.createElement('span',{style:{fontWeight:600,color:'#1a2744'}},s.time||'')))),
+            // Sponsorship
+            React.createElement('div',{style:{marginTop:10,paddingTop:10,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
+              React.createElement('div',{style:{fontSize:'0.72rem',color:'#888',marginBottom:6}},'Sponsor this Shabbos'),
+              React.createElement('div',{className:'sponsor-row'},
+                React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
+                  React.createElement('div',{className:'sponsor-label'},'Kiddush'),
+                  React.createElement('div',{className:'sponsor-status'},'Available')),
+                React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
+                  React.createElement('div',{className:'sponsor-label'},'Seudas Shlishis'),
+                  React.createElement('div',{className:'sponsor-status'},'Available'))))
+          ):React.createElement('p',{style:{color:'#888'}},'Loading...'))),
       // Column 3: Zmanim panel
       React.createElement(ZmanimPanel,{onExpand:()=>navigate('zmanim')})),
     // Quick links
@@ -413,10 +444,10 @@ function AdminOverrides() {
 // ─── Admin Shiurim ───────────────────────────────────────────────
 function AdminShiurim() {
   const [shiurim,setShiurim]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
-  const [form,setForm]=useState({title:'',rabbi:'',time:'',dayOfWeek:0,topic:''});
+  const [form,setForm]=useState({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim'));}catch(e){}setLoading(false);}
-  async function add(){if(!form.title)return;try{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:''});setMsg('Shiur added!');load();}catch(e){setMsg('Error: '+e.message);}}
+  async function add(){if(!form.title)return;try{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setMsg('Shiur added!');load();}catch(e){setMsg('Error: '+e.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
@@ -428,15 +459,22 @@ function AdminShiurim() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Time'),React.createElement('input',{className:'form-input',placeholder:'e.g. 8:00 PM',value:form.time,onChange:e=>setForm(p=>({...p,time:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Day of Week'),
           React.createElement('select',{className:'form-input',value:form.dayOfWeek,onChange:e=>setForm(p=>({...p,dayOfWeek:parseInt(e.target.value)}))},DAY_NAMES.map((d,i)=>React.createElement('option',{value:i,key:i},d)))),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Topic'),React.createElement('input',{className:'form-input',value:form.topic,onChange:e=>setForm(p=>({...p,topic:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Topic / Description'),React.createElement('input',{className:'form-input',value:form.topic,onChange:e=>setForm(p=>({...p,topic:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Location'),React.createElement('input',{className:'form-input',placeholder:'e.g. Main Shul, Social Hall',value:form.location,onChange:e=>setForm(p=>({...p,location:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Schedule Type'),
+          React.createElement('select',{className:'form-input',value:form.recurring?'recurring':'oneTime',onChange:e=>setForm(p=>({...p,recurring:e.target.value==='recurring'}))},
+            React.createElement('option',{value:'recurring'},'Weekly Recurring'),
+            React.createElement('option',{value:'oneTime'},'One-Time Event')))),
       React.createElement('button',{className:'btn btn-primary',onClick:add,style:{marginTop:12}},'Add Shiur')),
     React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Current Shiurim'),
+      React.createElement('div',{className:'card-header'},'Current Shiurim ('+shiurim.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       shiurim.length===0?React.createElement('p',{style:{color:'#888'}},'No shiurim yet.'):
       shiurim.map(s=>React.createElement('div',{className:'shiur-card',key:s.id},
         React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
-        React.createElement('div',{className:'shiur-info'},React.createElement('div',{className:'shiur-title'},s.title),React.createElement('div',{className:'shiur-details'},[s.time,s.rabbi,s.topic].filter(Boolean).join(' • '))),
+        React.createElement('div',{className:'shiur-info'},
+          React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:6,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:8}},'One-time')),
+          React.createElement('div',{className:'shiur-details'},[s.time,s.rabbi,s.topic,s.location].filter(Boolean).join(' • '))),
         React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))));
 }
 
