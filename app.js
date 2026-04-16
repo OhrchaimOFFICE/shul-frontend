@@ -314,8 +314,8 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Manage Reasons':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
+      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','settings','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -324,6 +324,7 @@ function AdminPanel() {
     tab==='members'&&React.createElement(AdminMembers),
     tab==='pledges'&&React.createElement(AdminPledges),
     tab==='reasons'&&React.createElement(AdminReasons),
+    tab==='settings'&&React.createElement(AdminSettings),
     tab==='highholidays'&&React.createElement(AdminHighHolidays),
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='admins'&&React.createElement(AdminAccounts));
@@ -697,6 +698,98 @@ function AdminMembers() {
 }
 
 // ─── Admin Pledges ───────────────────────────────────────────────
+// ─── Admin Settings Center ───────────────────────────────────────
+function AdminSettings() {
+  const [reminderSettings,setReminderSettings]=useState({enabled:false,membershipEnabled:false,membershipFrequencyDays:30,membershipAmount:0,pledgeEnabled:false,pledgeFrequencyDays:30,pledgeStartAfterDays:7});
+  const [sponsorSettings,setSponsorSettings]=useState({kiddushPrice:0,seudasShlishisPrice:0});
+  const [membershipSettings,setMembershipSettings]=useState({annualDues:0});
+  const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');const [running,setRunning]=useState(false);
+
+  useEffect(()=>{
+    Promise.all([
+      apiFetch('/api/admin/reminder-settings').then(setReminderSettings).catch(()=>{}),
+      apiFetch('/api/admin/sponsorship-settings').then(setSponsorSettings).catch(()=>{}),
+      apiFetch('/api/admin/membership-settings').then(setMembershipSettings).catch(()=>{})
+    ]).then(()=>setLoading(false));
+  },[]);
+
+  async function saveReminders(){setMsg('');
+    try{await apiFetch('/api/admin/reminder-settings',{method:'PUT',body:JSON.stringify(reminderSettings)});setMsg('Reminder settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+  async function saveSponsor(){setMsg('');
+    try{await apiFetch('/api/admin/sponsorship-settings',{method:'PUT',body:JSON.stringify(sponsorSettings)});setMsg('Sponsorship pricing saved!');}catch(e){setMsg('Error: '+e.message);}}
+  async function saveMembership(){setMsg('');
+    try{await apiFetch('/api/admin/membership-settings',{method:'PUT',body:JSON.stringify(membershipSettings)});setMsg('Membership settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+  async function runNow(){setRunning(true);setMsg('');
+    try{const res=await apiFetch('/api/admin/run-reminders',{method:'POST'});setMsg(res.message||'Reminders sent!');}catch(e){setMsg('Error: '+e.message);}setRunning(false);}
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+
+    // Automated Reminders
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Automated Email Reminders'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends reminders daily at 10:00 AM for unpaid membership dues and outstanding pledges. Members with auto-payment enabled are skipped.'),
+      React.createElement('div',{className:'form-group'},
+        React.createElement('label',{className:'form-label'},'Master Switch'),
+        React.createElement('select',{className:'form-input',style:{maxWidth:300},value:reminderSettings.enabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,enabled:e.target.value==='on'}))},
+          React.createElement('option',{value:'off'},'OFF — No automatic reminders'),
+          React.createElement('option',{value:'on'},'ON — Send reminders automatically'))),
+      reminderSettings.enabled&&React.createElement('div',null,
+        // Membership section
+        React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
+          React.createElement('h3',{style:{color:'#1a2744',margin:'0 0 12px',fontSize:'1rem'}},'Membership Dues Reminders'),
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Enabled'),
+              React.createElement('select',{className:'form-input',value:reminderSettings.membershipEnabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,membershipEnabled:e.target.value==='on'}))},
+                React.createElement('option',{value:'off'},'Off'),React.createElement('option',{value:'on'},'On'))),
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Annual Dues Amount ($)'),
+              React.createElement('input',{className:'form-input',type:'number',value:reminderSettings.membershipAmount,onChange:e=>setReminderSettings(p=>({...p,membershipAmount:parseFloat(e.target.value)||0}))})),
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Send reminder every X days'),
+              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.membershipFrequencyDays,onChange:e=>setReminderSettings(p=>({...p,membershipFrequencyDays:parseInt(e.target.value)||30}))})))),
+        // Pledge section
+        React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
+          React.createElement('h3',{style:{color:'#1a2744',margin:'0 0 12px',fontSize:'1rem'}},'Pledge Reminders'),
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Enabled'),
+              React.createElement('select',{className:'form-input',value:reminderSettings.pledgeEnabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,pledgeEnabled:e.target.value==='on'}))},
+                React.createElement('option',{value:'off'},'Off'),React.createElement('option',{value:'on'},'On'))),
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Start reminders after X days'),
+              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.pledgeStartAfterDays,onChange:e=>setReminderSettings(p=>({...p,pledgeStartAfterDays:parseInt(e.target.value)||7}))})),
+            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
+              React.createElement('label',{className:'form-label'},'Then repeat every X days'),
+              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.pledgeFrequencyDays,onChange:e=>setReminderSettings(p=>({...p,pledgeFrequencyDays:parseInt(e.target.value)||30}))}))))),
+      React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+        React.createElement('button',{className:'btn btn-primary',onClick:saveReminders},'Save Reminder Settings'),
+        React.createElement('button',{className:'btn btn-outline',onClick:runNow,disabled:running},running?'Running...':'Run Reminders Now'))),
+
+    // Sponsorship pricing
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Sponsorship Pricing'),
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Kiddush Price ($)'),
+          React.createElement('input',{className:'form-input',type:'number',value:sponsorSettings.kiddushPrice,onChange:e=>setSponsorSettings(p=>({...p,kiddushPrice:parseFloat(e.target.value)||0}))})),
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Seudas Shlishis Price ($)'),
+          React.createElement('input',{className:'form-input',type:'number',value:sponsorSettings.seudasShlishisPrice,onChange:e=>setSponsorSettings(p=>({...p,seudasShlishisPrice:parseFloat(e.target.value)||0}))}))),
+      React.createElement('button',{className:'btn btn-primary',onClick:saveSponsor,style:{marginTop:8}},'Save Pricing')),
+
+    // Membership dues
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Membership Settings'),
+      React.createElement('div',{className:'form-group'},
+        React.createElement('label',{className:'form-label'},'Annual Membership Dues ($)'),
+        React.createElement('input',{className:'form-input',type:'number',style:{maxWidth:200},value:membershipSettings.annualDues,onChange:e=>setMembershipSettings(p=>({...p,annualDues:parseFloat(e.target.value)||0}))})),
+      React.createElement('button',{className:'btn btn-primary',onClick:saveMembership,style:{marginTop:8}},'Save Membership Settings')));
+}
+
 // ─── Admin Manage Reasons (Donation + Pledge dropdowns) ─────────
 function AdminReasons() {
   const [donationReasons,setDonationReasons]=useState([]);
