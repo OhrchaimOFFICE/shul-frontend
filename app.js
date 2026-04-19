@@ -702,7 +702,7 @@ function AdminSeating() {
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
         React.createElement('button',{className:'btn btn-primary',onClick:save},'Save'),
         data.assignments[selected.number]&&React.createElement('button',{className:'btn btn-danger',onClick:clearSeat},'Clear'),
-        React.createElement('button',{className:'btn btn-outline',onClick:()=>setSelected(null)},'Cancel'))));
+        React.createElement('button',{className:'btn btn-outline',onClick:()=>setSelected(null)},'Cancel')))));
 }
 
 function AdminAutoEmails() {
