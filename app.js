@@ -1,4 +1,5 @@
 const BACKEND_URL = "https://shul-backend.onrender.com";
+const STRIPE_PUBLISHABLE_KEY = "pk_test_51TNzTS1BSEVmZYUIuui9AFLI9jz7SlB86Kgf1Xq62AXfaGt5gmOuUp29zOJ62zv3L8hLWW2YxbttdgCIrGOqOGMF00BZRJzECu";
 const { useState, useEffect, useCallback, useRef } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -765,24 +766,66 @@ function DonatePage() {
   const [loading,setLoading]=useState(false);
   const [msg,setMsg]=useState('');
   const [step,setStep]=useState('form');
+  const [cardReady,setCardReady]=useState(false);
+  const cardMountRef=useRef(null);
+  const stripeRef=useRef(null);
+  const cardElementRef=useRef(null);
+
   useEffect(()=>{apiFetch('/api/donations/reasons').then(setReasons).catch(()=>setReasons(['General Donation','Membership Dues','Building Fund','Torah Fund','Yahrzeit','In Honor Of','In Memory Of','Other']));},[]);
+
+  useEffect(()=>{
+    if(step!=='form') return;
+    if(!window.Stripe){setMsg('Payment library failed to load. Please refresh the page.');return;}
+    if(cardElementRef.current) return;
+    const stripe=window.Stripe(STRIPE_PUBLISHABLE_KEY);
+    const elements=stripe.elements();
+    const card=elements.create('card',{style:{base:{fontSize:'18px',color:'#1a2744',fontFamily:'inherit','::placeholder':{color:'#888'}},invalid:{color:'#b00020'}}});
+    let mounted=false;
+    const mount=()=>{
+      if(mounted) return;
+      if(cardMountRef.current){card.mount(cardMountRef.current);mounted=true;}
+      else setTimeout(mount,50);
+    };
+    mount();
+    stripeRef.current=stripe;
+    cardElementRef.current=card;
+    setCardReady(true);
+    return ()=>{try{card.destroy();}catch{}cardElementRef.current=null;setCardReady(false);};
+  },[step]);
+
   function upd(k,v){setForm(p=>({...p,[k]:v}));}
+
   async function handleDonate(e){
     e.preventDefault();
     if(!form.amount||!form.firstName||!form.lastName||!form.email){setMsg('Please fill all required fields.');return;}
+    if(!stripeRef.current||!cardElementRef.current){setMsg('Payment form is still loading. Please wait a moment and try again.');return;}
     setLoading(true);setMsg('');
     try{
       const pi=await apiFetch('/api/donations/create-payment',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),type:'donation'})});
-      await apiFetch('/api/donations/confirm',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),paymentIntentId:pi.paymentIntentId,type:'donation'})});
+      const result=await stripeRef.current.confirmCardPayment(pi.clientSecret,{
+        payment_method:{
+          card:cardElementRef.current,
+          billing_details:{
+            name:(form.firstName+' '+form.lastName).trim(),
+            email:form.email,
+            phone:form.phone||undefined
+          }
+        }
+      });
+      if(result.error){setMsg(result.error.message||'Payment failed. Please check your card details.');setLoading(false);return;}
+      if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setLoading(false);return;}
+      await apiFetch('/api/donations/confirm',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),paymentIntentId:result.paymentIntent.id,type:'donation'})});
       setStep('done');
     }catch(err){setMsg('Error: '+err.message);}
     setLoading(false);
   }
+
   if(step==='done') return React.createElement('div',null,React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
     React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'✅'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Thank You!'),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your donation of $'+form.amount+' has been recorded. A receipt will be sent to '+form.email+'.'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your donation of $'+form.amount+' has been received. A receipt will be sent to '+form.email+'.'),
     React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setStep('form');setForm({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:''});}},'Make Another Donation')));
+
   return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Make a Donation'),
@@ -802,7 +845,11 @@ function DonatePage() {
             reasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note / Dedication (optional)'),
           React.createElement('input',{className:'form-input',value:form.note,onChange:e=>upd('note',e.target.value),placeholder:'In honor of... / In memory of...'})),
-        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading,style:{marginTop:8,fontSize:'1.1rem',padding:'14px 28px'}},
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Card Details *'),
+          React.createElement('div',{ref:cardMountRef,style:{padding:'14px 14px',border:'1px solid #d4cfc4',borderRadius:8,background:'#fff',minHeight:52}}),
+          React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginTop:6}},'Secured by Stripe. We never see or store your card number.')),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading||!cardReady,style:{marginTop:8,fontSize:'1.1rem',padding:'14px 28px'}},
           loading?'Processing...':'💝 Donate $'+(form.amount||'0')))));
 }
 
