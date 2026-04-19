@@ -560,12 +560,13 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','settings','highholidays','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
+      ['rules','overrides','shiurim','emails','autoemails','donations','members','pledges','reasons','settings','highholidays','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
     tab==='emails'&&React.createElement(AdminEmailCenter),
+    tab==='autoemails'&&React.createElement(AdminAutoEmails),
     tab==='donations'&&React.createElement(AdminDonations),
     tab==='members'&&React.createElement(AdminMembers),
     tab==='pledges'&&React.createElement(AdminPledges),
@@ -575,6 +576,56 @@ function AdminPanel() {
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='images'&&React.createElement(AdminImages),
     tab==='admins'&&React.createElement(AdminAccounts));
+}
+
+function AdminAutoEmails() {
+  const [state,setState]=useState(null);
+  const [msg,setMsg]=useState('');
+  const [saving,setSaving]=useState(false);
+  useEffect(()=>{
+    apiFetch('/api/admin/auto-emails').then(setState).catch(err=>setMsg('Error loading: '+err.message));
+  },[]);
+  async function toggle(key){
+    if(!state||saving)return;
+    const next={...state,[key]:!state[key]};
+    setState(next);
+    setSaving(true);
+    try{
+      await apiFetch('/api/admin/auto-emails',{method:'PUT',body:JSON.stringify({[key]:next[key]})});
+      setMsg(next[key]?'Enabled.':'Disabled.');
+    }catch(err){
+      setState(state);
+      setMsg('Error: '+err.message);
+    }
+    setSaving(false);
+  }
+  const rows=[
+    {key:'master',label:'Reminder Scheduler (master switch)',desc:'Master switch for the daily reminder job. When OFF, no membership or pledge reminders are sent regardless of their individual switches.'},
+    {key:'membership',label:'Membership Dues Reminders',desc:'Runs daily at 10:00 AM ET. Emails members with unpaid dues, respecting the reminder frequency set in Settings.'},
+    {key:'pledge',label:'Pledge Reminders',desc:'Runs daily at 10:00 AM ET. Emails members with outstanding pledges after the configured start delay.'},
+    {key:'fiscalYear',label:'Annual Tax Receipt Auto-Send',desc:'On January 1, automatically sends every donor a summary of their prior-year giving.'},
+  ];
+  if(!state) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  return React.createElement('div',null,
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Automatic Emails'),
+      React.createElement('p',{style:{color:'#555',marginBottom:16}},'Toggle which emails fire automatically. Frequencies and amounts are configured under the Settings tab.'),
+      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:12}},
+        rows.map(r=>{
+          const on=!!state[r.key];
+          const dimmed=r.key!=='master'&&r.key!=='fiscalYear'&&!state.master;
+          return React.createElement('div',{key:r.key,style:{display:'flex',gap:16,alignItems:'center',padding:'14px 16px',border:'1px solid #eee',borderRadius:8,background:dimmed?'#fafafa':'#fff',opacity:dimmed?0.65:1}},
+            React.createElement('div',{style:{flex:1}},
+              React.createElement('div',{style:{fontWeight:700,color:'#1a2744'}},r.label,dimmed&&React.createElement('span',{style:{fontWeight:400,color:'#888',marginLeft:8,fontSize:'0.85rem'}},'(master switch is off)')),
+              React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:'4px 0 0'}},r.desc)),
+            React.createElement('button',{
+              className:'btn btn-sm '+(on?'btn-primary':'btn-outline'),
+              disabled:saving,
+              onClick:()=>toggle(r.key),
+              style:{minWidth:90}
+            },on?'On':'Off'));
+        }))));
 }
 
 // ─── Admin Rules Editor ──────────────────────────────────────────
