@@ -1470,6 +1470,9 @@ function AdminEmailCenter() {
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
+  // Custom per-member selection (shared between Compose and Weekly)
+  const [selectedEmails,setSelectedEmails]=useState({});
+  const [pickerFilter,setPickerFilter]=useState('');
 
   useEffect(()=>{
     apiFetch('/api/admin/email/recipients').then(setRecipients).catch(()=>{});
@@ -1478,10 +1481,43 @@ function AdminEmailCenter() {
   },[]);
 
   function getTargetEmails(group){
+    if(group==='custom') return Object.keys(selectedEmails).filter(e=>selectedEmails[e]);
     if(group==='members') return recipients.filter(r=>r.role==='member').map(r=>r.email);
     if(group==='unpaid') return recipients.filter(r=>!r.membershipPaid&&!r.autoPayment).map(r=>r.email);
     if(group==='admins') return recipients.filter(r=>r.role==='admin').map(r=>r.email);
     return recipients.map(r=>r.email);
+  }
+
+  function toggleEmail(email){
+    setSelectedEmails(p=>{const n={...p};if(n[email])delete n[email];else n[email]=true;return n;});
+  }
+  function filteredRecipients(){
+    const q=pickerFilter.trim().toLowerCase();
+    if(!q) return recipients;
+    return recipients.filter(r=>(r.displayName||'').toLowerCase().includes(q)||(r.email||'').toLowerCase().includes(q));
+  }
+  function selectAllFiltered(){
+    const fr=filteredRecipients();
+    setSelectedEmails(p=>{const n={...p};fr.forEach(r=>{if(r.email)n[r.email]=true;});return n;});
+  }
+  function clearSelection(){setSelectedEmails({});}
+
+  function MemberPicker(){
+    const fr=filteredRecipients();
+    const selectedCount=Object.keys(selectedEmails).filter(e=>selectedEmails[e]).length;
+    return React.createElement('div',{className:'card',style:{marginTop:8,padding:12,background:'#faf8f3'}},
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:8}},
+        React.createElement('input',{className:'form-input',style:{flex:'1 1 200px'},placeholder:'Search name or email...',value:pickerFilter,onChange:e=>setPickerFilter(e.target.value)}),
+        React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',onClick:selectAllFiltered},'Select all shown'),
+        React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',onClick:clearSelection},'Clear'),
+        React.createElement('span',{style:{fontWeight:700,color:'#1a2744'}},selectedCount+' selected')),
+      React.createElement('div',{style:{maxHeight:260,overflowY:'auto',border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}},
+        fr.length===0?React.createElement('p',{style:{padding:12,color:'#888',margin:0}},'No matches.'):
+        fr.map(r=>React.createElement('label',{key:r.email||r.uid,style:{display:'flex',alignItems:'center',gap:10,padding:'6px 10px',cursor:'pointer',borderBottom:'1px solid #f0ece3'}},
+          React.createElement('input',{type:'checkbox',checked:!!selectedEmails[r.email],onChange:()=>toggleEmail(r.email),disabled:!r.email}),
+          React.createElement('span',{style:{flex:1}},r.displayName||'(no name)'),
+          React.createElement('span',{style:{color:'#888',fontSize:'0.85rem'}},r.email||'no email'),
+          r.role==='admin'&&React.createElement('span',{style:{fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:10,fontWeight:700}},'admin')))));
   }
 
   async function sendBlast(e){
@@ -1567,7 +1603,9 @@ function AdminEmailCenter() {
             React.createElement('option',{value:'all'},'All Members ('+recipients.length+')'),
             React.createElement('option',{value:'members'},'Members Only'),
             React.createElement('option',{value:'unpaid'},'Unpaid Members'),
-            React.createElement('option',{value:'admins'},'Admins Only'))),
+            React.createElement('option',{value:'admins'},'Admins Only'),
+            React.createElement('option',{value:'custom'},'Pick specific members...')),
+          composeForm.targetGroup==='custom'&&MemberPicker()),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
@@ -1593,9 +1631,11 @@ function AdminEmailCenter() {
             React.createElement('select',{className:'form-input',value:weeklyTargetGroup,onChange:e=>setWeeklyTargetGroup(e.target.value)},
               React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
-              React.createElement('option',{value:'admins'},'Admins'))),
+              React.createElement('option',{value:'admins'},'Admins'),
+              React.createElement('option',{value:'custom'},'Pick specific members...'))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
+        weeklyTargetGroup==='custom'&&MemberPicker(),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule — supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
