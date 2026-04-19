@@ -1076,9 +1076,39 @@ function AccountPage() {
   const [loginForm,setLoginForm]=useState({email:'',password:''});
   const [regForm,setRegForm]=useState({firstName:'',lastName:'',email:'',phone:'',address:'',password:'',spouseEmail:''});
   const [error,setError]=useState('');const [editing,setEditing]=useState(false);const [editForm,setEditForm]=useState({});const [msg,setMsg]=useState('');
+  const [subStatus,setSubStatus]=useState(null);
+  const [subBusy,setSubBusy]=useState(false);
   const siteImages=useSiteImages();
   useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);setLoading(false);});return unsub;},[]);
-  useEffect(()=>{if(user){apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});}},[user]);
+  useEffect(()=>{if(user){
+    apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});
+    apiFetch('/api/membership/subscription-status').then(setSubStatus).catch(()=>setSubStatus({active:false}));
+  }},[user]);
+  useEffect(()=>{
+    const hash=window.location.hash;
+    if(hash.includes('sub=success')) setMsg('Automatic payment set up! Thank you.');
+    else if(hash.includes('sub=cancel')) setMsg('Checkout canceled. You can try again anytime.');
+  },[]);
+
+  async function startSubscription(interval){
+    setSubBusy(true);setMsg('');
+    try{
+      const res=await apiFetch('/api/membership/create-subscription-checkout',{method:'POST',body:JSON.stringify({interval})});
+      if(res.url) window.location.href=res.url;
+    }catch(e){setMsg('Error: '+e.message);setSubBusy(false);}
+  }
+
+  async function cancelSubscription(){
+    if(!confirm('Cancel automatic membership payment? You will remain a paid member through the end of your current period, then auto-pay will stop.'))return;
+    setSubBusy(true);setMsg('');
+    try{
+      await apiFetch('/api/membership/cancel-subscription',{method:'POST',body:JSON.stringify({})});
+      setMsg('Automatic payment canceled. It will not renew.');
+      const s=await apiFetch('/api/membership/subscription-status').catch(()=>({active:false}));
+      setSubStatus(s);
+    }catch(e){setMsg('Error: '+e.message);}
+    setSubBusy(false);
+  }
   useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
 
   async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(err.message);}}
@@ -1134,7 +1164,24 @@ function AccountPage() {
       ):React.createElement('div',null,
         [['Phone',profile?.phone],['Address',profile?.address],['Bio',profile?.bio],['Spouse',profile?.spouseEmail]].filter(([_,v])=>v).map(([l,v])=>
           React.createElement('div',{key:l,style:{padding:'8px 0',borderBottom:'1px solid #f0ece3'}},React.createElement('span',{style:{color:'#888',marginRight:12}},l+':'),React.createElement('span',{style:{fontWeight:500}},v))),
-        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:16},onClick:()=>setEditing(true)},'Edit Profile'))));
+        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:16},onClick:()=>setEditing(true)},'Edit Profile'))),
+    React.createElement('div',{className:'card',style:{marginTop:16}},
+      React.createElement('div',{className:'card-header'},'Membership Payment'),
+      profile?.membershipPaid
+        ?React.createElement('div',{style:{padding:'8px 12px',background:'rgba(39,174,96,0.1)',color:'#27ae60',borderRadius:6,fontWeight:700,marginBottom:12}},'Paid for this fiscal year')
+        :React.createElement('div',{style:{padding:'8px 12px',background:'rgba(176,0,32,0.08)',color:'#b00020',borderRadius:6,fontWeight:700,marginBottom:12}},'Dues not paid yet'),
+      subStatus?.active
+        ?React.createElement('div',null,
+          React.createElement('p',{style:{margin:'4px 0'}},React.createElement('strong',null,'Automatic payment: '),'Active'),
+          React.createElement('p',{style:{margin:'4px 0'}},React.createElement('strong',null,'Billing: '),'$'+(subStatus.amount||0).toFixed(2)+' every '+(subStatus.interval==='month'?'month':'year')),
+          subStatus.currentPeriodEnd&&React.createElement('p',{style:{margin:'4px 0'}},React.createElement('strong',null,'Next charge: '),new Date(subStatus.currentPeriodEnd).toLocaleDateString()),
+          subStatus.cancelAtPeriodEnd&&React.createElement('p',{style:{margin:'4px 0',color:'#b00020',fontWeight:600}},'This subscription will stop renewing at the end of the current period.'),
+          !subStatus.cancelAtPeriodEnd&&React.createElement('button',{className:'btn btn-danger btn-sm',disabled:subBusy,onClick:cancelSubscription,style:{marginTop:8}},subBusy?'Working...':'Cancel automatic payment'))
+        :React.createElement('div',null,
+          React.createElement('p',{style:{color:'#555',marginBottom:12}},'Set up automatic membership payments. Pay the full annual amount once per year, or spread it across 12 monthly installments. Paying activates your membership automatically.'),
+          React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+            React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('year')},subBusy?'Loading...':'Pay annually'),
+            React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))));
 }
 
 // ─── Admin Donations ─────────────────────────────────────────────
