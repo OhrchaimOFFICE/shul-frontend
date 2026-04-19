@@ -82,22 +82,27 @@ function ZmanimPanel({onExpand}) {
     ].filter(([_,v])=>v).map(([n,v])=>[n,fmtZ(v)]);
 
     return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',height:'100vh',width:'100vw',padding:'20px 40px'}},
+      React.createElement('style',null,`
+        @keyframes scrollZmanim { 0% { transform: translateY(0); } 50% { transform: translateY(calc(-50% + 0px)); } 50.01% { transform: translateY(calc(-50% + 0px)); } 100% { transform: translateY(0); } }
+        .zmanim-scroll-wrap { animation: scrollZmanim 30s linear infinite; }
+      `),
       React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:44,height:44,fontSize:'1.3rem',cursor:'pointer'}},'✕'),
       // Header with logo
       React.createElement('div',{style:{display:'flex',alignItems:'center',gap:20,marginBottom:20}},
-        React.createElement('img',{src:'logo-tree.png',alt:'Ohr Chaim',style:{height:90,background:'rgba(255,255,255,0.95)',borderRadius:'50%',padding:8}}),
+        React.createElement('img',{src:'logo-hebrew-tree.png',alt:'Ohr Chaim',style:{height:100},onError:function(e){e.target.src='logo-tree.png';}}),
         React.createElement('div',null,
-          React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.4rem',margin:0,letterSpacing:1,fontWeight:700}},'Congregation Ohr Chaim'),
-          React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
+          React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.6rem',margin:0,letterSpacing:1,fontWeight:700}},'Congregation Ohr Chaim'),
+          React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1.1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
       // Two columns filling remaining space
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1600,flex:1,minHeight:0,paddingBottom:20}},
-        // Left: All Zmanim
+        // Left: All Zmanim — auto-scrolling
         React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
-          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2rem',textAlign:'center',fontWeight:700}},"Today's Zmanim"),
-          React.createElement('div',{style:{flex:1,display:'flex',flexDirection:'column',justifyContent:'space-around'}},
-            zmanimList.map(([n,v])=>React.createElement('div',{key:n,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',fontSize:'1.4rem'}},
-              React.createElement('span',{style:{color:'rgba(255,255,255,0.7)'}},n),
-              React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)',fontSize:'1.5rem'}},v))))),
+          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2.2rem',textAlign:'center',fontWeight:700}},"Today's Zmanim"),
+          React.createElement('div',{style:{flex:1,overflow:'hidden',position:'relative'}},
+            React.createElement('div',{className:'zmanim-scroll-wrap'},
+              zmanimList.concat(zmanimList).map(([n,v],i)=>React.createElement('div',{key:n+'-'+i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',fontSize:'1.6rem'}},
+                React.createElement('span',{style:{color:'rgba(255,255,255,0.7)'}},n),
+                React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)',fontSize:'1.7rem'}},v)))))),
         // Right: Davening + Shiurim
         React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
           React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2rem',textAlign:'center',fontWeight:700}},"Today's Schedule"),
@@ -198,17 +203,17 @@ function HomePage({navigate}) {
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},'This Shabbos',sb?.parsha&&React.createElement('span',{className:'badge'},sb.parsha)),
           sb?React.createElement('div',null,
-            React.createElement('div',{style:{fontSize:'0.82rem',fontWeight:600,color:'#c49a3c',marginBottom:2,letterSpacing:0.5}},'FRIDAY NIGHT'),
+            React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#c49a3c',marginBottom:2,letterSpacing:0.5}},'FRIDAY NIGHT'),
             sb.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.candleLighting)),
             sb.fridayMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Kabbalas Shabbos'),React.createElement('span',{className:'time-value'},sb.fridayMincha)),
-            React.createElement('div',{style:{fontSize:'0.82rem',fontWeight:600,color:'#c49a3c',marginTop:6,marginBottom:2,letterSpacing:0.5}},'SHABBOS DAY'),
+            React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#c49a3c',marginTop:6,marginBottom:2,letterSpacing:0.5}},'SHABBOS DAY'),
             sb.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},sb.shacharis)),
             sb.sofZmanShma&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Latest Shema'),React.createElement('span',{className:'time-value'},sb.sofZmanShma)),
             sb.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},sb.mincha)),
             sb.sunset&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Sunset'),React.createElement('span',{className:'time-value'},sb.sunset)),
             sb.shabbosEnds&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shabbos Ends'),React.createElement('span',{className:'time-value'},sb.shabbosEnds)),
             shabbosShiurim.length>0&&React.createElement('div',{style:{marginTop:6,paddingTop:6,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
-              React.createElement('div',{style:{fontSize:'0.82rem',fontWeight:600,color:'#1a2744',marginBottom:3}},'SHIURIM'),
+              React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#1a2744',marginBottom:3}},'SHIURIM'),
               shabbosShiurim.map(s=>React.createElement('div',{key:s.id,style:{display:'flex',justifyContent:'space-between',padding:'2px 0',fontSize:'0.88rem'}},
                 React.createElement('span',{style:{color:'#555'}},s.title+(s.rabbi?' — '+s.rabbi:'')),
                 React.createElement('span',{style:{fontWeight:600,color:'#1a2744'}},s.time||'')))),
