@@ -64,14 +64,15 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Seating Chart (admin) ───────────────────────────────────── */
 .seating-chart { position: relative; }
-.seat-btn { background: #27ae60; color: #fff; border: none; border-radius: 6px; padding: 4px 2px; font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; transition: transform 0.1s; }
-.seat-btn:hover { transform: scale(1.05); outline: 2px solid #c49a3c; }
-.seat-btn.assigned { background: #c49a3c; color: #1a2744; }
-.seat-btn.ladies { border-bottom: 3px solid rgba(255,255,255,0.35); }
-.seat-btn.mens { border-top: 3px solid rgba(255,255,255,0.35); }
-.seat-btn .seat-num { font-size: 0.9rem; font-weight: 800; line-height: 1; }
-.seat-btn .seat-holder { font-size: 0.7rem; font-weight: 600; margin-top: 2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.1; }
-.mehitzah-bar { background: #1a2744; color: #c49a3c; text-align: center; font-weight: 800; letter-spacing: 4px; padding: 6px; border-radius: 4px; align-self: center; font-size: 0.85rem; }
+.seat-num-box, .seat-holder-box { border: 1px solid #c8b98d; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 2px; line-height: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: outline 0.1s; }
+.seat-num-box { background: #eac269; color: #1a2744; font-weight: 800; font-size: 0.9rem; border-bottom: none; border-radius: 4px 4px 0 0; }
+.seat-holder-box { background: #f7ebc7; color: #3a2f1a; font-weight: 600; font-size: 0.62rem; border-top: none; border-radius: 0 0 4px 4px; min-height: 16px; }
+.seat-holder-box.empty { background: #fdf8ea; }
+.seat-num-box.assigned { background: #c49a3c; color: #fff; }
+.seat-holder-box.assigned { background: #e9cf92; color: #1a2744; font-weight: 700; }
+.seat-num-box:hover, .seat-holder-box:hover { outline: 2px solid #1a2744; outline-offset: -1px; z-index: 2; }
+.seat-num-box.mens, .seat-holder-box.mens { background-image: linear-gradient(180deg, rgba(255,255,255,0) 60%, rgba(39,174,96,0.08) 100%); }
+.mehitzah-bar { background: #c49a3c; color: #1a2744; text-align: center; font-weight: 900; letter-spacing: 6px; padding: 6px; border-radius: 3px; align-self: center; font-size: 0.82rem; border: 1px solid #8a6f2b; margin: 4px 0; }
 
 /* ─── Hero Slideshow ──────────────────────────────────────────── */
 .hero-slideshow { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #1a2744; overflow: hidden; border-radius: 14px; margin-top: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }

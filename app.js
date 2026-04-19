@@ -674,28 +674,35 @@ function AdminSeating() {
       React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8}},
         React.createElement('div',{className:'seating-chart',style:{
           display:'grid',
-          gridTemplateColumns:'repeat('+maxCol+', 44px)',
-          gridAutoRows:'44px',
-          gap:3,
+          gridTemplateColumns:'repeat('+maxCol+', 62px)',
+          gridAutoRows:'24px',
+          gap:2,
           width:'fit-content'
         }},
-          data.layout.seats.map(seat=>{
+          data.layout.seats.flatMap(seat=>{
             const a=data.assignments[seat.number];
             const holder=a&&a.holder?a.holder:'';
             const isAssigned=!!holder;
-            return React.createElement('button',{
-              key:seat.number,
-              className:'seat-btn'+(isAssigned?' assigned':'')+(seat.section==='ladies'?' ladies':' mens'),
-              style:{gridColumn:(seat.col+1)+' / span 1',gridRow:(seat.row+1)+' / span 1'},
+            const cls=(isAssigned?'assigned ':'')+seat.section;
+            const num=React.createElement('button',{
+              key:'n'+seat.number,
+              className:'seat-num-box '+cls,
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+1)},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
-            },
-              React.createElement('div',{className:'seat-num'},seat.number),
-              holder&&React.createElement('div',{className:'seat-holder'},holder));
+            },seat.number);
+            const name=React.createElement('button',{
+              key:'h'+seat.number,
+              className:'seat-holder-box '+cls+(holder?'':' empty'),
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+2)},
+              title:'Seat '+seat.number+(holder?', '+holder:''),
+              onClick:()=>openAssign(seat)
+            },holder||'');
+            return [num,name];
           }),
           React.createElement('div',{className:'mehitzah-bar',style:{
             gridColumn:'1 / -1',
-            gridRow:(mehitzah+1)+' / span 1'
+            gridRow:(mehitzah+1)
           }},'MECHITZAH'))),
     selected&&React.createElement('div',{className:'card',style:{marginTop:16,border:'2px solid #c49a3c'}},
       React.createElement('div',{className:'card-header'},'Seat '+selected.number+' ('+selected.section+')'),
