@@ -1088,11 +1088,23 @@ function AdminMembers() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'All Members ('+members.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Phone','Role'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,members.map(m=>React.createElement('tr',{key:m.uid},
-          React.createElement('td',null,m.displayName||'-'),React.createElement('td',null,m.email||'-'),React.createElement('td',null,m.phone||'-'),
-          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')))))))));
+      (()=>{
+        const uidToName={};members.forEach(m=>{if(m.uid)uidToName[m.uid]=m.displayName||((m.firstName||'')+' '+(m.lastName||'')).trim();});
+        return React.createElement('div',{className:'table-container'},React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Phone','Paid','Spouse','Role'].map(h=>React.createElement('th',{key:h},h)))),
+          React.createElement('tbody',null,members.map(m=>{
+            const spouseName=m.spouseUid&&uidToName[m.spouseUid]?uidToName[m.spouseUid]:(m.spouseEmail||'');
+            return React.createElement('tr',{key:m.uid},
+              React.createElement('td',null,m.displayName||'-'),
+              React.createElement('td',null,m.email||'-'),
+              React.createElement('td',null,m.phone||'-'),
+              React.createElement('td',null,m.membershipPaid
+                ?React.createElement('span',{style:{color:'#27ae60',fontWeight:700}},'✓ Paid')
+                :React.createElement('span',{style:{color:'#b00020',fontWeight:600}},'Unpaid')),
+              React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
+              React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')));
+          }))));
+      })()));
 }
 
 // ─── Admin Pledges ───────────────────────────────────────────────
