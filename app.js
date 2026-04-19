@@ -671,14 +671,27 @@ function AdminSeating() {
           React.createElement('button',{className:'btn btn-sm btn-danger',onClick:clearAll},'Clear All'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
       React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign a holder. Green = unassigned, gold = assigned. The horizontal bar is the mechitzah.'),
-      React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8}},
+      React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8,border:'3px solid #1a2744'}},
         React.createElement('div',{className:'seating-chart',style:{
           display:'grid',
-          gridTemplateColumns:'repeat('+maxCol+', 62px)',
-          gridAutoRows:'24px',
-          gap:2,
+          gridTemplateColumns:'repeat('+maxCol+', 56px)',
+          gridAutoRows:'22px',
+          gap:1,
           width:'fit-content'
         }},
+          // Section background panels (behind seats for grouping)
+          React.createElement('div',{className:'section-frame ladies',style:{gridColumn:'6 / 16',gridRow:'1 / 11'}}),
+          React.createElement('div',{className:'section-frame social',style:{gridColumn:'18 / 27',gridRow:'9 / 13'}}),
+          React.createElement('div',{className:'section-frame mens-left',style:{gridColumn:'1 / 5',gridRow:'20 / 31'}}),
+          React.createElement('div',{className:'section-frame mens-center',style:{gridColumn:'5 / 18',gridRow:'20 / 31'}}),
+          React.createElement('div',{className:'section-frame mens-right',style:{gridColumn:'18 / 27',gridRow:'26 / 30'}}),
+          // Section labels
+          React.createElement('div',{className:'section-label',style:{gridColumn:'6 / 16',gridRow:'1 / 2'}},'Ladies Section'),
+          React.createElement('div',{className:'section-label',style:{gridColumn:'18 / 27',gridRow:'9 / 10'}},'Social Hall (Ladies)'),
+          React.createElement('div',{className:'section-label',style:{gridColumn:'1 / 5',gridRow:'20 / 21'}},'Men Pews'),
+          React.createElement('div',{className:'section-label',style:{gridColumn:'5 / 18',gridRow:'20 / 21'}},'Men Section'),
+          React.createElement('div',{className:'section-label',style:{gridColumn:'18 / 27',gridRow:'26 / 27'}},'Men (Right)'),
+          // Seats
           data.layout.seats.flatMap(seat=>{
             const a=data.assignments[seat.number];
             const holder=a&&a.holder?a.holder:'';
@@ -687,14 +700,14 @@ function AdminSeating() {
             const num=React.createElement('button',{
               key:'n'+seat.number,
               className:'seat-num-box '+cls,
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+1)},
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+2)},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },seat.number);
             const name=React.createElement('button',{
               key:'h'+seat.number,
               className:'seat-holder-box '+cls+(holder?'':' empty'),
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+2)},
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3)},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },holder||'');
@@ -702,7 +715,7 @@ function AdminSeating() {
           }),
           React.createElement('div',{className:'mehitzah-bar',style:{
             gridColumn:'1 / -1',
-            gridRow:(mehitzah+1)
+            gridRow:(mehitzah+2)
           }},'MECHITZAH'))),
     selected&&React.createElement('div',{className:'card',style:{marginTop:16,border:'2px solid #c49a3c'}},
       React.createElement('div',{className:'card-header'},'Seat '+selected.number+' ('+selected.section+')'),
