@@ -562,8 +562,8 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','autoemails','donations','members','pledges','reasons','settings','highholidays','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
+      ['rules','overrides','shiurim','emails','autoemails','donations','members','pledges','reasons','settings','highholidays','seating','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -575,9 +575,134 @@ function AdminPanel() {
     tab==='reasons'&&React.createElement(AdminReasons),
     tab==='settings'&&React.createElement(AdminSettings),
     tab==='highholidays'&&React.createElement(AdminHighHolidays),
+    tab==='seating'&&React.createElement(AdminSeating),
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='images'&&React.createElement(AdminImages),
     tab==='admins'&&React.createElement(AdminAccounts));
+}
+
+function AdminSeating() {
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState('');
+  const [selected,setSelected]=useState(null);
+  const [form,setForm]=useState({holder:'',reservationId:''});
+  const [seeding,setSeeding]=useState(false);
+
+  async function load(){
+    setLoading(true);
+    try{ setData(await apiFetch('/api/admin/seating/chart')); }catch(e){ setMsg('Error: '+e.message); }
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  function openAssign(seat){
+    const existing=data.assignments[seat.number];
+    setSelected(seat);
+    setForm({
+      holder:existing?.holder||seat.holder||'',
+      reservationId:existing?.reservationId||''
+    });
+  }
+
+  async function save(){
+    if(!selected)return;
+    try{
+      const res=data.reservations.find(r=>r.id===form.reservationId);
+      await apiFetch('/api/admin/seating/assign',{method:'PUT',body:JSON.stringify({
+        seatNumber:selected.number,
+        holder:form.holder||(res?res.displayName:''),
+        reservationId:form.reservationId||null
+      })});
+      setSelected(null);
+      await load();
+      setMsg('Seat '+selected.number+' assigned.');
+    }catch(e){setMsg('Error: '+e.message);}
+  }
+
+  async function clearSeat(){
+    if(!selected)return;
+    if(!confirm('Clear assignment for seat '+selected.number+'?'))return;
+    try{
+      await apiFetch('/api/admin/seating/'+selected.number,{method:'DELETE'});
+      setSelected(null);
+      await load();
+      setMsg('Seat '+selected.number+' cleared.');
+    }catch(e){setMsg('Error: '+e.message);}
+  }
+
+  async function seedHolders(){
+    if(!confirm('Populate empty seats with the initial holder names from the Excel layout? Existing assignments will not be changed.'))return;
+    setSeeding(true);
+    try{
+      const res=await apiFetch('/api/admin/seating/seed-holders',{method:'POST',body:JSON.stringify({})});
+      setMsg('Seeded '+res.seeded+' seats ('+res.skipped+' skipped).');
+      await load();
+    }catch(e){setMsg('Error: '+e.message);}
+    setSeeding(false);
+  }
+
+  if(loading||!data) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
+
+  const maxCol=Math.max(...data.layout.seats.map(s=>s.col))+1;
+  const maxRow=Math.max(...data.layout.seats.map(s=>s.row))+1;
+  const mehitzah=data.layout.mehitzahRow;
+
+  const assignedCount=Object.keys(data.assignments).length;
+  const totalSeats=data.layout.seats.length;
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Seating Chart ('+assignedCount+'/'+totalSeats+' assigned)'),
+        React.createElement('div',{style:{display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-sm btn-outline',disabled:seeding,onClick:seedHolders},seeding?'Seeding...':'Seed Holders from Excel'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
+      React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign a holder. Green = unassigned, gold = assigned. The horizontal bar is the mechitzah.'),
+      React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8}},
+        React.createElement('div',{className:'seating-chart',style:{
+          display:'grid',
+          gridTemplateColumns:'repeat('+maxCol+', minmax(48px, 1fr))',
+          gridTemplateRows:'repeat('+maxRow+', minmax(44px, auto))',
+          gap:4,
+          minWidth:maxCol*52
+        }},
+          data.layout.seats.map(seat=>{
+            const a=data.assignments[seat.number];
+            const holder=a?a.holder:seat.holder;
+            const isAssigned=!!a;
+            return React.createElement('button',{
+              key:seat.number,
+              className:'seat-btn'+(isAssigned?' assigned':'')+(seat.section==='ladies'?' ladies':' mens'),
+              style:{gridColumn:(seat.col+1)+' / span 1',gridRow:(seat.row+1)+' / span 1'},
+              title:'Seat '+seat.number+(holder?' — '+holder:''),
+              onClick:()=>openAssign(seat)
+            },
+              React.createElement('div',{className:'seat-num'},seat.number),
+              holder&&React.createElement('div',{className:'seat-holder'},holder));
+          }),
+          React.createElement('div',{className:'mehitzah-bar',style:{
+            gridColumn:'1 / -1',
+            gridRow:(mehitzah+1)+' / span 1'
+          }},'— MECHITZAH —'))),
+    selected&&React.createElement('div',{className:'card',style:{marginTop:16,border:'2px solid #c49a3c'}},
+      React.createElement('div',{className:'card-header'},'Seat '+selected.number+' ('+selected.section+')'),
+      React.createElement('div',{className:'form-group'},
+        React.createElement('label',{className:'form-label'},'Holder Name'),
+        React.createElement('input',{className:'form-input',value:form.holder,onChange:e=>setForm(p=>({...p,holder:e.target.value})),placeholder:'e.g. Kahn family'})),
+      React.createElement('div',{className:'form-group'},
+        React.createElement('label',{className:'form-label'},'Link to High-Holiday Reservation (optional)'),
+        React.createElement('select',{className:'form-input',value:form.reservationId,onChange:e=>{
+          const r=data.reservations.find(x=>x.id===e.target.value);
+          setForm(p=>({reservationId:e.target.value,holder:r?r.displayName:p.holder}));
+        }},
+          React.createElement('option',{value:''},'(none)'),
+          data.reservations.map(r=>React.createElement('option',{key:r.id,value:r.id},r.displayName+' — '+r.numSeats+' seats')))),
+      React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+        React.createElement('button',{className:'btn btn-primary',onClick:save},'Save'),
+        data.assignments[selected.number]&&React.createElement('button',{className:'btn btn-danger',onClick:clearSeat},'Clear'),
+        React.createElement('button',{className:'btn btn-outline',onClick:()=>setSelected(null)},'Cancel'))));
 }
 
 function AdminAutoEmails() {
@@ -1691,8 +1816,8 @@ function AdminHighHolidays() {
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16}},
-      ['settings','reservations','seating'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
-        t==='settings'?'Settings':t==='reservations'?'Reservations':'Seating Chart'))),
+      ['settings','reservations'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
+        t==='settings'?'Settings':'Reservations'))),
 
     subTab==='settings'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'High Holiday Settings'),
@@ -1720,20 +1845,7 @@ function AdminHighHolidays() {
           React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
           React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'—'))))))),
 
-    subTab==='seating'&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Seating Chart'),
-      React.createElement('div',{style:{textAlign:'center',marginBottom:12}},
-        React.createElement('div',{style:{background:'#1a2744',color:'#c49a3c',padding:'6px 40px',display:'inline-block',borderRadius:'4px 4px 0 0',fontWeight:700,fontSize:'0.85rem'}},'ARON KODESH')),
-      React.createElement('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:3}},
-        Array.from({length:settings.rows||10},(_,row)=>
-          React.createElement('div',{key:row,style:{display:'flex',gap:3,alignItems:'center'}},
-            React.createElement('span',{style:{width:28,textAlign:'right',fontSize:'0.7rem',color:'#888',marginRight:3}},'R'+(row+1)),
-            Array.from({length:settings.seatsPerRow||10},(_,col)=>{
-              const seatId='R'+(row+1)+'-S'+(col+1);
-              const assigned=seatingData?.seatMap?.[seatId];
-              return React.createElement('div',{key:col,style:{width:28,height:28,borderRadius:3,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'0.55rem',fontWeight:600,cursor:'pointer',background:assigned?'#c49a3c':'#27ae60',color:'#fff'},
-                title:assigned?assigned.name:seatId+' — Available',
-                onClick:()=>{if(!assigned){const resId=prompt('Reservation ID for seat '+seatId+':');if(resId)assignSeat(resId,seatId);}}},col+1);}))))));
+    React.createElement('p',{style:{color:'#888',fontSize:'0.9rem',marginTop:16}},'To assign seats to the physical pews, use the dedicated "Seating" tab in the main admin menu.'));
 }
 // ─── Main App (Top Nav Layout) ───────────────────────────────────
 function App() {
