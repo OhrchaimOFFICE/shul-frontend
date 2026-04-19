@@ -642,6 +642,16 @@ function AdminSeating() {
     setSeeding(false);
   }
 
+  async function clearAll(){
+    if(!confirm('Clear ALL seat assignments? This will wipe every assignment on the chart. This cannot be undone.'))return;
+    if(!confirm('Are you sure? Every seat will go back to unassigned.'))return;
+    try{
+      const res=await apiFetch('/api/admin/seating/clear-all',{method:'DELETE'});
+      setMsg('Cleared '+res.cleared+' assignments.');
+      await load();
+    }catch(e){setMsg('Error: '+e.message);}
+  }
+
   if(loading||!data) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
 
   const maxCol=Math.max(...data.layout.seats.map(s=>s.col))+1;
@@ -656,17 +666,18 @@ function AdminSeating() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Seating Chart ('+assignedCount+'/'+totalSeats+' assigned)'),
-        React.createElement('div',{style:{display:'flex',gap:8}},
+        React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
           React.createElement('button',{className:'btn btn-sm btn-outline',disabled:seeding,onClick:seedHolders},seeding?'Seeding...':'Seed Holders from Excel'),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:clearAll},'Clear All'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
       React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign a holder. Green = unassigned, gold = assigned. The horizontal bar is the mechitzah.'),
       React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8}},
         React.createElement('div',{className:'seating-chart',style:{
           display:'grid',
-          gridTemplateColumns:'repeat('+maxCol+', minmax(48px, 1fr))',
-          gridTemplateRows:'repeat('+maxRow+', minmax(44px, auto))',
-          gap:4,
-          minWidth:maxCol*52
+          gridTemplateColumns:'repeat('+maxCol+', 44px)',
+          gridAutoRows:'44px',
+          gap:3,
+          width:'fit-content'
         }},
           data.layout.seats.map(seat=>{
             const a=data.assignments[seat.number];
@@ -685,7 +696,7 @@ function AdminSeating() {
           React.createElement('div',{className:'mehitzah-bar',style:{
             gridColumn:'1 / -1',
             gridRow:(mehitzah+1)+' / span 1'
-          }},'— MECHITZAH —'))),
+          }},'MECHITZAH'))),
     selected&&React.createElement('div',{className:'card',style:{marginTop:16,border:'2px solid #c49a3c'}},
       React.createElement('div',{className:'card-header'},'Seat '+selected.number+' ('+selected.section+')'),
       React.createElement('div',{className:'form-group'},
