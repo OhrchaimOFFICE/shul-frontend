@@ -1569,6 +1569,11 @@ function AdminEmailCenter() {
       apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
   }
 
+  async function cleanTemplates(){setMsg('');
+    try{const res=await apiFetch('/api/admin/email/clean-templates',{method:'POST',body:JSON.stringify({})});setMsg('Cleaned '+res.updated+' of '+res.total+' templates.');
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
+  }
+
   function handleImageUpload(target){
     const input=document.createElement('input');
     input.type='file';input.accept='image/*';
@@ -1653,7 +1658,9 @@ function AdminEmailCenter() {
       React.createElement('div',{className:'card'},
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Email Templates'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:seedDefaults},'Load Default Templates')),
+          React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:cleanTemplates},'Fix Character Encoding'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:seedDefaults},'Load Default Templates'))),
         React.createElement('div',{style:{marginTop:16}},
           React.createElement('form',{onSubmit:saveTemplate},
             React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
