@@ -23,17 +23,17 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .top-logo-text h2 { font-family: var(--font-display); font-size: 1.35rem; color: var(--gold); margin: 0; font-weight: 600; line-height: 1.2; }
 .top-logo-text span { font-size: 0.7rem; color: rgba(255,255,255,0.4); letter-spacing: 2px; text-transform: uppercase; }
 .top-nav { display: flex; gap: 2px; align-items: center; }
-.top-nav-item { font-size: 0.88rem; color: rgba(255,255,255,0.55); padding: 7px 12px; border-radius: 6px; text-decoration: none; cursor: pointer; transition: all 0.2s; font-weight: 500; border: none; background: none; font-family: var(--font-body); }
+.top-nav-item { font-size: 0.95rem; color: rgba(255,255,255,0.55); padding: 8px 13px; border-radius: 6px; text-decoration: none; cursor: pointer; transition: all 0.2s; font-weight: 500; border: none; background: none; font-family: var(--font-body); }
 .top-nav-item:hover { color: #fff; background: rgba(255,255,255,0.06); }
 .top-nav-item.active { color: #fff; background: rgba(196,154,60,0.18); }
-.top-donate-btn { background: var(--gold); color: var(--navy); border: none; padding: 7px 20px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; margin-left: 6px; font-family: var(--font-body); }
+.top-donate-btn { background: var(--gold); color: var(--navy); border: none; padding: 8px 22px; border-radius: 6px; font-size: 0.95rem; font-weight: 700; cursor: pointer; letter-spacing: 0.3px; margin-left: 6px; font-family: var(--font-body); }
 .top-donate-btn:hover { background: var(--gold-light); }
-.top-sponsor-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
+.top-sponsor-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); padding: 7px 16px; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
 .top-sponsor-btn:hover { background: rgba(196,154,60,0.12); }
 
 /* ─── Ticker ───────────────────────────────────────────────────── */
 .zmanim-ticker { background: var(--navy-dark); padding: 7px 0; overflow: hidden; white-space: nowrap; }
-.ticker-inner { max-width: 1200px; margin: 0 auto; padding: 0 28px; display: flex; justify-content: center; gap: 20px; font-size: 0.82rem; font-weight: 500; }
+.ticker-inner { max-width: 1200px; margin: 0 auto; padding: 0 28px; display: flex; justify-content: center; gap: 20px; font-size: 0.95rem; font-weight: 500; }
 .ticker-inner span { color: rgba(196,154,60,0.6); }
 .ticker-inner span b { color: var(--gold); font-weight: 600; }
 .ticker-inner .ticker-hl { color: var(--gold); }
@@ -70,17 +70,17 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 /* ─── Cards ────────────────────────────────────────────────────── */
 .card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; margin-bottom: 10px; position: relative; overflow: hidden; }
 .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light), transparent); }
-.card-header { font-family: var(--font-display); font-size: 1.1rem; color: var(--navy); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+.card-header { font-family: var(--font-display); font-size: 1.25rem; color: var(--navy); font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
 .card-plain { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 20px; margin-bottom: 14px; }
 
 /* ─── Three-column grid ────────────────────────────────────────── */
 .home-grid { display: grid; grid-template-columns: 1fr 1fr 240px; gap: 10px; }
 
 /* ─── Time rows ────────────────────────────────────────────────── */
-.time-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.95rem; border-bottom: 0.5px solid rgba(0,0,0,0.04); }
+.time-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 1.05rem; border-bottom: 0.5px solid rgba(0,0,0,0.04); }
 .time-row:last-child { border: none; }
 .time-label { color: var(--text-medium); font-weight: 500; }
-.time-value { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+.time-value { font-weight: 700; color: var(--navy); font-size: 1.05rem; }
 .time-value.candle-lighting { color: var(--gold-dark); }
 
 /* ─── Schedule Grid ────────────────────────────────────────────── */
@@ -100,11 +100,11 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 /* ─── Zmanim Panel ─────────────────────────────────────────────── */
 .zmanim-panel { background: rgba(196,154,60,0.03); border: 0.5px solid rgba(196,154,60,0.12); border-radius: var(--radius-lg); padding: 10px 12px; position: relative; overflow: hidden; }
 .zmanim-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold), transparent); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
-.zmanim-panel-title { font-family: var(--font-display); font-size: 0.95rem; color: var(--navy); font-weight: 600; text-align: center; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.zmanim-panel-title { font-family: var(--font-display); font-size: 1.1rem; color: var(--navy); font-weight: 600; text-align: center; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .panel-tree-icon { height: 28px; width: auto; }
-.zman-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 0.82rem; }
-.zman-name { color: #777; }
-.zman-time { color: #333; font-weight: 600; }
+.zman-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 0.9rem; }
+.zman-name { color: #666; }
+.zman-time { color: #222; font-weight: 600; }
 .zmanim-expand-btn { display: block; width: 100%; margin-top: 6px; padding: 6px; background: var(--navy); color: var(--gold); border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; text-align: center; font-family: var(--font-body); letter-spacing: 0.3px; }
 .zmanim-expand-btn:hover { background: var(--navy-light); }
 
@@ -113,8 +113,8 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .sponsor-btn { flex: 1; padding: 6px 6px; border: 0.5px solid rgba(39,174,96,0.3); background: rgba(39,174,96,0.04); border-radius: 6px; text-align: center; cursor: pointer; transition: all 0.2s; }
 .sponsor-btn:hover { border-color: var(--green); background: rgba(39,174,96,0.08); }
 .sponsor-btn.taken { border-color: rgba(192,57,43,0.3); background: rgba(192,57,43,0.04); }
-.sponsor-label { font-size: 0.78rem; color: var(--text-light); }
-.sponsor-status { font-size: 0.82rem; font-weight: 600; color: var(--green); margin-top: 1px; }
+.sponsor-label { font-size: 0.9rem; color: var(--text-light); }
+.sponsor-status { font-size: 0.95rem; font-weight: 600; color: var(--green); margin-top: 1px; }
 .sponsor-status.taken { color: var(--red); }
 .sponsor-card { background: var(--white); border-radius: var(--radius-lg); border: 2px solid var(--border); padding: 20px; text-align: center; }
 .sponsor-card.available { border-color: var(--green); }
@@ -122,7 +122,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Quick Links ──────────────────────────────────────────────── */
 .quick-links { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
-.quick-link { padding: 10px 8px; text-align: center; background: var(--cream-dark); border-radius: var(--radius); font-size: 0.88rem; color: var(--navy); font-weight: 600; cursor: pointer; transition: all 0.2s; border: 0.5px solid transparent; }
+.quick-link { padding: 10px 8px; text-align: center; background: var(--cream-dark); border-radius: var(--radius); font-size: 1rem; color: var(--navy); font-weight: 600; cursor: pointer; transition: all 0.2s; border: 0.5px solid transparent; }
 .quick-link:hover { border-color: var(--gold); background: rgba(196,154,60,0.06); }
 
 /* ─── Calendar (Dark, high contrast, large text) ────────────────── */
