@@ -385,10 +385,10 @@ function AdminLogin({onLogin}) {
 function useSiteImages() {
   const [images,setImages]=useState({});
   useEffect(()=>{
-    const db=firebase.firestore();
-    db.collection('content').doc('siteImages').get().then(doc=>{
-      if(doc.exists) setImages(doc.data());
-    }).catch(()=>{});
+    fetch(BACKEND_URL+'/api/site-images')
+      .then(r=>r.ok?r.json():{})
+      .then(setImages)
+      .catch(()=>{});
   },[]);
   return images;
 }
@@ -408,11 +408,10 @@ function AdminImages() {
   ];
 
   useEffect(()=>{
-    const db=firebase.firestore();
-    db.collection('content').doc('siteImages').get().then(doc=>{
-      if(doc.exists) setImages(doc.data());
-      setLoading(false);
-    }).catch(()=>setLoading(false));
+    fetch(BACKEND_URL+'/api/site-images')
+      .then(r=>r.ok?r.json():{})
+      .then(data=>{setImages(data||{});setLoading(false);})
+      .catch(()=>setLoading(false));
   },[]);
 
   function uploadImage(key,e){
