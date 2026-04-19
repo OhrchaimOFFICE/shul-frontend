@@ -600,7 +600,7 @@ function AdminSeating() {
     const existing=data.assignments[seat.number];
     setSelected(seat);
     setForm({
-      holder:existing?.holder||seat.holder||'',
+      holder:existing?.holder||'',
       reservationId:existing?.reservationId||''
     });
   }
@@ -670,13 +670,13 @@ function AdminSeating() {
         }},
           data.layout.seats.map(seat=>{
             const a=data.assignments[seat.number];
-            const holder=a?a.holder:seat.holder;
-            const isAssigned=!!a;
+            const holder=a&&a.holder?a.holder:'';
+            const isAssigned=!!holder;
             return React.createElement('button',{
               key:seat.number,
               className:'seat-btn'+(isAssigned?' assigned':'')+(seat.section==='ladies'?' ladies':' mens'),
               style:{gridColumn:(seat.col+1)+' / span 1',gridRow:(seat.row+1)+' / span 1'},
-              title:'Seat '+seat.number+(holder?' — '+holder:''),
+              title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },
               React.createElement('div',{className:'seat-num'},seat.number),
@@ -698,7 +698,7 @@ function AdminSeating() {
           setForm(p=>({reservationId:e.target.value,holder:r?r.displayName:p.holder}));
         }},
           React.createElement('option',{value:''},'(none)'),
-          data.reservations.map(r=>React.createElement('option',{key:r.id,value:r.id},r.displayName+' — '+r.numSeats+' seats')))),
+          data.reservations.map(r=>React.createElement('option',{key:r.id,value:r.id},r.displayName+', '+r.numSeats+' seats')))),
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
         React.createElement('button',{className:'btn btn-primary',onClick:save},'Save'),
         data.assignments[selected.number]&&React.createElement('button',{className:'btn btn-danger',onClick:clearSeat},'Clear'),
