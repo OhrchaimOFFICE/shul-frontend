@@ -382,6 +382,30 @@ function AdminLogin({onLogin}) {
 }
 
 // ─── Site Images (stored in Firestore, uploaded by admin) ────────
+function HeroSlideshow() {
+  const [slides,setSlides]=useState([]);
+  const [idx,setIdx]=useState(0);
+  useEffect(()=>{
+    fetch(BACKEND_URL+'/api/slides')
+      .then(r=>r.ok?r.json():[])
+      .then(setSlides)
+      .catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    if(slides.length<2)return;
+    const t=setInterval(()=>setIdx(i=>(i+1)%slides.length),5000);
+    return ()=>clearInterval(t);
+  },[slides.length]);
+  if(!slides.length) return null;
+  return React.createElement('div',{className:'hero-slideshow'},
+    slides.map((s,i)=>React.createElement('img',{
+      key:s.id,
+      src:s.dataUrl,
+      alt:'',
+      className:'hero-slide'+(i===idx?' active':'')
+    })));
+}
+
 function useSiteImages() {
   const [images,setImages]=useState({});
   useEffect(()=>{
@@ -461,7 +485,68 @@ function AdminImages() {
               React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}})),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeImage(s.key)},'Remove'))
         ):React.createElement('label',{className:'btn btn-primary btn-block',style:{cursor:'pointer'}},'Upload Image',
-          React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}}))))));
+          React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}}))))),
+    React.createElement(AdminSlideshow));
+}
+
+const MAX_SLIDES = 5;
+
+function AdminSlideshow() {
+  const [slides,setSlides]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState('');
+  const [busy,setBusy]=useState(false);
+
+  async function load(){
+    try{
+      const r=await fetch(BACKEND_URL+'/api/slides');
+      setSlides(r.ok?await r.json():[]);
+    }catch{setSlides([]);}
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  function onUpload(e){
+    const file=e.target.files[0];
+    e.target.value='';
+    if(!file)return;
+    if(file.size>5*1024*1024){setMsg('File too large. Max 5MB.');return;}
+    if(slides.length>=MAX_SLIDES){setMsg(`Maximum ${MAX_SLIDES} slides. Remove one first.`);return;}
+    const reader=new FileReader();
+    reader.onload=async()=>{
+      setBusy(true);
+      try{
+        await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({dataUrl:reader.result})});
+        setMsg('Slide added.');
+        await load();
+      }catch(err){setMsg('Error: '+err.message);}
+      setBusy(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function onRemove(id){
+    if(!confirm('Remove this slide?'))return;
+    setBusy(true);
+    try{
+      await apiFetch('/api/admin/slides/'+encodeURIComponent(id),{method:'DELETE'});
+      setMsg('Slide removed.');
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+    setBusy(false);
+  }
+
+  return React.createElement('div',{style:{marginTop:24}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},`Homepage Slideshow (${slides.length}/${MAX_SLIDES})`),
+      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Photos rotate automatically on the homepage, one every 5 seconds. Max 5 images, 5MB each.'),
+      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('Maximum')||msg.includes('too large')?'message-error':'message-success')},msg),
+      loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12,marginBottom:12}},
+        slides.map(s=>React.createElement('div',{key:s.id,style:{position:'relative'}},
+          React.createElement('img',{src:s.dataUrl,alt:'',style:{width:'100%',height:140,objectFit:'cover',borderRadius:8,background:'#f0ece3'}}),
+          React.createElement('button',{className:'btn btn-sm btn-danger',disabled:busy,onClick:()=>onRemove(s.id),style:{position:'absolute',top:6,right:6}},'Remove')))),
+      slides.length<MAX_SLIDES&&React.createElement('label',{className:'btn btn-primary',style:{cursor:busy?'not-allowed':'pointer',opacity:busy?0.6:1}},busy?'Uploading...':'Add Slide',
+        React.createElement('input',{type:'file',accept:'image/*',disabled:busy,onChange:onUpload,style:{display:'none'}}))));
 }
 
 // ─── Admin Panel ─────────────────────────────────────────────────
@@ -1584,6 +1669,7 @@ function App() {
         React.createElement('div',{className:'hero-cta'},
           React.createElement('button',{className:'hero-cta-primary',onClick:()=>navigate('donate')},'Make a Donation'),
           React.createElement('button',{className:'hero-cta-secondary',onClick:()=>navigate('schedule')},"This Week's Schedule")))),
+    showHero&&React.createElement(HeroSlideshow),
     // Page header (non-home pages)
     !showHero&&titles[page]&&React.createElement('div',{className:'page-wrap',style:{paddingBottom:0}},
       React.createElement('div',{className:'page-header'},

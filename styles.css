@@ -61,6 +61,12 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .hero-cta-secondary { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); border: 0.5px solid rgba(255,255,255,0.15) !important; }
 .hero-cta-secondary:hover { background: rgba(255,255,255,0.12); }
 
+/* ─── Hero Slideshow ──────────────────────────────────────────── */
+.hero-slideshow { position: relative; width: 100%; height: 360px; background: #1a2744; overflow: hidden; }
+.hero-slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 1s ease-in-out; }
+.hero-slide.active { opacity: 1; }
+@media (max-width: 768px) { .hero-slideshow { height: 220px; } }
+
 /* ─── Page Content ─────────────────────────────────────────────── */
 .page-wrap { max-width: 1200px; margin: 0 auto; padding: 12px 28px; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
