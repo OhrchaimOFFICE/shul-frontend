@@ -647,6 +647,7 @@ function AdminRulesEditor() {
     {key:'shabbosYomTovShacharis',label:'Shabbos & Yom Tov Shacharis',def:'9:00 AM',desc:'Shabbos and Yom Tov mornings'},
     {key:'shabbosMinchaMinsBefore',label:'Shabbos Mincha (mins before shkia)',def:30,desc:'Rounded down to nearest 5 min',type:'number'},
     {key:'fridayStdMinchaMinsBefore',label:'Friday Mincha Std Time (mins before shkia)',def:15,desc:'Also used for Yom Tov Mincha',type:'number'},
+    {key:'fridayEarlyMinchaMinsBeforePlag',label:'Friday Early Mincha (mins before plag hamincha)',def:0,desc:'DST Fridays only. 0 = at plag. Rounded down to nearest 5 min.',type:'number'},
     {key:'motzeiShabbosMinsBefore',label:'Motzei Shabbos Maariv (mins before tzeis)',def:10,desc:'Minutes before tzeis hakochavim',type:'number'},
   ];
   return React.createElement('div',null,
@@ -658,7 +659,7 @@ function AdminRulesEditor() {
     React.createElement('div',{style:{marginTop:20}},React.createElement('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save All Rules')),
     React.createElement('div',{className:'card',style:{marginTop:24}},
       React.createElement('div',{className:'card-header'},'How Auto-Calculated Times Work'),
-      React.createElement('p',{style:{lineHeight:1.8,fontSize:'0.95rem'}},'Weekday Mincha/Maariv during DST: 10 min before plag, rounded down to nearest 5 min. During standard time: 10 min before sunset, rounded down to nearest 5. Friday night DST: additional early mincha at plag (rounded to 5). All times can be overridden for specific dates using Schedule Overrides.')));
+      React.createElement('p',{style:{lineHeight:1.8,fontSize:'0.95rem'}},'Weekday Mincha/Maariv during DST: 10 min before plag, rounded down to nearest 5 min. During standard time: 10 min before sunset, rounded down to nearest 5. Friday night DST: an early mincha shows based on plag hamincha, using the "mins before plag" value above (0 = at plag). All times can be overridden for specific dates using Schedule Overrides.')));
 }
 
 // ─── Admin Overrides ─────────────────────────────────────────────
