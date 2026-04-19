@@ -185,7 +185,7 @@ function HomePage({navigate}) {
 
   return React.createElement('div',null,
     React.createElement('div',{className:'home-grid'},
-      // Column 1: Today's davening
+      // Column 1: Today's davening + slideshow
       React.createElement('div',null,
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},"Today's davening"),
@@ -198,7 +198,8 @@ function HomePage({navigate}) {
             schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
             schedule.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
             showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
-          ):React.createElement('p',{style:{color:'#888'}},'Unable to load.'))),
+          ):React.createElement('p',{style:{color:'#888'}},'Unable to load.')),
+        React.createElement(HeroSlideshow)),
       // Column 2: This Shabbos — full schedule
       React.createElement('div',null,
         React.createElement('div',{className:'card'},
@@ -1720,7 +1721,6 @@ function App() {
         React.createElement('div',{className:'hero-cta'},
           React.createElement('button',{className:'hero-cta-primary',onClick:()=>navigate('donate')},'Make a Donation'),
           React.createElement('button',{className:'hero-cta-secondary',onClick:()=>navigate('schedule')},"This Week's Schedule")))),
-    showHero&&React.createElement(HeroSlideshow),
     // Page header (non-home pages)
     !showHero&&titles[page]&&React.createElement('div',{className:'page-wrap',style:{paddingBottom:0}},
       React.createElement('div',{className:'page-header'},
