@@ -1248,6 +1248,7 @@ function AdminEmailCenter() {
   const [showPreview,setShowPreview]=useState(false);
   // Weekly schedule
   const [weeklyStartDate,setWeeklyStartDate]=useState(getTodayStr());
+  const [weeklyEndDate,setWeeklyEndDate]=useState(()=>{const d=new Date(getTodayStr()+'T12:00:00');d.setDate(d.getDate()+6);return d.toISOString().split('T')[0];});
   const [weeklyCustomText,setWeeklyCustomText]=useState('');
   const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule — Congregation Ohr Chaim");
   const [weeklyPreviewHtml,setWeeklyPreviewHtml]=useState('');
@@ -1282,7 +1283,8 @@ function AdminEmailCenter() {
   async function previewWeekly(){
     setMsg('');
     try{
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate})});
+      if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate})});
       let html=res.html||'';
       if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
       setWeeklyPreviewHtml(html);
@@ -1293,7 +1295,8 @@ function AdminEmailCenter() {
     setSending(true);setMsg('');
     try{
       const targetEmails=getTargetEmails(weeklyTargetGroup);
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,customText:weeklyCustomText,subject:weeklySubject})});
+      if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject})});
       setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
       apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
     }catch(err){setMsg('Error: '+err.message);}
@@ -1366,9 +1369,11 @@ function AdminEmailCenter() {
     subTab==='weekly'&&React.createElement('div',null,
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Weekly Schedule Email'),
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}},
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Start Date (Sunday)'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 2fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Start Date'),
             React.createElement('input',{className:'form-input',type:'date',value:weeklyStartDate,onChange:e=>setWeeklyStartDate(e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'End Date'),
+            React.createElement('input',{className:'form-input',type:'date',value:weeklyEndDate,min:weeklyStartDate,onChange:e=>setWeeklyEndDate(e.target.value)})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
             React.createElement('select',{className:'form-input',value:weeklyTargetGroup,onChange:e=>setWeeklyTargetGroup(e.target.value)},
               React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
