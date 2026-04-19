@@ -65,7 +65,7 @@ function ZmanimPanel({onExpand}) {
   const isFriday=new Date().getDay()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
 
-  // Fullscreen overlay — designed for shul TV display, fills entire viewport
+  // Fullscreen overlay - designed for shul TV display, fills entire viewport
   if(fullscreen){
     const zTimes=fullZmanim?.zmanim||schedule?.zmanim||{};
     const zmanimList=[
@@ -96,7 +96,7 @@ function ZmanimPanel({onExpand}) {
           React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1.1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
       // Two columns filling remaining space
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1600,flex:1,minHeight:0,paddingBottom:20}},
-        // Left: All Zmanim — auto-scrolling
+        // Left: All Zmanim - auto-scrolling
         React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
           React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2.2rem',textAlign:'center',fontWeight:700}},"Today's Zmanim"),
           React.createElement('div',{style:{flex:1,overflow:'hidden',position:'relative'}},
@@ -139,7 +139,7 @@ function ZmanimPanel({onExpand}) {
     // Today's shiurim
     todayShiurim.length>0&&React.createElement('div',{style:{marginTop:8,borderTop:'1px solid #e0dcd4',paddingTop:6}},
       React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'0.85rem',marginBottom:4}},'Shiurim Today'),
-      todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{fontSize:'0.8rem',padding:'3px 0',color:'#555'}},s.title+(s.time?' — '+s.time:'')))),
+      todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{fontSize:'0.8rem',padding:'3px 0',color:'#555'}},s.title+(s.time?' - '+s.time:'')))),
     // Buttons
     React.createElement('div',{style:{display:'flex',gap:6,marginTop:10}},
       React.createElement('button',{className:'zmanim-expand-btn',onClick:openFullscreen,style:{flex:1}},'Full Screen'),
@@ -201,7 +201,7 @@ function HomePage({navigate}) {
             showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
           ):React.createElement('p',{style:{color:'#888'}},'Unable to load.')),
         React.createElement(HeroSlideshow)),
-      // Column 2: This Shabbos — full schedule
+      // Column 2: This Shabbos - full schedule
       React.createElement('div',null,
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},'This Shabbos',sb?.parsha&&React.createElement('span',{className:'badge'},sb.parsha)),
@@ -218,7 +218,7 @@ function HomePage({navigate}) {
             shabbosShiurim.length>0&&React.createElement('div',{style:{marginTop:6,paddingTop:6,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
               React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#1a2744',marginBottom:3}},'SHIURIM'),
               shabbosShiurim.map(s=>React.createElement('div',{key:s.id,style:{display:'flex',justifyContent:'space-between',padding:'2px 0',fontSize:'0.88rem'}},
-                React.createElement('span',{style:{color:'#555'}},s.title+(s.rabbi?' — '+s.rabbi:'')),
+                React.createElement('span',{style:{color:'#555'}},s.title+(s.rabbi?' - '+s.rabbi:'')),
                 React.createElement('span',{style:{fontWeight:600,color:'#1a2744'}},s.time||'')))),
             React.createElement('div',{style:{marginTop:6,paddingTop:6,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
               React.createElement('div',{className:'sponsor-row'},
@@ -1043,7 +1043,7 @@ function SponsorshipPage() {
           React.createElement('option',{value:''},'-- Choose a Date --'),
           upcoming.map(d=>{
             const label=dateLabels[d]?dateLabels[d]:parshaMap[d]?parshaMap[d]:'';
-            return React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(label?' — '+label:''));
+            return React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(label?' - '+label:''));
           }))),
       selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}},
         ['kiddush','seudasShlishis'].map(t=>{
@@ -1300,8 +1300,8 @@ function AdminSettings() {
       React.createElement('div',{className:'form-group'},
         React.createElement('label',{className:'form-label'},'Master Switch'),
         React.createElement('select',{className:'form-input',style:{maxWidth:300},value:reminderSettings.enabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,enabled:e.target.value==='on'}))},
-          React.createElement('option',{value:'off'},'OFF — No automatic reminders'),
-          React.createElement('option',{value:'on'},'ON — Send reminders automatically'))),
+          React.createElement('option',{value:'off'},'OFF - No automatic reminders'),
+          React.createElement('option',{value:'on'},'ON - Send reminders automatically'))),
       reminderSettings.enabled&&React.createElement('div',null,
         // Membership section
         React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
@@ -1465,7 +1465,7 @@ function AdminEmailCenter() {
   const [weeklyStartDate,setWeeklyStartDate]=useState(getTodayStr());
   const [weeklyEndDate,setWeeklyEndDate]=useState(()=>{const d=new Date(getTodayStr()+'T12:00:00');d.setDate(d.getDate()+6);return d.toISOString().split('T')[0];});
   const [weeklyCustomText,setWeeklyCustomText]=useState('');
-  const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule — Congregation Ohr Chaim");
+  const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule - Congregation Ohr Chaim");
   const [weeklyPreviewHtml,setWeeklyPreviewHtml]=useState('');
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   // Template form
@@ -1636,7 +1636,7 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
         weeklyTargetGroup==='custom'&&MemberPicker(),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule — supports HTML, <img> tags for images)'),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule - supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
@@ -1914,7 +1914,7 @@ function AdminHighHolidays() {
         React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
           React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
           React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
-          React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'—'))))))),
+          React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'))))))),
 
     React.createElement('p',{style:{color:'#888',fontSize:'0.9rem',marginTop:16}},'To assign seats to the physical pews, use the dedicated "Seating" tab in the main admin menu.'));
 }
@@ -1959,7 +1959,7 @@ function App() {
       React.createElement('button',{className:'mobile-nav-item',onClick:()=>navigate('donate'),style:{color:'#c49a3c'}},'Donate')),
     // Ticker
     React.createElement(ZmanimTicker),
-    // Hero (home only) — with decorative tree
+    // Hero (home only) - with decorative tree
     showHero&&React.createElement('div',{className:'hero-banner'},
       heroImgSrc&&React.createElement('img',{src:heroImgSrc,alt:'',className:'hero-tree-bg'}),
       React.createElement('div',{className:'hero-inner'},
