@@ -168,6 +168,7 @@ function HomePage({navigate}) {
   const [shabbosData,setShabbosData]=useState(null);
   const [shiurim,setShiurim]=useState([]);
   const [loading,setLoading]=useState(true);
+  const siteImages=useSiteImages();
 
   useEffect(()=>{
     Promise.all([
@@ -380,6 +381,92 @@ function AdminLogin({onLogin}) {
       React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading},loading?'Signing in...':'Sign In')));
 }
 
+// ─── Site Images (stored in Firestore, uploaded by admin) ────────
+function useSiteImages() {
+  const [images,setImages]=useState({});
+  useEffect(()=>{
+    const db=firebase.firestore();
+    db.collection('content').doc('siteImages').get().then(doc=>{
+      if(doc.exists) setImages(doc.data());
+    }).catch(()=>{});
+  },[]);
+  return images;
+}
+
+function AdminImages() {
+  const [images,setImages]=useState({});
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState('');
+  const slots=[
+    {key:'topLogo',label:'Top Bar Logo',desc:'Shows in the top-left corner of every page (recommended: square, ~200px)'},
+    {key:'heroImage',label:'Homepage Hero Image',desc:'Large image on the right side of the hero banner'},
+    {key:'homepageImage',label:'Homepage Card Image',desc:'Shows in the Today\'s Davening card area'},
+    {key:'zmanimPageImage',label:'Zmanim Page Image',desc:'Decorative image on the full Zmanim page'},
+    {key:'fullscreenLogo',label:'Fullscreen TV Logo',desc:'Logo shown on the fullscreen zmanim display'},
+    {key:'loginLogo',label:'Login Page Logo',desc:'Logo shown on the login/register page'},
+    {key:'footerLogo',label:'Footer Logo',desc:'Logo shown in the site footer'},
+  ];
+
+  useEffect(()=>{
+    const db=firebase.firestore();
+    db.collection('content').doc('siteImages').get().then(doc=>{
+      if(doc.exists) setImages(doc.data());
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  },[]);
+
+  function uploadImage(key,e){
+    const file=e.target.files[0];
+    if(!file)return;
+    if(file.size>5*1024*1024){setMsg('File too large. Max 5MB.');return;}
+    const reader=new FileReader();
+    reader.onload=async()=>{
+      const base64=reader.result;
+      const updated={...images,[key]:base64};
+      setImages(updated);
+      try{
+        const db=firebase.firestore();
+        await db.collection('content').doc('siteImages').set(updated,{merge:true});
+        setMsg(slots.find(s=>s.key===key)?.label+' uploaded!');
+      }catch(err){setMsg('Error saving: '+err.message);}
+    };
+    reader.readAsDataURL(file);
+    e.target.value='';
+  }
+
+  async function removeImage(key){
+    if(!confirm('Remove this image?'))return;
+    const updated={...images};
+    delete updated[key];
+    setImages(updated);
+    try{
+      const db=firebase.firestore();
+      const deleteObj={};deleteObj[key]=firebase.firestore.FieldValue.delete();
+      await db.collection('content').doc('siteImages').update(deleteObj);
+      setMsg('Image removed.');
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Site Images'),
+      React.createElement('p',{style:{color:'#555',marginBottom:16}},'Upload images for different sections of the website. Accepted formats: PNG, JPG. Max 5MB each.')),
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))',gap:16}},
+      slots.map(s=>React.createElement('div',{className:'card',key:s.key},
+        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'1rem',marginBottom:4}},s.label),
+        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:10}},s.desc),
+        images[s.key]?React.createElement('div',null,
+          React.createElement('img',{src:images[s.key],alt:s.label,style:{width:'100%',maxHeight:150,objectFit:'contain',borderRadius:8,marginBottom:8,background:'#f0ece3',padding:8}}),
+          React.createElement('div',{style:{display:'flex',gap:6}},
+            React.createElement('label',{className:'btn btn-sm btn-outline',style:{cursor:'pointer',flex:1}},'Replace',
+              React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}})),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeImage(s.key)},'Remove'))
+        ):React.createElement('label',{className:'btn btn-primary btn-block',style:{cursor:'pointer'}},'Upload Image',
+          React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}}))))));
+}
+
 // ─── Admin Panel ─────────────────────────────────────────────────
 function AdminPanel() {
   const [user,setUser]=useState(null);const [isAdmin,setIsAdmin]=useState(false);const [checking,setChecking]=useState(true);const [tab,setTab]=useState('rules');
@@ -391,8 +478,8 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','settings','highholidays','analytics','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':'Admins'))),
+      ['rules','overrides','shiurim','emails','donations','members','pledges','reasons','settings','highholidays','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -404,6 +491,7 @@ function AdminPanel() {
     tab==='settings'&&React.createElement(AdminSettings),
     tab==='highholidays'&&React.createElement(AdminHighHolidays),
     tab==='analytics'&&React.createElement(AdminAnalytics),
+    tab==='images'&&React.createElement(AdminImages),
     tab==='admins'&&React.createElement(AdminAccounts));
 }
 
@@ -650,6 +738,7 @@ function AccountPage() {
   const [loginForm,setLoginForm]=useState({email:'',password:''});
   const [regForm,setRegForm]=useState({firstName:'',lastName:'',email:'',phone:'',address:'',password:'',spouseEmail:''});
   const [error,setError]=useState('');const [editing,setEditing]=useState(false);const [editForm,setEditForm]=useState({});const [msg,setMsg]=useState('');
+  const siteImages=useSiteImages();
   useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);setLoading(false);});return unsub;},[]);
   useEffect(()=>{if(user){apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});}},[user]);
   useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
@@ -666,7 +755,7 @@ function AccountPage() {
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(!user) return React.createElement('div',{className:'auth-container'},
-    React.createElement('img',{src:'logo-full.png',alt:'Congregation Ohr Chaim',className:'auth-logo'}),
+    siteImages.loginLogo&&React.createElement('img',{src:siteImages.loginLogo,alt:'Congregation Ohr Chaim',className:'auth-logo'}),
     React.createElement('div',{className:'auth-title'},authMode==='prefill'?'Complete Your Account':'My Account'),
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
     error&&React.createElement('div',{className:'message message-error'},error),
@@ -1451,6 +1540,7 @@ function AdminHighHolidays() {
 function App() {
   const [page,setPage]=useState(window.location.hash.replace('#','')||'home');
   const [mobileOpen,setMobileOpen]=useState(false);
+  const siteImages=useSiteImages();
   useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setMobileOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
   function navigate(p){window.location.hash=p;setPage(p);setMobileOpen(false);}
 
@@ -1463,13 +1553,16 @@ function App() {
   const today=new Date();
   const secDate=today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const showHero=page==='home';
+  const topLogoSrc=siteImages.topLogo||'logo.png';
+  const heroImgSrc=siteImages.heroImage||null;
+  const footerLogoSrc=siteImages.footerLogo||null;
 
   return React.createElement('div',null,
     // Top bar
     React.createElement('div',{className:'top-bar'},
       React.createElement('div',{className:'top-bar-inner'},
         React.createElement('div',{className:'top-logo',onClick:()=>navigate('home')},
-          React.createElement('img',{src:'logo-tree.png',alt:'Ohr Chaim',className:'top-logo-img'}),
+          React.createElement('img',{src:topLogoSrc,alt:'Ohr Chaim',className:'top-logo-img'}),
           React.createElement('div',{className:'top-logo-text'},
             React.createElement('h2',null,'Ohr Chaim'),
             React.createElement('span',null,'Miami Beach, FL'))),
@@ -1486,7 +1579,7 @@ function App() {
     React.createElement(ZmanimTicker),
     // Hero (home only) — with decorative tree
     showHero&&React.createElement('div',{className:'hero-banner'},
-      React.createElement('img',{src:'logo-tree.png',alt:'',className:'hero-tree-bg'}),
+      heroImgSrc&&React.createElement('img',{src:heroImgSrc,alt:'',className:'hero-tree-bg'}),
       React.createElement('div',{className:'hero-inner'},
         React.createElement('div',{className:'hero-text'},
           React.createElement('h1',null,'Welcome to ',React.createElement('em',null,'Congregation Ohr Chaim')),
@@ -1516,7 +1609,7 @@ function App() {
       page==='admin'&&React.createElement(AdminPanel)),
     // Footer
     React.createElement('div',{className:'site-footer'},
-      React.createElement('img',{src:'logo-full.png',alt:'Congregation Ohr Chaim',className:'footer-logo'}),
+      footerLogoSrc&&React.createElement('img',{src:footerLogoSrc,alt:'Congregation Ohr Chaim',className:'footer-logo'}),
       React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL')));
 }
 
