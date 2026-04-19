@@ -422,13 +422,12 @@ function AdminImages() {
     const reader=new FileReader();
     reader.onload=async()=>{
       const base64=reader.result;
-      const updated={...images,[key]:base64};
-      setImages(updated);
+      const prev=images;
+      setImages({...images,[key]:base64});
       try{
-        const db=firebase.firestore();
-        await db.collection('content').doc('siteImages').set(updated,{merge:true});
+        await apiFetch('/api/admin/site-images/'+encodeURIComponent(key),{method:'PUT',body:JSON.stringify({dataUrl:base64})});
         setMsg(slots.find(s=>s.key===key)?.label+' uploaded!');
-      }catch(err){setMsg('Error saving: '+err.message);}
+      }catch(err){setImages(prev);setMsg('Error saving: '+err.message);}
     };
     reader.readAsDataURL(file);
     e.target.value='';
@@ -436,15 +435,14 @@ function AdminImages() {
 
   async function removeImage(key){
     if(!confirm('Remove this image?'))return;
+    const prev=images;
     const updated={...images};
     delete updated[key];
     setImages(updated);
     try{
-      const db=firebase.firestore();
-      const deleteObj={};deleteObj[key]=firebase.firestore.FieldValue.delete();
-      await db.collection('content').doc('siteImages').update(deleteObj);
+      await apiFetch('/api/admin/site-images/'+encodeURIComponent(key),{method:'DELETE'});
       setMsg('Image removed.');
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setImages(prev);setMsg('Error: '+err.message);}
   }
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
