@@ -1113,6 +1113,15 @@ function AccountPage() {
   useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
 
   async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(err.message);}}
+  async function handleForgotPassword(){
+    const email=(loginForm.email||prompt('Enter the email on your account:')||'').trim();
+    if(!email)return;
+    setError('');
+    try{
+      await firebase.auth().sendPasswordResetEmail(email);
+      setError('Password reset email sent to '+email+'. Check your inbox.');
+    }catch(err){setError(err.message);}
+  }
   async function handleRegister(e){e.preventDefault();setError('');
     if(!regForm.firstName||!regForm.lastName||!regForm.email||!regForm.password){setError('All required fields must be filled.');return;}
     try{const hash=window.location.hash;const token=hash.includes('token=')?hash.split('token=')[1]?.split('&')[0]:null;
@@ -1132,6 +1141,7 @@ function AccountPage() {
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:loginForm.email,onChange:e=>setLoginForm(p=>({...p,email:e.target.value})),required:true})),
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Password'),React.createElement('input',{className:'form-input',type:'password',value:loginForm.password,onChange:e=>setLoginForm(p=>({...p,password:e.target.value})),required:true})),
       React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Sign In'),
+      React.createElement('p',{style:{marginTop:12,textAlign:'center'}},React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();handleForgotPassword();},style:{color:'#c49a3c',fontWeight:600,fontSize:'0.9rem'}},'Forgot password?')),
       React.createElement('p',{style:{marginTop:16,textAlign:'center',color:'#888'}},'No account? ',React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setAuthMode('register');},style:{color:'#c49a3c',fontWeight:600}},'Create one'))
     ):React.createElement('form',{onSubmit:handleRegister},
       authMode==='prefill'&&React.createElement('div',{className:'message message-success',style:{marginBottom:16}},'Your info is pre-filled! Just create a password.'),
@@ -1189,13 +1199,22 @@ function AccountPage() {
 function AdminDonations() {
   const [donations,setDonations]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [year,setYear]=useState(new Date().getFullYear());
-  const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});
+  const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
   const [reasons,setReasons]=useState([]);
   const [uploading,setUploading]=useState(false);
   useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});},[year]);
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
   async function recordManual(e){e.preventDefault();setMsg('');
-    try{await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify({...mf,amount:parseFloat(mf.amount),type:'donation'})});setMsg('Payment recorded!');setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});load();}catch(err){setMsg('Error: '+err.message);}}
+    try{
+      const payload={...mf,amount:parseFloat(mf.amount),type:'donation'};
+      if(mf.fiscalYear){payload.fiscalYear=parseInt(mf.fiscalYear);}
+      if(!mf.fiscalYear)delete payload.fiscalYear;
+      if(!mf.date)delete payload.date;
+      const res=await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify(payload)});
+      setMsg('Payment recorded'+(res.receiptSent?' and receipt sent.':'.'));
+      setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
+      load();
+    }catch(err){setMsg('Error: '+err.message);}}
   async function importStripePayment(){
     const id=prompt('Paste the Stripe Payment ID (starts with "pi_") from the Stripe dashboard payment page:');
     if(!id)return;
@@ -1238,6 +1257,8 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:mf.amount,onChange:e=>setMf(p=>({...p,amount:e.target.value})),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('select',{className:'form-input',value:mf.reason,onChange:e=>setMf(p=>({...p,reason:e.target.value}))},reasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Method'),React.createElement('select',{className:'form-input',value:mf.paymentMethod,onChange:e=>setMf(p=>({...p,paymentMethod:e.target.value}))},['check','cash','zelle','venmo','other'].map(m=>React.createElement('option',{key:m,value:m},m.charAt(0).toUpperCase()+m.slice(1))))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Date (optional)'),React.createElement('input',{className:'form-input',type:'date',value:mf.date,onChange:e=>setMf(p=>({...p,date:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Fiscal Year (optional)'),React.createElement('input',{className:'form-input',type:'number',placeholder:'e.g. 2025',value:mf.fiscalYear,onChange:e=>setMf(p=>({...p,fiscalYear:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
     React.createElement('div',{className:'card'},
@@ -1258,13 +1279,24 @@ function AdminDonations() {
           React.createElement('select',{className:'form-input',style:{width:100},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027,2028].map(y=>React.createElement('option',{key:y,value:y},y))))),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Reason','Method','Receipt'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Reason','Method','Year','Receipt','Actions'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,donations.map(d=>React.createElement('tr',{key:d.id},
           React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),React.createElement('td',null,d.displayName||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
+          React.createElement('td',null,d.fiscalYear||'-'),
           React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'#27ae60',fontSize:'0.8rem'}},'Sent'):
             d.email?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg('Error: '+e.message);}}},'Send'):
-            React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')))))))));
+            React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')),
+          React.createElement('td',null,
+            React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem',marginRight:4},onClick:async()=>{
+              const ny=prompt('Reassign to fiscal year:',String(d.fiscalYear||year));
+              if(!ny)return;
+              try{await apiFetch('/api/admin/donations/'+d.id,{method:'PUT',body:JSON.stringify({fiscalYear:parseInt(ny)})});setMsg('Year updated.');load();}catch(e){setMsg('Error: '+e.message);}
+            }},'Edit Year'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{
+              if(!confirm('Delete this donation record? The Stripe charge is NOT refunded.'))return;
+              try{await apiFetch('/api/admin/donations/'+d.id,{method:'DELETE'});setMsg('Donation deleted.');load();}catch(e){setMsg('Error: '+e.message);}
+            }},'Delete')))))))));
 }
 
 // ─── Admin Analytics moved to Phase 3 section below ─────────────
