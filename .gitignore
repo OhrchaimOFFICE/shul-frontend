@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+.DS_Store
+.idea/
+.vscode/
+.claude/
+~$*.xlsx
+~$*.xls
+~$*.docx
+*.log
+.cache/
