@@ -1203,8 +1203,11 @@ function AdminDonations() {
     setMsg('Importing...');
     try{
       const res=await apiFetch('/api/admin/donations/import-stripe',{method:'POST',body:JSON.stringify({paymentIntentId:trimmed})});
-      if(res.alreadyRecorded) setMsg('That payment was already in the system.');
-      else setMsg('Imported $'+res.amount+' for '+(res.email||'(no email)')+(res.receiptSent?'. Receipt sent.':'. No receipt sent.'));
+      if(res.alreadyRecorded){
+        const yearNote=res.fiscalYear?' Look under year '+res.fiscalYear+' in the list below.':'';
+        const receiptNote=res.receiptSent?' Receipt email sent now.':(res.receiptError?(' Could not send receipt: '+res.receiptError):'');
+        setMsg('Already in the system: $'+(res.amount||0).toFixed(2)+' for '+(res.email||'(no email)')+'.'+yearNote+receiptNote);
+      } else setMsg('Imported $'+res.amount+' for '+(res.email||'(no email)')+(res.receiptSent?'. Receipt sent.':'. No receipt sent.'));
       load();
     }catch(err){setMsg('Error: '+err.message);}
   }
