@@ -401,12 +401,24 @@ function HeroSlideshow() {
   },[slides.length]);
   if(!slides.length) return null;
   return React.createElement('div',{className:'hero-slideshow'},
-    slides.map((s,i)=>React.createElement('img',{
-      key:s.id,
-      src:s.dataUrl,
-      alt:'',
-      className:'hero-slide'+(i===idx?' active':'')
-    })));
+    slides.map((s,i)=>{
+      const activeClass='hero-slide'+(i===idx?' active':'');
+      if(s.kind==='text'){
+        return React.createElement('div',{
+          key:s.id,
+          className:activeClass+' hero-slide-text',
+          style:{background:s.bgColor||'#1a2744'}
+        },
+          s.title&&React.createElement('div',{className:'hero-slide-title'},s.title),
+          s.body&&React.createElement('div',{className:'hero-slide-body'},s.body));
+      }
+      return React.createElement('img',{
+        key:s.id,
+        src:s.dataUrl,
+        alt:'',
+        className:activeClass
+      });
+    }));
 }
 
 function useSiteImages() {
@@ -499,6 +511,7 @@ function AdminSlideshow() {
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
   const [busy,setBusy]=useState(false);
+  const [textForm,setTextForm]=useState({title:'',body:'',bgColor:'#1a2744'});
 
   async function load(){
     try{
@@ -519,13 +532,27 @@ function AdminSlideshow() {
     reader.onload=async()=>{
       setBusy(true);
       try{
-        await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({dataUrl:reader.result})});
+        await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({kind:'image',dataUrl:reader.result})});
         setMsg('Slide added.');
         await load();
       }catch(err){setMsg('Error: '+err.message);}
       setBusy(false);
     };
     reader.readAsDataURL(file);
+  }
+
+  async function onAddText(e){
+    e.preventDefault();
+    if(!textForm.title&&!textForm.body){setMsg('Title or body required.');return;}
+    if(slides.length>=MAX_SLIDES){setMsg(`Maximum ${MAX_SLIDES} slides. Remove one first.`);return;}
+    setBusy(true);
+    try{
+      await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({kind:'text',...textForm})});
+      setMsg('Announcement slide added.');
+      setTextForm({title:'',body:'',bgColor:'#1a2744'});
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+    setBusy(false);
   }
 
   async function onRemove(id){
@@ -542,14 +569,109 @@ function AdminSlideshow() {
   return React.createElement('div',{style:{marginTop:24}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},`Homepage Slideshow (${slides.length}/${MAX_SLIDES})`),
-      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Photos rotate automatically on the homepage, one every 5 seconds. Max 5 images, 5MB each.'),
-      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('Maximum')||msg.includes('too large')?'message-error':'message-success')},msg),
+      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Slides rotate on the homepage every 5 seconds. Mix photos and text announcements (mazel tovs, shiva notices, events). Max '+MAX_SLIDES+' slides total.'),
+      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('Maximum')||msg.includes('too large')||msg.includes('required')?'message-error':'message-success')},msg),
       loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12,marginBottom:12}},
         slides.map(s=>React.createElement('div',{key:s.id,style:{position:'relative'}},
-          React.createElement('img',{src:s.dataUrl,alt:'',style:{width:'100%',height:140,objectFit:'cover',borderRadius:8,background:'#f0ece3'}}),
+          s.kind==='text'
+            ?React.createElement('div',{style:{width:'100%',height:140,background:s.bgColor||'#1a2744',color:'#fff',borderRadius:8,padding:12,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',textAlign:'center',overflow:'hidden'}},
+              s.title&&React.createElement('div',{style:{fontWeight:800,fontSize:'1rem',marginBottom:4,color:'#c49a3c'}},s.title),
+              s.body&&React.createElement('div',{style:{fontSize:'0.8rem',lineHeight:1.3}},s.body.length>120?s.body.slice(0,120)+'...':s.body))
+            :React.createElement('img',{src:s.dataUrl,alt:'',style:{width:'100%',height:140,objectFit:'cover',borderRadius:8,background:'#f0ece3'}}),
           React.createElement('button',{className:'btn btn-sm btn-danger',disabled:busy,onClick:()=>onRemove(s.id),style:{position:'absolute',top:6,right:6}},'Remove')))),
-      slides.length<MAX_SLIDES&&React.createElement('label',{className:'btn btn-primary',style:{cursor:busy?'not-allowed':'pointer',opacity:busy?0.6:1}},busy?'Uploading...':'Add Slide',
-        React.createElement('input',{type:'file',accept:'image/*',disabled:busy,onChange:onUpload,style:{display:'none'}}))));
+      slides.length<MAX_SLIDES&&React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}},
+        React.createElement('label',{className:'btn btn-primary',style:{cursor:busy?'not-allowed':'pointer',opacity:busy?0.6:1}},busy?'Uploading...':'Add Photo',
+          React.createElement('input',{type:'file',accept:'image/*',disabled:busy,onChange:onUpload,style:{display:'none'}}))),
+      slides.length<MAX_SLIDES&&React.createElement('form',{onSubmit:onAddText,style:{border:'1px solid #e0dcd4',borderRadius:8,padding:12,background:'#faf8f3'}},
+        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',marginBottom:8}},'Add Text Announcement (Mazel Tov, Shiva, Event)'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 140px',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Title'),React.createElement('input',{className:'form-input',placeholder:'e.g. Mazel Tov!',value:textForm.title,onChange:e=>setTextForm(p=>({...p,title:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Background'),React.createElement('input',{className:'form-input',type:'color',value:textForm.bgColor,onChange:e=>setTextForm(p=>({...p,bgColor:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Body'),React.createElement('textarea',{className:'form-input',rows:3,placeholder:'e.g. Mazel Tov to the Cohen family on the birth of a baby girl!',value:textForm.body,onChange:e=>setTextForm(p=>({...p,body:e.target.value}))})),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:busy},busy?'Adding...':'Add Announcement'))));
+}
+
+function ContactPage() {
+  const [form,setForm]=useState({name:'',email:'',phone:'',subject:'',message:''});
+  const [sending,setSending]=useState(false);
+  const [msg,setMsg]=useState('');
+  const [done,setDone]=useState(false);
+  function upd(k,v){setForm(p=>({...p,[k]:v}));}
+  async function submit(e){
+    e.preventDefault();
+    if(!form.name||!form.email||!form.message){setMsg('Name, email, and message are required.');return;}
+    setSending(true);setMsg('');
+    try{
+      await apiFetch('/api/contact',{method:'POST',body:JSON.stringify(form)});
+      setDone(true);
+    }catch(err){setMsg('Error: '+err.message);}
+    setSending(false);
+  }
+  if(done) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
+    React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'✉️'),
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Message Sent'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Thanks, '+form.name+'. We received your message and will be in touch soon.'),
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({name:'',email:'',phone:'',subject:'',message:''});}},'Send Another'));
+  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Contact the Office'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555'}},'Send a message to the shul office. You can also email office@ohrchaim.org or visit us at 317 W 47th Street, Miami Beach, FL 33140.'),
+      msg&&React.createElement('div',{className:'message message-error'},msg),
+      React.createElement('form',{onSubmit:submit},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Name *'),React.createElement('input',{className:'form-input',value:form.name,onChange:e=>upd('name',e.target.value),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true}))),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:form.subject,onChange:e=>upd('subject',e.target.value)}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Message *'),React.createElement('textarea',{className:'form-input',rows:6,value:form.message,onChange:e=>upd('message',e.target.value),required:true})),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:sending,style:{marginTop:8}},sending?'Sending...':'Send Message'))));
+}
+
+function PrivacyPage() {
+  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Privacy Policy'),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem'}},'Last updated: '+new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Who we are'),
+      React.createElement('p',null,'This site is operated by Congregation Ohr Chaim, 317 W 47th Street, Miami Beach, FL 33140, a 501(c)(3) tax-exempt organization. Questions about this policy: office@ohrchaim.org.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Information we collect'),
+      React.createElement('ul',null,
+        React.createElement('li',null,'Account information you provide: name, email, phone, address, spouse email (optional), and yahrzeit entries.'),
+        React.createElement('li',null,'Donation information: amounts, reasons, and dates. Card payment details are processed directly by Stripe and never touch our servers.'),
+        React.createElement('li',null,'Basic log data automatically provided by your browser, such as IP and timestamps.')),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'How we use it'),
+      React.createElement('ul',null,
+        React.createElement('li',null,'Manage your membership, billing, kiddush sponsorships, and seat reservations.'),
+        React.createElement('li',null,'Send davening schedules, membership reminders, donation receipts, yahrzeit reminders, and other shul communications.'),
+        React.createElement('li',null,'Issue annual tax-deductible contribution summaries.')),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Sharing'),
+      React.createElement('p',null,'We do not sell or rent your personal information. We share it only with service providers needed to operate this site (Stripe for payments, Google for email delivery, Firebase/Google Cloud for hosting and storage) under their standard data protection terms, or when required by law.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Your choices'),
+      React.createElement('p',null,'You may view and edit your profile on the Account page, unsubscribe from automatic reminders in Settings, cancel automatic payments at any time, or request deletion by contacting the office.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Cookies'),
+      React.createElement('p',null,'We use a single session cookie for login via Firebase Authentication. No advertising or tracking cookies are used.'),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:24}},'This policy may be updated from time to time. Material changes will be communicated by email to active members.')));
+}
+
+function TermsPage() {
+  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Terms of Service'),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem'}},'Last updated: '+new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Who these terms apply to'),
+      React.createElement('p',null,'By using this website you agree to these terms. The site is operated by Congregation Ohr Chaim, a 501(c)(3) tax-exempt organization at 317 W 47th Street, Miami Beach, FL 33140.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Donations and payments'),
+      React.createElement('p',null,'Donations are tax-deductible to the extent allowed by law. No goods or services are provided in exchange for a contribution unless explicitly stated. Card payments are processed by Stripe; we never see or store your full card number. Recurring membership payments continue until canceled from your Account page.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Refunds'),
+      React.createElement('p',null,'Donations are generally non-refundable. If a payment was made in error, contact the office within 30 days at office@ohrchaim.org and we will review in good faith.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Seat reservations and sponsorships'),
+      React.createElement('p',null,'High Holiday seats and kiddush/seudas shlishis sponsorships are confirmed once payment is received. Seat assignments are at the discretion of the shul. Scheduling conflicts may require the shul to move a sponsorship to a nearby date.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Your account'),
+      React.createElement('p',null,'You are responsible for keeping your login credentials secure and for the accuracy of the information you submit. The shul may suspend or remove accounts that violate these terms or applicable law.'),
+      React.createElement('h3',{style:{color:'#1a2744',marginTop:20}},'Disclaimer'),
+      React.createElement('p',null,'Davening times, zmanim, and the calendar are provided as a convenience and should not be relied upon for questions of halacha. Consult a rav with any halachic question.'),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:24}},'Governing law: Florida. Disputes will be resolved in Miami-Dade County, FL.')));
 }
 
 // ─── Admin Panel ─────────────────────────────────────────────────
@@ -1079,11 +1201,15 @@ function AccountPage() {
   const [error,setError]=useState('');const [editing,setEditing]=useState(false);const [editForm,setEditForm]=useState({});const [msg,setMsg]=useState('');
   const [subStatus,setSubStatus]=useState(null);
   const [subBusy,setSubBusy]=useState(false);
+  const [yahrzeits,setYahrzeits]=useState([]);
+  const [yahrzeitForm,setYahrzeitForm]=useState({deceasedName:'',relationship:'',englishDeathDate:'',notes:''});
+  const [yahrzeitBusy,setYahrzeitBusy]=useState(false);
   const siteImages=useSiteImages();
   useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);setLoading(false);});return unsub;},[]);
   useEffect(()=>{if(user){
     apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});
     apiFetch('/api/membership/subscription-status').then(setSubStatus).catch(()=>setSubStatus({active:false}));
+    apiFetch('/api/yahrzeits').then(setYahrzeits).catch(()=>{});
   }},[user]);
   useEffect(()=>{
     const hash=window.location.hash;
@@ -1097,6 +1223,26 @@ function AccountPage() {
       const res=await apiFetch('/api/membership/create-subscription-checkout',{method:'POST',body:JSON.stringify({interval})});
       if(res.url) window.location.href=res.url;
     }catch(e){setMsg('Error: '+e.message);setSubBusy(false);}
+  }
+
+  async function addYahrzeit(e){
+    e.preventDefault();
+    if(!yahrzeitForm.deceasedName||!yahrzeitForm.englishDeathDate){setMsg('Name and English date are required.');return;}
+    setYahrzeitBusy(true);setMsg('');
+    try{
+      await apiFetch('/api/yahrzeits',{method:'POST',body:JSON.stringify(yahrzeitForm)});
+      setYahrzeitForm({deceasedName:'',relationship:'',englishDeathDate:'',notes:''});
+      setYahrzeits(await apiFetch('/api/yahrzeits'));
+      setMsg('Yahrzeit added. A reminder email will go out 10 days before each year.');
+    }catch(err){setMsg('Error: '+err.message);}
+    setYahrzeitBusy(false);
+  }
+  async function deleteYahrzeit(id){
+    if(!confirm('Remove this yahrzeit? No more reminders will be sent.'))return;
+    try{
+      await apiFetch('/api/yahrzeits/'+id,{method:'DELETE'});
+      setYahrzeits(await apiFetch('/api/yahrzeits'));
+    }catch(err){setMsg('Error: '+err.message);}
   }
 
   async function cancelSubscription(){
@@ -1192,7 +1338,23 @@ function AccountPage() {
           React.createElement('p',{style:{color:'#555',marginBottom:12}},'Set up automatic membership payments. Pay the full annual amount once per year, or spread it across 12 monthly installments. Paying activates your membership automatically.'),
           React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('year')},subBusy?'Loading...':'Pay annually'),
-            React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))));
+            React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))),
+    React.createElement('div',{className:'card',style:{marginTop:16}},
+      React.createElement('div',{className:'card-header'},'Yahrzeit Reminders'),
+      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Add yahrzeit dates for loved ones. We will email you a reminder 10 days before each year\'s observance.'),
+      yahrzeits.length>0&&React.createElement('div',{style:{marginBottom:16}},
+        yahrzeits.map(y=>React.createElement('div',{key:y.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',border:'1px solid #eee',borderRadius:6,marginBottom:6}},
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontWeight:700,color:'#1a2744'}},y.deceasedName,y.relationship?' ('+y.relationship+')':''),
+            React.createElement('div',{style:{fontSize:'0.85rem',color:'#666'}},'Gregorian: '+y.englishDeathDate+' | Hebrew: '+(y.hebrewFormatted||(y.hebrewDay+' '+y.hebrewMonth)))),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>deleteYahrzeit(y.id)},'Remove')))),
+      React.createElement('form',{onSubmit:addYahrzeit},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Deceased Name *'),React.createElement('input',{className:'form-input',value:yahrzeitForm.deceasedName,onChange:e=>setYahrzeitForm(p=>({...p,deceasedName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Relationship'),React.createElement('input',{className:'form-input',placeholder:'e.g. father, grandmother',value:yahrzeitForm.relationship,onChange:e=>setYahrzeitForm(p=>({...p,relationship:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'English Date of Passing *'),React.createElement('input',{className:'form-input',type:'date',value:yahrzeitForm.englishDeathDate,onChange:e=>setYahrzeitForm(p=>({...p,englishDeathDate:e.target.value})),required:true}),React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',marginTop:4}},'We will compute the Hebrew date automatically for accurate yearly reminders.')),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes (optional)'),React.createElement('input',{className:'form-input',value:yahrzeitForm.notes,onChange:e=>setYahrzeitForm(p=>({...p,notes:e.target.value}))})),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:yahrzeitBusy},yahrzeitBusy?'Adding...':'Add Yahrzeit'))));
 }
 
 // ─── Admin Donations ─────────────────────────────────────────────
@@ -2036,9 +2198,9 @@ function App() {
   const navItems=[
     {id:'home',label:'Home'},{id:'schedule',label:'Davening'},{id:'calendar',label:'Calendar'},
     {id:'zmanim',label:'Zmanim'},{id:'shiurim',label:'Shiurim'},{id:'sponsorship',label:'Kiddush'},
-    {id:'highholidays',label:'Seats'},{id:'account',label:'Account'},{id:'admin',label:'Admin'}
+    {id:'highholidays',label:'Seats'},{id:'contact',label:'Contact'},{id:'account',label:'Account'},{id:'admin',label:'Admin'}
   ];
-  const titles={home:'',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',highholidays:'High Holiday Seat Reservations',account:'My Account',admin:'Admin Panel'};
+  const titles={home:'',schedule:'Weekly Davening Schedule',calendar:'Calendar',zmanim:'Zmanim',shiurim:'Weekly Shiurim',donate:'Donations',sponsorship:'Kiddush & Seudas Shlishis',highholidays:'High Holiday Seat Reservations',contact:'Contact the Office',account:'My Account',admin:'Admin Panel',privacy:'Privacy Policy',terms:'Terms of Service'};
   const today=new Date();
   const secDate=today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
   const showHero=page==='home';
@@ -2095,11 +2257,18 @@ function App() {
       page==='highholidays'&&React.createElement(HighHolidaySeatsPage),
       page==='account'&&React.createElement(AccountPage),
       page==='signup'&&React.createElement(AccountPage),
-      page==='admin'&&React.createElement(AdminPanel)),
+      page==='admin'&&React.createElement(AdminPanel),
+      page==='contact'&&React.createElement(ContactPage),
+      page==='privacy'&&React.createElement(PrivacyPage),
+      page==='terms'&&React.createElement(TermsPage)),
     // Footer
     React.createElement('div',{className:'site-footer'},
       footerLogoSrc&&React.createElement('img',{src:footerLogoSrc,alt:'Congregation Ohr Chaim',className:'footer-logo'}),
-      React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL')));
+      React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL'),
+      React.createElement('div',{className:'footer-links',style:{marginTop:8,fontSize:'0.85rem'}},
+        React.createElement('a',{href:'#contact',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Contact'),
+        React.createElement('a',{href:'#privacy',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Privacy Policy'),
+        React.createElement('a',{href:'#terms',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Terms of Service'))));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
