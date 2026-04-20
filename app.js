@@ -1,5 +1,6 @@
 const BACKEND_URL = "https://shul-backend.onrender.com";
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51TNzTG0rialmjNgrf4IGmygXrLa91bSAJ0kPe616KM9UOwkfVd5Fez0Vsyf5BFDstKaoLCbv4prVqNE7FmwPRSvP00S6BSyVs3";
+if (window.__firebaseConfig__ && !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig__);
 const { useState, useEffect, useCallback, useRef } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];

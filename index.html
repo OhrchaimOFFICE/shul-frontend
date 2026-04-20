@@ -2,23 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a2744" />
   <title>Congregation Ohr Chaim</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://shul-backend.onrender.com" />
+  <link rel="preconnect" href="https://www.gstatic.com" />
+  <link rel="dns-prefetch" href="https://js.stripe.com" />
+  <link rel="preload" href="app.js" as="script" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://js.stripe.com/v3/"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script defer crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script defer src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
   <div id="root"></div>
   <script>
-    const firebaseConfig = {
+    window.__firebaseConfig__ = {
       apiKey: "AIzaSyDm6wjmqmpoxNbDAJIU0Hvqy1B0_HQmCf0",
       authDomain: "ohr-chaim-site.firebaseapp.com",
       projectId: "ohr-chaim-site",
@@ -27,8 +32,7 @@
       appId: "1:725924983376:web:fdc6c6f27d507ccf3ad755",
       measurementId: "G-QQ48EDV0W3"
     };
-    firebase.initializeApp(firebaseConfig);
   </script>
-  <script type="text/babel" src="app.js"></script>
+  <script defer src="app.js"></script>
 </body>
 </html>

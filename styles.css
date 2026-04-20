@@ -247,14 +247,53 @@ tr:hover { background: var(--cream); }
   .home-grid { grid-template-columns: 1fr; }
   .schedule-grid { grid-template-columns: 1fr; }
   .hero-inner { flex-direction: column; text-align: center; gap: 16px; }
-  .hero-cta { justify-content: center; }
+  .hero-cta { justify-content: center; flex-wrap: wrap; }
+  .hero-cta button { flex: 1 1 140px; }
   .quick-links { grid-template-columns: 1fr 1fr; }
   .calendar-day { min-height: 60px; padding: 4px; }
   .page-wrap { padding: 16px; }
   .rules-grid { grid-template-columns: 1fr; }
+  .card { padding: 16px; }
+  .admin-tab { padding: 8px 10px; font-size: 0.82rem; }
+  .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-container table { min-width: 560px; }
+  .form-input { font-size: 16px; }
+  .btn { padding: 11px 18px; }
+  .btn-sm { padding: 8px 12px; }
 }
 @media (max-width: 600px) {
-  html { font-size: 16px; }
+  html { font-size: 17px; }
+  body { line-height: 1.5; }
   .calendar-day-hebrew { display: none; }
-  .ticker-inner { font-size: 0.6rem; gap: 12px; }
+  .ticker-inner { font-size: 0.65rem; gap: 10px; padding: 0 12px; flex-wrap: wrap; justify-content: center; }
+  .top-bar-inner { padding: 8px 14px; }
+  .top-logo-img { height: 44px; }
+  .top-logo-text h2 { font-size: 1.15rem; }
+  .top-logo-text span { font-size: 0.62rem; letter-spacing: 1.4px; }
+  .hero-banner { padding: 12px 14px; }
+  .hero-text h1 { font-size: 1.25rem; }
+  .hero-text p { font-size: 0.78rem; }
+  .home-grid { gap: 12px; }
+  .quick-links { grid-template-columns: 1fr; }
+  .quick-link { padding: 14px; font-size: 1rem; }
+  .page-wrap { padding: 12px; }
+  .page-header h1 { font-size: 1.2rem; }
+  .page-header-date { font-size: 0.72rem; }
+  .card { padding: 14px; margin-bottom: 12px; border-radius: 10px; }
+  .card-header { font-size: 1rem; }
+  .time-row { padding: 6px 0; font-size: 0.95rem; }
+  .admin-tabs { gap: 2px; margin-bottom: 14px; }
+  .admin-tab { padding: 7px 9px; font-size: 0.78rem; }
+  .btn { padding: 12px 16px; font-size: 1rem; }
+  .btn-sm { padding: 7px 11px; font-size: 0.85rem; }
+  .form-input { padding: 11px 12px; }
+  .hero-cta { width: 100%; }
+  .hero-cta button { width: 100%; padding: 12px 20px; }
+  .mobile-nav-item { padding: 16px 14px; font-size: 1.05rem; }
+  .menu-toggle { width: 42px; height: 42px; top: 10px; right: 10px; }
+}
+@media (max-width: 400px) {
+  html { font-size: 16px; }
+  .top-logo { gap: 8px; }
+  .top-logo-text span { display: none; }
 }
