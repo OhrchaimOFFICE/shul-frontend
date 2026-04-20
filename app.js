@@ -412,6 +412,7 @@ function HeroSlideshow() {
           s.title&&React.createElement('div',{className:'hero-slide-title'},s.title),
           s.body&&React.createElement('div',{className:'hero-slide-body'},s.body));
       }
+      if(!s.dataUrl) return null;
       return React.createElement('img',{
         key:s.id,
         src:s.dataUrl,
