@@ -1196,6 +1196,19 @@ function AdminDonations() {
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
   async function recordManual(e){e.preventDefault();setMsg('');
     try{await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify({...mf,amount:parseFloat(mf.amount),type:'donation'})});setMsg('Payment recorded!');setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check'});load();}catch(err){setMsg('Error: '+err.message);}}
+  async function importStripePayment(){
+    const id=prompt('Paste the Stripe Payment ID (starts with "pi_") from the Stripe dashboard payment page:');
+    if(!id)return;
+    const trimmed=id.trim();
+    setMsg('Importing...');
+    try{
+      const res=await apiFetch('/api/admin/donations/import-stripe',{method:'POST',body:JSON.stringify({paymentIntentId:trimmed})});
+      if(res.alreadyRecorded) setMsg('That payment was already in the system.');
+      else setMsg('Imported $'+res.amount+' for '+(res.email||'(no email)')+(res.receiptSent?'. Receipt sent.':'. No receipt sent.'));
+      load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
   async function uploadPayments(e){
     const file=e.target.files[0];if(!file)return;
     setUploading(true);setMsg('Uploading...');
@@ -1224,6 +1237,10 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Method'),React.createElement('select',{className:'form-input',value:mf.paymentMethod,onChange:e=>setMf(p=>({...p,paymentMethod:e.target.value}))},['check','cash','zelle','venmo','other'].map(m=>React.createElement('option',{key:m,value:m},m.charAt(0).toUpperCase()+m.slice(1))))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Import a Stripe Payment'),
+      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'If a Stripe payment cleared but is missing from the list below, paste its Payment ID (starts with "pi_") here to add it. You can find the ID on the Stripe dashboard payment page. Idempotent: won\'t double-add.'),
+      React.createElement('button',{className:'btn btn-primary',onClick:importStripePayment},'Import Stripe Payment')),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Batch Import Payments from Excel'),
       React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'Upload a spreadsheet with columns: First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Only First Name, Last Name, and Amount are required.'),
