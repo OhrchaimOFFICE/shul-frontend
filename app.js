@@ -686,8 +686,8 @@ function AdminPanel() {
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','autoemails','donations','members','pledges','reasons','settings','highholidays','seating','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
+      ['rules','overrides','shiurim','emails','autoemails','donations','members','tags','pledges','reasons','settings','highholidays','seating','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='tags'?'Member Tags':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -695,6 +695,7 @@ function AdminPanel() {
     tab==='autoemails'&&React.createElement(AdminAutoEmails),
     tab==='donations'&&React.createElement(AdminDonations),
     tab==='members'&&React.createElement(AdminMembers),
+    tab==='tags'&&React.createElement(AdminMemberTags),
     tab==='pledges'&&React.createElement(AdminPledges),
     tab==='reasons'&&React.createElement(AdminReasons),
     tab==='settings'&&React.createElement(AdminSettings),
@@ -703,6 +704,67 @@ function AdminPanel() {
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='images'&&React.createElement(AdminImages),
     tab==='admins'&&React.createElement(AdminAccounts));
+}
+
+function AdminMemberTags() {
+  const [tags,setTags]=useState([]);
+  const [msg,setMsg]=useState('');
+  const [form,setForm]=useState({name:'',annualDues:'',color:'#c49a3c',description:''});
+  const [loading,setLoading]=useState(true);
+  const [editingId,setEditingId]=useState(null);
+  async function load(){setLoading(true);try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){setMsg('Error: '+e.message);}setLoading(false);}
+  useEffect(()=>{load();},[]);
+  async function save(e){
+    e.preventDefault();setMsg('');
+    if(!form.name){setMsg('Name required.');return;}
+    const dues=parseFloat(form.annualDues);
+    if(!Number.isFinite(dues)||dues<0){setMsg('Annual dues must be a non-negative number.');return;}
+    try{
+      if(editingId){
+        await apiFetch('/api/admin/member-tags/'+editingId,{method:'PUT',body:JSON.stringify({...form,annualDues:dues})});
+        setMsg('Tag updated.');
+      } else {
+        await apiFetch('/api/admin/member-tags',{method:'POST',body:JSON.stringify({...form,annualDues:dues})});
+        setMsg('Tag created.');
+      }
+      setForm({name:'',annualDues:'',color:'#c49a3c',description:''});
+      setEditingId(null);
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+  function edit(t){setEditingId(t.id);setForm({name:t.name||'',annualDues:String(t.annualDues||0),color:t.color||'#c49a3c',description:t.description||''});}
+  async function del(id){
+    if(!confirm('Delete this tag? Any members currently tagged with it will have their tag cleared.'))return;
+    try{const r=await apiFetch('/api/admin/member-tags/'+id,{method:'DELETE'});setMsg('Tag deleted. '+r.membersCleared+' member(s) cleared.');await load();}catch(e){setMsg('Error: '+e.message);}
+  }
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('required')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},editingId?'Edit Member Tag':'Create Member Tag'),
+      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Tags let you charge different annual dues to different categories of members (e.g. Full, Associate, Young Adult, Honorary, Staff). When a member has a tag, their auto-pay subscription uses the tag\'s dues amount instead of the global annualDues.'),
+      React.createElement('form',{onSubmit:save},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 120px',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Tag Name *'),React.createElement('input',{className:'form-input',placeholder:'e.g. Full Member',value:form.name,onChange:e=>setForm(p=>({...p,name:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Annual Dues ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:form.annualDues,onChange:e=>setForm(p=>({...p,annualDues:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Badge Color'),React.createElement('input',{className:'form-input',type:'color',value:form.color,onChange:e=>setForm(p=>({...p,color:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Description (optional)'),React.createElement('input',{className:'form-input',value:form.description,onChange:e=>setForm(p=>({...p,description:e.target.value}))})),
+        React.createElement('div',{style:{display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-primary',type:'submit'},editingId?'Save Changes':'Create Tag'),
+          editingId&&React.createElement('button',{className:'btn btn-outline',type:'button',onClick:()=>{setEditingId(null);setForm({name:'',annualDues:'',color:'#c49a3c',description:''});}},'Cancel')))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'All Tags ('+tags.length+')'),
+      loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):
+        tags.length===0?React.createElement('p',{style:{color:'#888'}},'No tags yet. Create one above to start using tiered membership dues.'):
+        React.createElement('div',{className:'table-container'},React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,['Tag','Annual Dues','Monthly (if paid that way)','Description','Actions'].map(h=>React.createElement('th',{key:h},h)))),
+          React.createElement('tbody',null,tags.map(t=>React.createElement('tr',{key:t.id},
+            React.createElement('td',null,React.createElement('span',{style:{display:'inline-block',padding:'3px 10px',borderRadius:12,background:(t.color||'#c49a3c')+'22',color:t.color||'#c49a3c',fontWeight:700,fontSize:'0.85rem'}},t.name)),
+            React.createElement('td',{style:{fontWeight:700}},'$'+Number(t.annualDues||0).toFixed(2)),
+            React.createElement('td',null,'$'+(Number(t.annualDues||0)/12).toFixed(2)),
+            React.createElement('td',{style:{color:'#555'}},t.description||'-'),
+            React.createElement('td',null,
+              React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:6},onClick:()=>edit(t)},'Edit'),
+              React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(t.id)},'Delete')))))))));
 }
 
 function AdminSeating() {
@@ -1470,8 +1532,36 @@ function AdminDonations() {
 function AdminMembers() {
   const [members,setMembers]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [prefilled,setPrefilled]=useState([]);const [uploading,setUploading]=useState(false);
+  const [tags,setTags]=useState([]);
+  const [selected,setSelected]=useState({});
+  const [filter,setFilter]=useState('');
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setMembers(await apiFetch('/api/admin/members'));}catch(e){}try{setPrefilled(await apiFetch('/api/admin/prefilled-accounts'));}catch(e){}setLoading(false);}
+  async function load(){setLoading(true);
+    try{setMembers(await apiFetch('/api/admin/members'));}catch(e){}
+    try{setPrefilled(await apiFetch('/api/admin/prefilled-accounts'));}catch(e){}
+    try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){}
+    setLoading(false);
+  }
+  function toggleSel(uid){setSelected(p=>{const n={...p};if(n[uid])delete n[uid];else n[uid]=true;return n;});}
+  function selectAll(rows){setSelected(p=>{const n={...p};rows.forEach(r=>{if(r.uid)n[r.uid]=true;});return n;});}
+  function clearSel(){setSelected({});}
+  const selectedUids=Object.keys(selected).filter(u=>selected[u]);
+  async function bulk(updates,label){
+    if(!selectedUids.length){setMsg('No members selected.');return;}
+    if(!confirm(label+' for '+selectedUids.length+' member(s)?'))return;
+    try{
+      await apiFetch('/api/admin/members/bulk',{method:'PUT',body:JSON.stringify({uids:selectedUids,updates})});
+      setMsg(label+' applied to '+selectedUids.length+' member(s).');
+      clearSel();
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+  async function setMemberTag(uid,tagId){
+    try{
+      await apiFetch('/api/admin/members/'+uid,{method:'PUT',body:JSON.stringify({tagId:tagId||null})});
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
   async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
     const fd=new FormData();fd.append('file',file);
     try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
@@ -1509,20 +1599,43 @@ function AdminMembers() {
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       (()=>{
         const uidToName={};members.forEach(m=>{if(m.uid)uidToName[m.uid]=m.displayName||((m.firstName||'')+' '+(m.lastName||'')).trim();});
-        return React.createElement('div',{className:'table-container'},React.createElement('table',null,
-          React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Phone','Paid','Spouse','Role'].map(h=>React.createElement('th',{key:h},h)))),
-          React.createElement('tbody',null,members.map(m=>{
+        const tagById={};tags.forEach(t=>{tagById[t.id]=t;});
+        const f=(filter||'').toLowerCase();
+        const filtered=!f?members:members.filter(m=>(m.displayName||'').toLowerCase().includes(f)||(m.email||'').toLowerCase().includes(f));
+        return React.createElement('div',null,
+          React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap'}},
+            React.createElement('input',{className:'form-input',style:{flex:'1 1 200px'},placeholder:'Search name or email...',value:filter,onChange:e=>setFilter(e.target.value)}),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>selectAll(filtered)},'Select all shown'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearSel},'Clear ('+selectedUids.length+')')),
+          selectedUids.length>0&&React.createElement('div',{style:{padding:10,background:'#faf8f3',borderRadius:6,marginBottom:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
+            React.createElement('strong',{style:{marginRight:8}},selectedUids.length+' selected:'),
+            React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>bulk({exemptFromDues:true},'Mark as Exempt from Dues')},'Mark Exempt'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({exemptFromDues:false},'Remove Exempt')},'Remove Exempt'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({membershipPaid:true},'Mark as Paid')},'Mark Paid'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({membershipPaid:false},'Mark as Unpaid')},'Mark Unpaid')),
+          React.createElement('div',{className:'table-container'},React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,['','Name','Email','Phone','Paid','Tag','Spouse','Role'].map(h=>React.createElement('th',{key:h||'sel'},h)))),
+          React.createElement('tbody',null,filtered.map(m=>{
             const spouseName=m.spouseUid&&uidToName[m.spouseUid]?uidToName[m.spouseUid]:(m.spouseEmail||'');
-            return React.createElement('tr',{key:m.uid},
+            const tag=m.tagId?tagById[m.tagId]:null;
+            return React.createElement('tr',{key:m.uid,style:selected[m.uid]?{background:'rgba(196,154,60,0.08)'}:null},
+              React.createElement('td',null,React.createElement('input',{type:'checkbox',checked:!!selected[m.uid],onChange:()=>toggleSel(m.uid)})),
               React.createElement('td',null,m.displayName||'-'),
               React.createElement('td',null,m.email||'-'),
               React.createElement('td',null,m.phone||'-'),
-              React.createElement('td',null,m.membershipPaid
-                ?React.createElement('span',{style:{color:'#27ae60',fontWeight:700}},'✓ Paid')
-                :React.createElement('span',{style:{color:'#b00020',fontWeight:600}},'Unpaid')),
+              React.createElement('td',null,
+                m.exemptFromDues
+                  ?React.createElement('span',{style:{color:'#1a2744',fontWeight:700,background:'rgba(196,154,60,0.15)',padding:'2px 8px',borderRadius:10,fontSize:'0.8rem'}},'Exempt')
+                  :m.membershipPaid
+                    ?React.createElement('span',{style:{color:'#27ae60',fontWeight:700}},'✓ Paid')
+                    :React.createElement('span',{style:{color:'#b00020',fontWeight:600}},'Unpaid')),
+              React.createElement('td',null,
+                React.createElement('select',{className:'form-input',style:{padding:'4px 6px',fontSize:'0.85rem'},value:m.tagId||'',onChange:e=>setMemberTag(m.uid,e.target.value)},
+                  React.createElement('option',{value:''},'(none)'),
+                  tags.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name+' ($'+Number(t.annualDues||0).toFixed(0)+')')))),
               React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
               React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')));
-          }))));
+          })))));
       })()));
 }
 
