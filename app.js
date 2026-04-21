@@ -15,6 +15,24 @@ async function apiFetch(path, options={}) {
   if(!res.ok){ const err=await res.json().catch(()=>({error:'Request failed'})); throw new Error(err.error||'Request failed'); }
   return res.json();
 }
+
+// Stale-while-revalidate cache for read-only endpoints. Returns the last cached
+// payload synchronously (if any) via onCached, then calls onFresh with the new
+// payload when the network fetch completes. Used to make repeat visits instant.
+function apiFetchSWR(path, { onCached, onFresh, onError } = {}) {
+  const key = 'swr:' + path;
+  try {
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+    if (raw && onCached) {
+      const parsed = JSON.parse(raw);
+      onCached(parsed);
+    }
+  } catch {}
+  apiFetch(path).then(data => {
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+    if (onFresh) onFresh(data);
+  }).catch(err => { if (onError) onError(err); });
+}
 function fmtZ(iso) { if(!iso) return '--'; return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}); }
 
 // ─── Zmanim Panel (MyZmanim + Davening + Shiurim + Fullscreen) ──
@@ -150,8 +168,10 @@ function ZmanimPanel({onExpand}) {
 
 // ─── Ticker ──────────────────────────────────────────────────────
 function ZmanimTicker() {
-  const [data,setData]=useState(null);
-  useEffect(()=>{apiFetch('/api/zmanim/today').then(setData).catch(()=>{});},[]);
+  const [data,setData]=useState(()=>{
+    try { const raw = localStorage.getItem('swr:/api/zmanim/today'); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
+  useEffect(()=>{apiFetchSWR('/api/zmanim/today',{onFresh:setData});},[]);
   if(!data) return null;
   const z=data.zmanim;
   const isFri=new Date().getDay()===5;
@@ -173,11 +193,23 @@ function HomePage({navigate}) {
   const siteImages=useSiteImages();
 
   useEffect(()=>{
-    Promise.all([
-      apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{}),
-      apiFetch('/api/schedule/shabbos').then(setShabbosData).catch(()=>{}),
-      apiFetch('/api/shiurim').then(setShiurim).catch(()=>{})
-    ]).then(()=>setLoading(false));
+    let freshCount=0;
+    function done(){freshCount++;if(freshCount>=3)setLoading(false);}
+    apiFetchSWR('/api/schedule/today',{
+      onCached:d=>{setSchedule(d);setLoading(false);},
+      onFresh:d=>{setSchedule(d);done();},
+      onError:done
+    });
+    apiFetchSWR('/api/schedule/shabbos',{
+      onCached:setShabbosData,
+      onFresh:d=>{setShabbosData(d);done();},
+      onError:done
+    });
+    apiFetchSWR('/api/shiurim',{
+      onCached:setShiurim,
+      onFresh:d=>{setShiurim(d);done();},
+      onError:done
+    });
   },[]);
 
   const isFriday=new Date().getDay()===5;
@@ -386,13 +418,12 @@ function AdminLogin({onLogin}) {
 
 // ─── Site Images (stored in Firestore, uploaded by admin) ────────
 function HeroSlideshow() {
-  const [slides,setSlides]=useState([]);
+  const [slides,setSlides]=useState(()=>{
+    try { const raw = localStorage.getItem('swr:/api/slides'); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
   const [idx,setIdx]=useState(0);
   useEffect(()=>{
-    fetch(BACKEND_URL+'/api/slides')
-      .then(r=>r.ok?r.json():[])
-      .then(setSlides)
-      .catch(()=>{});
+    apiFetchSWR('/api/slides',{onFresh:setSlides});
   },[]);
   useEffect(()=>{
     if(slides.length<2)return;
@@ -423,12 +454,11 @@ function HeroSlideshow() {
 }
 
 function useSiteImages() {
-  const [images,setImages]=useState({});
+  const [images,setImages]=useState(()=>{
+    try { const raw = localStorage.getItem('swr:/api/site-images'); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+  });
   useEffect(()=>{
-    fetch(BACKEND_URL+'/api/site-images')
-      .then(r=>r.ok?r.json():{})
-      .then(setImages)
-      .catch(()=>{});
+    apiFetchSWR('/api/site-images',{onFresh:setImages});
   },[]);
   return images;
 }
