@@ -1466,7 +1466,8 @@ function AdminDonations() {
       if(!mf.fiscalYear)delete payload.fiscalYear;
       if(!mf.date)delete payload.date;
       const res=await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify(payload)});
-      setMsg('Payment recorded'+(res.receiptSent?' and receipt sent.':'.'));
+      const tail=res.routedToOffice?' Receipt sent to the office for printing.':res.receiptSent?' Receipt emailed to donor.':'';
+      setMsg('Payment recorded.'+tail);
       setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
       load();
     }catch(err){setMsg('Error: '+err.message);}}
@@ -1504,11 +1505,12 @@ function AdminDonations() {
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Record Manual Payment (Check / Cash / Zelle)'),
+      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.9rem'}},'Email is optional. If you leave it blank, the receipt will be emailed to the office for printing and mailing.'),
       React.createElement('form',{onSubmit:recordManual},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:mf.firstName,onChange:e=>setMf(p=>({...p,firstName:e.target.value})),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:mf.lastName,onChange:e=>setMf(p=>({...p,lastName:e.target.value})),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:mf.email,onChange:e=>setMf(p=>({...p,email:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:mf.email,onChange:e=>setMf(p=>({...p,email:e.target.value})),placeholder:'(blank = print at office)'})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($) *'),React.createElement('input',{className:'form-input',type:'number',min:'1',step:'0.01',value:mf.amount,onChange:e=>setMf(p=>({...p,amount:e.target.value})),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Reason'),React.createElement('select',{className:'form-input',value:mf.reason,onChange:e=>setMf(p=>({...p,reason:e.target.value}))},reasons.map(r=>React.createElement('option',{key:r,value:r},r)))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Method'),React.createElement('select',{className:'form-input',value:mf.paymentMethod,onChange:e=>setMf(p=>({...p,paymentMethod:e.target.value}))},['check','cash','zelle','venmo','other'].map(m=>React.createElement('option',{key:m,value:m},m.charAt(0).toUpperCase()+m.slice(1))))),
