@@ -202,6 +202,10 @@ function ZmanimPanel({onExpand}) {
   const [shabbosData,setShabbosData]=useState(null);
   const [fullscreen,setFullscreen]=useState(false);
   const [now,setNow]=useState(()=>new Date());
+  // Admin-uploaded images (Site Images tab). The fullscreen TV board prefers
+  // the dedicated 'fullscreenLogo' slot, then falls back to the top-bar logo,
+  // then the bundled logo.png.
+  const siteImages=useSiteImages();
 
   function loadData(){
     apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{});
@@ -364,18 +368,22 @@ function ZmanimPanel({onExpand}) {
           textAlign:'center',display:'flex',flexDirection:'column',
           alignItems:'center',justifyContent:'space-between',padding:'8px 0'
         }},
-          React.createElement('div',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},
-            React.createElement('img',{
-              src:'logo.png',alt:'',
-              style:{
-                maxWidth:'100%',maxHeight:'48vh',opacity:1,
-                // The logo is dark-on-transparent, near-invisible against the
-                // dark TV-board background. Brighten + saturate to bring out
-                // the gold tones, plus a soft golden glow.
-                filter:'brightness(1.8) saturate(1.25) drop-shadow(0 0 40px rgba(232,198,106,0.4))'
-              }
-            })
-          )
+          (() => {
+            const adminImg = siteImages.fullscreenLogo || siteImages.topLogo || siteImages.heroImage;
+            const src = adminImg || 'logo.png';
+            // Admin-uploaded images are already chosen to look right; only
+            // apply heavy brightening when we're falling back to the bundled
+            // dark logo.png on the dark board.
+            const filter = adminImg
+              ? 'drop-shadow(0 0 40px rgba(232,198,106,0.35))'
+              : 'brightness(1.8) saturate(1.25) drop-shadow(0 0 40px rgba(232,198,106,0.4))';
+            return React.createElement('div',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},
+              React.createElement('img',{
+                src, alt:'',
+                style:{maxWidth:'100%',maxHeight:'48vh',opacity:1,filter}
+              })
+            );
+          })()
         ),
 
         // RIGHT: Weekday column
