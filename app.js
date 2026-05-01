@@ -367,7 +367,13 @@ function ZmanimPanel({onExpand}) {
           React.createElement('div',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},
             React.createElement('img',{
               src:'logo.png',alt:'',
-              style:{maxWidth:'100%',maxHeight:'48vh',opacity:0.95,filter:'drop-shadow(0 0 30px rgba(196,154,60,0.18))'}
+              style:{
+                maxWidth:'100%',maxHeight:'48vh',opacity:1,
+                // The logo is dark-on-transparent, near-invisible against the
+                // dark TV-board background. Brighten + saturate to bring out
+                // the gold tones, plus a soft golden glow.
+                filter:'brightness(1.8) saturate(1.25) drop-shadow(0 0 40px rgba(232,198,106,0.4))'
+              }
             })
           )
         ),
