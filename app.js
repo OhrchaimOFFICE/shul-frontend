@@ -19,8 +19,12 @@ async function apiFetch(path, options={}) {
 // Stale-while-revalidate cache for read-only endpoints. Returns the last cached
 // payload synchronously (if any) via onCached, then calls onFresh with the new
 // payload when the network fetch completes. Used to make repeat visits instant.
+// Endpoints whose payloads can be very large (slides return base64 image data
+// URLs that easily exceed the localStorage 5–10MB quota) are not persisted.
+const SWR_NO_PERSIST = new Set(['/api/slides', '/api/site-images']);
 function apiFetchSWR(path, { onCached, onFresh, onError } = {}) {
   const key = 'swr:' + path;
+  const persist = !SWR_NO_PERSIST.has(path);
   try {
     const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (raw && onCached) {
@@ -29,11 +33,123 @@ function apiFetchSWR(path, { onCached, onFresh, onError } = {}) {
     }
   } catch {}
   apiFetch(path).then(data => {
-    try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+    if (persist) { try { localStorage.setItem(key, JSON.stringify(data)); } catch {} }
     if (onFresh) onFresh(data);
   }).catch(err => { if (onError) onError(err); });
 }
-function fmtZ(iso) { if(!iso) return '--'; return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'}); }
+function fmtZ(iso) {
+  if(!iso) return '--';
+  // The zmanim/today endpoint returns ISO strings; the schedule/today endpoint
+  // returns already-formatted strings ("5:43 PM"). Tolerate both.
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York'});
+}
+// Compact "5:43" form for the fullscreen TV board (no AM/PM).
+function fmtShort(t) {
+  if (!t) return '';
+  const d = new Date(t);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',hour12:true})
+      .replace(/\s?[AP]M$/i,'').trim();
+  }
+  return String(t).replace(/\s?[AP]M$/i,'').trim();
+}
+// Hebrew names for the weekly parsha. Hebcal returns transliterated English
+// like "Parashat Emor"; we strip the prefix and look up the Hebrew form.
+const HEBREW_PARSHA = {
+  'bereshit':'בראשית','noach':'נח','lech-lecha':'לך לך','vayera':'וירא',
+  'chayei sara':'חיי שרה','toldot':'תולדות','vayetzei':'ויצא','vayishlach':'וישלח',
+  'vayeshev':'וישב','miketz':'מקץ','vayigash':'ויגש','vayechi':'ויחי',
+  'shemot':'שמות','vaera':'וארא','bo':'בא','beshalach':'בשלח','yitro':'יתרו',
+  'mishpatim':'משפטים','terumah':'תרומה','tetzaveh':'תצוה','ki tisa':'כי תשא',
+  'vayakhel':'ויקהל','pekudei':'פקודי','vayakhel-pekudei':'ויקהל-פקודי',
+  'vayikra':'ויקרא','tzav':'צו','shmini':'שמיני','tazria':'תזריע','metzora':'מצרע',
+  'tazria-metzora':'תזריע-מצרע','achrei mot':'אחרי מות','kedoshim':'קדשים',
+  'achrei mot-kedoshim':'אחרי מות-קדשים','emor':'אמור','behar':'בהר',
+  'bechukotai':'בחקתי','behar-bechukotai':'בהר-בחקתי','bamidbar':'במדבר',
+  'nasso':'נשא','beha\'alotcha':'בהעלתך','sh\'lach':'שלח','shlach':'שלח',
+  'korach':'קרח','chukat':'חקת','balak':'בלק','chukat-balak':'חקת-בלק',
+  'pinchas':'פינחס','matot':'מטות','masei':'מסעי','matot-masei':'מטות-מסעי',
+  'devarim':'דברים','vaetchanan':'ואתחנן','eikev':'עקב','re\'eh':'ראה',
+  'shoftim':'שפטים','ki teitzei':'כי תצא','ki tavo':'כי תבוא',
+  'nitzavim':'נצבים','vayeilech':'וילך','nitzavim-vayeilech':'נצבים-וילך',
+  'ha\'azinu':'האזינו','vezot haberakhah':'וזאת הברכה'
+};
+function hebrewParsha(en) {
+  if (!en) return '';
+  const stripped = en.replace(/^Parashat\s+/i,'').trim().toLowerCase();
+  return HEBREW_PARSHA[stripped] || en;
+}
+
+// ─── Liturgical bottom-strip helpers ──────────────────────────────
+// All computed locally; no extra Hebcal calls. Hebrew month names come from
+// /api/zmanim/today's hebrewDate.hm field (e.g. "Iyyar", "Nisan").
+
+// Hebrew cardinal numbers (masculine) for 1-49, used for Omer counts.
+const HEBREW_NUM_ONES = ['','אחד','שני','שלשה','ארבעה','חמשה','ששה','שבעה','שמנה','תשעה'];
+const HEBREW_NUM_TEENS = ['עשרה','אחד עשר','שנים עשר','שלשה עשר','ארבעה עשר','חמשה עשר','ששה עשר','שבעה עשר','שמנה עשר','תשעה עשר'];
+const HEBREW_NUM_TENS = ['','','עשרים','שלשים','ארבעים'];
+function hebrewNumber(n) {
+  if (n < 1) return '';
+  if (n < 10) return HEBREW_NUM_ONES[n];
+  if (n < 20) return HEBREW_NUM_TEENS[n - 10];
+  const tens = Math.floor(n / 10), ones = n % 10;
+  if (ones === 0) return HEBREW_NUM_TENS[tens];
+  return HEBREW_NUM_ONES[ones] + ' ו' + HEBREW_NUM_TENS[tens];
+}
+
+// Compute the Omer day (1-49) from a Hebrew month/day. Returns 0 if not in Omer.
+function omerDay(hm, hd) {
+  const m = (hm || '').toLowerCase();
+  const d = parseInt(hd, 10);
+  if (!d) return 0;
+  if ((m === 'nisan' || m === 'nissan') && d >= 16) return d - 15;
+  if (m === 'iyar' || m === 'iyyar') return 15 + d;
+  if (m === 'sivan' && d >= 1 && d <= 5) return 44 + d;
+  return 0;
+}
+
+// Standard Hebrew formulation of "Today is X days [which is Y weeks and Z days]
+// in the Omer". Used at the bottom of the fullscreen board.
+function omerText(day) {
+  if (day < 1 || day > 49) return '';
+  const dayWord = day === 1 ? 'יום אחד' : (hebrewNumber(day) + ' ימים');
+  if (day < 7) return 'היום ' + dayWord + ' בעומר';
+  const weeks = Math.floor(day / 7);
+  const remain = day % 7;
+  const weekWord = weeks === 1 ? 'שבוע אחד' : (hebrewNumber(weeks) + ' שבועות');
+  if (remain === 0) return 'היום ' + dayWord + ' שהם ' + weekWord + ' בעומר';
+  const remainWord = remain === 1 ? 'יום אחד' : (hebrewNumber(remain) + ' ימים');
+  return 'היום ' + dayWord + ' שהם ' + weekWord + ' ו' + remainWord + ' בעומר';
+}
+
+// Diaspora rule: "Vetein Tal U'Matar Livracha" begins at Maariv on Dec 4 (or
+// Dec 5 in years preceding a Gregorian leap year), running through Mincha of
+// Erev Pesach. Outside that window: "Vetein Bracha".
+function veteinPhrase(now, hm, hd) {
+  const m = (hm || '').toLowerCase();
+  const d = parseInt(hd, 10) || 0;
+  // From 15 Nisan through end of Tishrei: always Vetein Bracha.
+  if ((m === 'nisan' || m === 'nissan') && d >= 15) return 'ותן ברכה';
+  if (['iyar','iyyar','sivan','tamuz','tammuz','av','elul','tishrei','tishri'].includes(m)) return 'ותן ברכה';
+  // Otherwise we're in Cheshvan / Kislev / Tevet / Shevat / Adar / early Nisan.
+  // Find the most recent Dec 4/5 cutoff and compare.
+  const yr = now.getFullYear();
+  const cutoffDay = year => {
+    const nextLeap = ((year + 1) % 4 === 0 && (year + 1) % 100 !== 0) || (year + 1) % 400 === 0;
+    return new Date(year, 11, nextLeap ? 5 : 4, 18, 0);
+  };
+  const thisYear = cutoffDay(yr);
+  const recentCutoff = (now >= thisYear) ? thisYear : cutoffDay(yr - 1);
+  return now >= recentCutoff ? 'ותן טל ומטר לברכה' : 'ותן ברכה';
+}
+
+// Pirkei Avos: read on Shabbos afternoons during the Omer period in most
+// Diaspora communities. Show the indicator from 16 Nisan through 5 Sivan.
+function isPirkeiAvosSeason(hm, hd) {
+  return omerDay(hm, hd) > 0;
+}
 
 // ─── Zmanim Panel (MyZmanim + Davening + Shiurim + Fullscreen) ──
 function ZmanimPanel({onExpand}) {
@@ -41,13 +157,25 @@ function ZmanimPanel({onExpand}) {
   const [schedule,setSchedule]=useState(null);
   const [shiurim,setShiurim]=useState([]);
   const [fullZmanim,setFullZmanim]=useState(null);
+  const [shabbosData,setShabbosData]=useState(null);
   const [fullscreen,setFullscreen]=useState(false);
+  const [now,setNow]=useState(()=>new Date());
 
   function loadData(){
     apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{});
     apiFetch('/api/shiurim').then(setShiurim).catch(()=>{});
     apiFetch('/api/zmanim/today').then(setFullZmanim).catch(()=>{});
+    apiFetch('/api/schedule/shabbos').then(setShabbosData).catch(()=>{});
   }
+
+  // Live clock for the fullscreen TV board. Only ticks while fullscreen is
+  // open so we don't waste cycles rendering the small panel every second.
+  useEffect(()=>{
+    if(!fullscreen) return;
+    setNow(new Date());
+    const t=setInterval(()=>setNow(new Date()),1000);
+    return ()=>clearInterval(t);
+  },[fullscreen]);
 
   useEffect(()=>{
     loadData();
@@ -84,66 +212,155 @@ function ZmanimPanel({onExpand}) {
   const isFriday=new Date().getDay()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
 
-  // Fullscreen overlay - designed for shul TV display, fills entire viewport
+  // Fullscreen TV board: traditional Hebrew shul layout, two columns + center
+  // tree, live clock, no scrolling. Designed to fit on one screen.
   if(fullscreen){
-    const zTimes=fullZmanim?.zmanim||schedule?.zmanim||{};
-    const zmanimList=[
-      ['Alot HaShachar',zTimes.alotHaShachar],
-      ['Earliest Talis',zTimes.misheyakir],
-      ['Sunrise',zTimes.sunrise],
-      ['Latest Shema (MGA)',zTimes.sofZmanShmaMGA],
-      ['Latest Shema (GRA)',zTimes.sofZmanShma],
-      ['Latest Shacharis',zTimes.sofZmanTfilla],
-      ['Chatzos',zTimes.chatzot],
-      ['Earliest Mincha',zTimes.minchaGedola],
-      ['Plag HaMincha',zTimes.plagHaMincha],
-      ['Sunset',zTimes.sunset],
-      ['Tzeis HaKochavim',zTimes.tzeit]
-    ].filter(([_,v])=>v).map(([n,v])=>[n,fmtZ(v)]);
+    const z=fullZmanim?.zmanim||schedule?.zmanim||{};
+    const sb=shabbosData||{};
+    const hebDate=fullZmanim?.hebrewDate?.hebrew||'';
+    const hebMonth=fullZmanim?.hebrewDate?.hm||'';
+    const hebDay=fullZmanim?.hebrewDate?.hd||0;
+    const englishDate=now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const clockStr=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',timeZone:'America/New_York',hour12:true}).toLowerCase();
+    const todayShacharis=schedule?.davening?.shacharis;
+    const todayMincha=schedule?.davening?.mincha||schedule?.davening?.minchaMaariv;
+    const shabbosShiur=shiurim.find(s=>s.dayOfWeek===6);
+    const parshaHe=hebrewParsha(sb.parsha);
 
-    return React.createElement('div',{style:{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(180deg, #1a2744 0%, #243456 100%)',overflow:'hidden',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',height:'100vh',width:'100vw',padding:'20px 40px'}},
-      React.createElement('style',null,`
-        @keyframes scrollZmanim { 0% { transform: translateY(0); } 50% { transform: translateY(calc(-50% + 0px)); } 50.01% { transform: translateY(calc(-50% + 0px)); } 100% { transform: translateY(0); } }
-        .zmanim-scroll-wrap { animation: scrollZmanim 30s linear infinite; }
-      `),
-      React.createElement('button',{onClick:closeFullscreen,style:{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.15)',color:'#fff',border:'none',borderRadius:'50%',width:44,height:44,fontSize:'1.3rem',cursor:'pointer'}},'✕'),
-      // Header with logo
-      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:20,marginBottom:20}},
-        React.createElement('img',{src:'logo-hebrew-tree.png',alt:'Ohr Chaim',style:{height:100},onError:function(e){e.target.src='logo-tree.png';}}),
-        React.createElement('div',null,
-          React.createElement('h1',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',fontSize:'2.6rem',margin:0,letterSpacing:1,fontWeight:700}},'Congregation Ohr Chaim'),
-          React.createElement('p',{style:{color:'rgba(255,255,255,0.4)',fontSize:'1.1rem',margin:'4px 0 0',letterSpacing:2}},'317 W 47th St, Miami Beach, FL 33140'))),
-      // Two columns filling remaining space
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,width:'100%',maxWidth:1600,flex:1,minHeight:0,paddingBottom:20}},
-        // Left: All Zmanim - auto-scrolling
-        React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
-          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2.2rem',textAlign:'center',fontWeight:700}},"Today's Zmanim"),
-          React.createElement('div',{style:{flex:1,overflow:'hidden',position:'relative'}},
-            React.createElement('div',{className:'zmanim-scroll-wrap'},
-              zmanimList.concat(zmanimList).map(([n,v],i)=>React.createElement('div',{key:n+'-'+i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',fontSize:'1.6rem'}},
-                React.createElement('span',{style:{color:'rgba(255,255,255,0.7)'}},n),
-                React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)',fontSize:'1.7rem'}},v)))))),
-        // Right: Davening + Shiurim
-        React.createElement('div',{style:{background:'rgba(255,255,255,0.07)',borderRadius:14,padding:'20px 28px',border:'1px solid rgba(196,154,60,0.3)',display:'flex',flexDirection:'column',overflow:'hidden'}},
-          React.createElement('h2',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:16,fontSize:'2rem',textAlign:'center',fontWeight:700}},"Today's Schedule"),
-          schedule&&React.createElement('div',{style:{color:'#fff'}},
-            schedule.davening?.shacharis&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Shacharis'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.shacharis)),
-            schedule.davening?.earlyMincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Early Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.earlyMincha)),
-            schedule.davening?.mincha&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.mincha)),
-            schedule.davening?.minchaMaariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Mincha / Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.minchaMaariv)),
-            schedule.davening?.maariv&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'14px 0',borderBottom:'1px solid rgba(255,255,255,0.1)',fontSize:'1.6rem'}},React.createElement('span',{style:{color:'rgba(255,255,255,0.8)'}},'Maariv'),React.createElement('span',{style:{fontWeight:700,color:'#fff',fontFamily:'var(--font-display)'}},schedule.davening.maariv)),
-            showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'16px 20px',marginTop:8,background:'rgba(196,154,60,0.15)',borderRadius:10,fontSize:'1.6rem'}},React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},'Candle Lighting'),React.createElement('span',{style:{fontWeight:700,color:'#c49a3c',fontFamily:'var(--font-display)'}},schedule.zmanim.candleLighting))),
-          todayShiurim.length>0&&React.createElement('div',{style:{marginTop:20,paddingTop:16,borderTop:'1px solid rgba(255,255,255,0.1)'}},
-            React.createElement('h3',{style:{fontFamily:'var(--font-display)',color:'#c49a3c',marginBottom:10,fontSize:'1.4rem',fontWeight:700}},'Shiurim Today'),
-            todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{padding:'10px 0',borderBottom:'1px solid rgba(255,255,255,0.08)',color:'#fff'}},
-              React.createElement('div',{style:{fontWeight:700,fontSize:'1.15rem'}},s.title),
-              React.createElement('div',{style:{color:'rgba(255,255,255,0.5)',fontSize:'1rem',marginTop:2}},[s.time,s.rabbi].filter(Boolean).join(' • '))))))));
+    // Bottom announcement strip — Sefiras HaOmer / Vetein / Pirkei Avos.
+    const omer=omerDay(hebMonth,hebDay);
+    const bottomItems=[];
+    if(omer>0) bottomItems.push(omerText(omer));
+    bottomItems.push(veteinPhrase(now,hebMonth,hebDay));
+    if(isPirkeiAvosSeason(hebMonth,hebDay)) bottomItems.push('פרקי אבות');
+
+    // Right column = weekday zmanim. Hebrew labels read RTL within the column.
+    const weekdayRows=[
+      ['הנחת תפילין', fmtShort(z.misheyakir||z.alotHaShachar)],
+      ['נץ החמה',     fmtShort(z.sunrise)],
+      ['שחרית',       fmtShort(todayShacharis)],
+      ['סוף זמן ק"ש מג"א', fmtShort(z.sofZmanShmaMGA)],
+      ['סוף זמן ק"ש גר"א', fmtShort(z.sofZmanShma)],
+      ['פלג המנחה',   fmtShort(z.plagHaMincha||z.plagHamincha)],
+      ['מנחה',         fmtShort(todayMincha)],
+      ['שקיעת החמה',  fmtShort(z.sunset)]
+    ].filter(([_,t])=>t);
+
+    // Left column = upcoming Shabbos / Yom Tov.
+    const shabbosRows=[
+      sb.candleLighting && ['הדלקת נרות', fmtShort(sb.candleLighting), false],
+      sb.fridayMincha   && ['מנחה ערש"ק',  fmtShort(sb.fridayMincha),   false],
+      sb.shacharis      && ['שחרית בשבת',  fmtShort(sb.shacharis),      false],
+      shabbosShiur && shabbosShiur.time && ['שיעור', fmtShort(shabbosShiur.time), true],
+      sb.mincha         && ['מנחה בשבת',   fmtShort(sb.mincha),         false],
+      sb.shabbosEnds    && ['הבדלה',        fmtShort(sb.shabbosEnds),    false]
+    ].filter(Boolean);
+
+    const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'10px 4px',borderBottom:'1px dashed rgba(245,232,200,0.12)',fontSize:'1.7rem'};
+    const labelStyle=accent=>({color:accent?'#f0a93a':'rgba(245,232,200,0.9)',fontWeight:500});
+    const timeStyle=accent=>({color:accent?'#f0a93a':'#f5e8c8',fontWeight:700,fontFamily:'var(--font-display)',direction:'ltr',minWidth:90,textAlign:'left'});
+    const colHeader={textAlign:'center',fontSize:'1.7rem',color:'#e8c66a',borderBottom:'2px solid rgba(196,154,60,0.4)',paddingBottom:8,marginBottom:14,fontWeight:700,letterSpacing:1};
+
+    return React.createElement('div',{style:{
+      position:'fixed',inset:0,zIndex:9999,
+      background:'radial-gradient(circle at 50% 30%, #1c160e 0%, #0a0807 80%)',
+      color:'#f5e8c8',
+      fontFamily:'var(--font-display), Georgia, serif',
+      display:'flex',flexDirection:'column',
+      height:'100vh',width:'100vw',overflow:'hidden',
+      padding:'20px 32px',
+      boxSizing:'border-box'
+    }},
+      React.createElement('button',{onClick:closeFullscreen,style:{
+        position:'absolute',top:14,right:14,zIndex:10,
+        background:'rgba(245,232,200,0.08)',color:'#f5e8c8',
+        border:'1px solid rgba(245,232,200,0.2)',borderRadius:'50%',
+        width:40,height:40,fontSize:'1.1rem',cursor:'pointer'
+      }},'✕'),
+
+      // Top header: English title (left) | clock + dates (center) | Hebrew title (right)
+      React.createElement('div',{style:{
+        display:'grid',gridTemplateColumns:'1fr auto 1fr',
+        alignItems:'center',gap:24,
+        borderBottom:'1px solid rgba(196,154,60,0.4)',
+        paddingBottom:12,marginBottom:18,flexShrink:0
+      }},
+        React.createElement('div',{style:{textAlign:'left'}},
+          React.createElement('div',{style:{fontSize:'2.2rem',color:'#e8c66a',fontWeight:600,letterSpacing:1,lineHeight:1.1}},'Cong Ohr Chaim'),
+          React.createElement('div',{style:{fontSize:'1rem',color:'rgba(245,232,200,0.55)',marginTop:6,letterSpacing:0.5}},englishDate)
+        ),
+        React.createElement('div',{style:{textAlign:'center',minWidth:280}},
+          React.createElement('div',{style:{fontSize:'2.6rem',color:'#f5e8c8',fontWeight:600,letterSpacing:1}},clockStr)
+        ),
+        React.createElement('div',{style:{textAlign:'right',direction:'rtl'}},
+          React.createElement('div',{style:{fontSize:'2.2rem',color:'#e8c66a',fontWeight:600,letterSpacing:1,lineHeight:1.1}},'קהל אור חיים'),
+          hebDate && React.createElement('div',{style:{fontSize:'1rem',color:'rgba(245,232,200,0.55)',marginTop:6}},hebDate)
+        )
+      ),
+
+      // Three-zone main: Shabbos (left) | Tree (center) | Weekday (right)
+      React.createElement('div',{style:{
+        display:'grid',gridTemplateColumns:'1fr 320px 1fr',
+        gap:32,flex:1,minHeight:0,alignItems:'stretch'
+      }},
+        // LEFT: Shabbos / Yom Tov column
+        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column'}},
+          React.createElement('div',{style:colHeader},'זמנים לשבת ויו"ט'),
+          parshaHe && React.createElement('div',{style:{textAlign:'center',fontSize:'2.6rem',fontWeight:700,color:'#e8c66a',margin:'2px 0 14px',letterSpacing:2}},parshaHe),
+          shabbosRows.length>0
+            ? shabbosRows.map(([label,time,accent])=>
+                React.createElement('div',{key:label,style:rowStyle},
+                  React.createElement('span',{style:timeStyle(accent)},time||'—'),
+                  React.createElement('span',{style:labelStyle(accent)},label)))
+            : React.createElement('div',{style:{textAlign:'center',color:'rgba(245,232,200,0.4)',marginTop:24}},'Loading…')
+        ),
+
+        // CENTER: tree logo + donor credit
+        React.createElement('div',{style:{
+          textAlign:'center',display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'space-between',padding:'8px 0'
+        }},
+          React.createElement('div',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},
+            React.createElement('img',{
+              src:'logo.png',alt:'',
+              style:{maxWidth:'100%',maxHeight:'48vh',opacity:0.95,filter:'drop-shadow(0 0 30px rgba(196,154,60,0.18))'}
+            })
+          )
+        ),
+
+        // RIGHT: Weekday column
+        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column'}},
+          React.createElement('div',{style:colHeader},'זמנים לחול'),
+          weekdayRows.length>0
+            ? weekdayRows.map(([label,time])=>
+                React.createElement('div',{key:label,style:rowStyle},
+                  React.createElement('span',{style:timeStyle(false)},time),
+                  React.createElement('span',{style:labelStyle(false)},label)))
+            : React.createElement('div',{style:{textAlign:'center',color:'rgba(245,232,200,0.4)',marginTop:24}},'Loading…')
+        )
+      ),
+
+      // Bottom announcement strip: Omer count, Vetein phrase, Pirkei Avos.
+      React.createElement('div',{style:{
+        flexShrink:0,marginTop:12,paddingTop:12,
+        borderTop:'1px solid rgba(196,154,60,0.4)',
+        direction:'rtl',
+        display:'flex',justifyContent:'center',alignItems:'center',
+        flexWrap:'wrap',gap:'0 24px',
+        fontSize:'1.5rem',color:'#e8c66a',fontWeight:600,letterSpacing:1
+      }},
+        bottomItems.map((t,i)=>[
+          i>0 && React.createElement('span',{key:'sep'+i,style:{color:'rgba(196,154,60,0.5)'}},'•'),
+          React.createElement('span',{key:'item'+i},t)
+        ])
+      )
+    );
   }
 
   // Normal sidebar panel
   return React.createElement('div',{className:'zmanim-panel'},
     React.createElement('div',{className:'zmanim-panel-title'},
-      React.createElement('img',{src:'logo-tree.png',alt:'',className:'panel-tree-icon'}),
+      React.createElement('img',{src:'logo.png',alt:'',className:'panel-tree-icon'}),
       "Today's Zmanim & Schedule"),
     React.createElement('iframe',{ref:iframeRef,style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
     // Davening times
@@ -190,7 +407,6 @@ function HomePage({navigate}) {
   const [shabbosData,setShabbosData]=useState(null);
   const [shiurim,setShiurim]=useState([]);
   const [loading,setLoading]=useState(true);
-  const siteImages=useSiteImages();
 
   useEffect(()=>{
     let freshCount=0;
@@ -2127,12 +2343,14 @@ function AdminAnalytics() {
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(!data) return React.createElement('p',null,'Unable to load.');
 
+  const truncatedNotice=data.truncated&&React.createElement('div',{className:'message message-error',style:{marginBottom:12}},'Showing the most recent 10,000 donations. Older records exist; narrow your date range to see them.');
   const topDonors=Object.entries(data.byPerson||{}).sort((a,b)=>b[1].total-a[1].total);
   const byMonthArr=Object.entries(data.byMonth||{}).sort((a,b)=>a[0].localeCompare(b[0]));
   const byReasonArr=Object.entries(data.byReason||{}).sort((a,b)=>b[1].total-a[1].total);
   const byMethodArr=Object.entries(data.byMethod||{}).sort((a,b)=>b[1].total-a[1].total);
 
   return React.createElement('div',null,
+    truncatedNotice,
     // Filters bar
     React.createElement('div',{className:'card',style:{marginBottom:16}},
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:10,alignItems:'end'}},
@@ -2278,23 +2496,16 @@ function AdminHighHolidays() {
   const [subTab,setSubTab]=useState('settings');
   const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
   const [reservations,setReservations]=useState([]);
-  const [seatingData,setSeatingData]=useState(null);
   const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
 
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
     try{setSettings(await apiFetch('/api/admin/high-holidays/settings'));}catch(e){}
     try{setReservations(await apiFetch('/api/admin/high-holidays/reservations'));}catch(e){}
-    try{setSeatingData(await apiFetch('/api/admin/high-holidays/seating-chart'));}catch(e){}
     setLoading(false);}
 
   async function saveSettings(){setMsg('');
     try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}}
-
-  async function assignSeat(resId,seatId){
-    const res=reservations.find(r=>r.id===resId);if(!res)return;
-    const assignments=[...(res.seatAssignments||[]),seatId];
-    try{await apiFetch('/api/admin/high-holidays/assign-seat',{method:'PUT',body:JSON.stringify({reservationId:resId,seatAssignments:assignments})});load();}catch(e){setMsg('Error: '+e.message);}}
 
   const totalReserved=reservations.reduce((s,r)=>s+(r.numSeats||0),0);
   const totalRevenue=reservations.reduce((s,r)=>s+(r.totalAmount||0),0);
@@ -2388,7 +2599,7 @@ function App() {
     !showHero&&titles[page]&&React.createElement('div',{className:'page-wrap',style:{paddingBottom:0}},
       React.createElement('div',{className:'page-header'},
         React.createElement('div',{style:{display:'flex',alignItems:'center',gap:12}},
-          React.createElement('img',{src:'logo-tree.png',alt:'',className:'page-header-tree'}),
+          React.createElement('img',{src:'logo.png',alt:'',className:'page-header-tree'}),
           React.createElement('h1',null,titles[page])),
         React.createElement('div',{className:'page-header-date'},secDate))),
     // Page content
@@ -2412,9 +2623,9 @@ function App() {
       footerLogoSrc&&React.createElement('img',{src:footerLogoSrc,alt:'Congregation Ohr Chaim',className:'footer-logo'}),
       React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL'),
       React.createElement('div',{className:'footer-links',style:{marginTop:8,fontSize:'0.85rem'}},
-        React.createElement('a',{href:'#contact',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Contact'),
-        React.createElement('a',{href:'#privacy',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Privacy Policy'),
-        React.createElement('a',{href:'#terms',style:{color:'rgba(255,255,255,0.55)',margin:'0 8px'}},'Terms of Service'))));
+        React.createElement('a',{href:'#contact',style:{color:'var(--text-medium)',margin:'0 8px'}},'Contact'),
+        React.createElement('a',{href:'#privacy',style:{color:'var(--text-medium)',margin:'0 8px'}},'Privacy Policy'),
+        React.createElement('a',{href:'#terms',style:{color:'var(--text-medium)',margin:'0 8px'}},'Terms of Service'))));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
