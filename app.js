@@ -151,6 +151,48 @@ function isPirkeiAvosSeason(hm, hd) {
   return omerDay(hm, hd) > 0;
 }
 
+// Seamless infinite vertical scroll. If the children's height exceeds the
+// container, the content scrolls in a continuous loop with no visible snap:
+// we render two identical copies stacked, animate transform from 0 to -50%
+// (== exactly one copy's height), and the CSS loop boundary lands on a
+// pixel-identical position. If content fits, no animation runs.
+function ScrollPanel({children}) {
+  const wrapRef = useRef(null);
+  const innerRef = useRef(null);
+  const [scrolling, setScrolling] = useState(false);
+  const [duration, setDuration] = useState(30);
+  useEffect(() => {
+    function measure() {
+      const wrap = wrapRef.current, inner = innerRef.current;
+      if (!wrap || !inner) return;
+      const first = inner.firstElementChild;
+      if (!first) return;
+      const innerH = first.offsetHeight;
+      const wrapH = wrap.clientHeight;
+      const need = innerH > wrapH + 4;
+      setScrolling(need);
+      // ~25 px/sec feels like a comfortable shul-board pace.
+      if (need) setDuration(Math.max(15, Math.round(innerH / 25)));
+    }
+    measure();
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { window.removeEventListener('resize', measure); cancelAnimationFrame(raf); };
+  }, [children]);
+  return React.createElement('div', {
+    ref: wrapRef,
+    style: { flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }
+  },
+    React.createElement('div', {
+      ref: innerRef,
+      style: scrolling ? { animation: 'vScroll ' + duration + 's linear infinite' } : null
+    },
+      React.createElement('div', null, children),
+      scrolling && React.createElement('div', {'aria-hidden': 'true'}, children)
+    )
+  );
+}
+
 // ─── Zmanim Panel (MyZmanim + Davening + Shiurim + Fullscreen) ──
 function ZmanimPanel({onExpand}) {
   const iframeRef = useRef(null);
@@ -271,6 +313,7 @@ function ZmanimPanel({onExpand}) {
       padding:'20px 32px',
       boxSizing:'border-box'
     }},
+      React.createElement('style',null,'@keyframes vScroll{from{transform:translateY(0)}to{transform:translateY(-50%)}}'),
       React.createElement('button',{onClick:closeFullscreen,style:{
         position:'absolute',top:14,right:14,zIndex:10,
         background:'rgba(245,232,200,0.08)',color:'#f5e8c8',
@@ -304,14 +347,15 @@ function ZmanimPanel({onExpand}) {
         gap:32,flex:1,minHeight:0,alignItems:'stretch'
       }},
         // LEFT: Shabbos / Yom Tov column
-        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column'}},
+        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}},
           React.createElement('div',{style:colHeader},'זמנים לשבת ויו"ט'),
-          parshaHe && React.createElement('div',{style:{textAlign:'center',fontSize:'2.6rem',fontWeight:700,color:'#e8c66a',margin:'2px 0 14px',letterSpacing:2}},parshaHe),
+          parshaHe && React.createElement('div',{style:{textAlign:'center',fontSize:'2.6rem',fontWeight:700,color:'#e8c66a',margin:'2px 0 14px',letterSpacing:2,flexShrink:0}},parshaHe),
           shabbosRows.length>0
-            ? shabbosRows.map(([label,time,accent])=>
-                React.createElement('div',{key:label,style:rowStyle},
-                  React.createElement('span',{style:timeStyle(accent)},time||'—'),
-                  React.createElement('span',{style:labelStyle(accent)},label)))
+            ? React.createElement(ScrollPanel,{key:'sb-'+shabbosRows.length},
+                shabbosRows.map(([label,time,accent])=>
+                  React.createElement('div',{key:label,style:rowStyle},
+                    React.createElement('span',{style:timeStyle(accent)},time||'—'),
+                    React.createElement('span',{style:labelStyle(accent)},label))))
             : React.createElement('div',{style:{textAlign:'center',color:'rgba(245,232,200,0.4)',marginTop:24}},'Loading…')
         ),
 
@@ -329,13 +373,14 @@ function ZmanimPanel({onExpand}) {
         ),
 
         // RIGHT: Weekday column
-        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column'}},
+        React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}},
           React.createElement('div',{style:colHeader},'זמנים לחול'),
           weekdayRows.length>0
-            ? weekdayRows.map(([label,time])=>
-                React.createElement('div',{key:label,style:rowStyle},
-                  React.createElement('span',{style:timeStyle(false)},time),
-                  React.createElement('span',{style:labelStyle(false)},label)))
+            ? React.createElement(ScrollPanel,{key:'wd-'+weekdayRows.length},
+                weekdayRows.map(([label,time])=>
+                  React.createElement('div',{key:label,style:rowStyle},
+                    React.createElement('span',{style:timeStyle(false)},time),
+                    React.createElement('span',{style:labelStyle(false)},label))))
             : React.createElement('div',{style:{textAlign:'center',color:'rgba(245,232,200,0.4)',marginTop:24}},'Loading…')
         )
       ),
