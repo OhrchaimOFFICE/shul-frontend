@@ -1006,13 +1006,20 @@ function AdminPanel() {
   useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(async u=>{setUser(u);if(u){try{const t=await u.getIdToken();const r=await fetch(BACKEND_URL+'/api/admin/davening-rules',{headers:{'Authorization':'Bearer '+t}});setIsAdmin(r.ok);}catch{setIsAdmin(false);}}setChecking(false);});return unsub;},[]);
   if(checking) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Checking access...');
   if(!user||!isAdmin) return React.createElement(AdminLogin,{onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
+  function openWelcomeDisplay(){
+    // Open in a new tab so the admin can keep working while the kiosk runs.
+    const url = window.location.pathname + '#welcome';
+    window.open(url, '_blank');
+  }
   return React.createElement('div',null,
-    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}},
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20,flexWrap:'wrap',gap:8}},
       React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
-      React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out')),
+      React.createElement('div',{style:{display:'flex',gap:8}},
+        React.createElement('button',{className:'btn btn-sm btn-primary',onClick:openWelcomeDisplay,title:'Open the entrance display in a new tab'},'📺 Open Welcome Display'),
+        React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out'))),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','autoemails','donations','members','tags','pledges','reasons','settings','highholidays','seating','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='tags'?'Member Tags':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
+      ['rules','overrides','shiurim','emails','autoemails','donations','members','tags','pledges','reasons','settings','highholidays','seating','welcomesponsors','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='tags'?'Member Tags':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='welcomesponsors'?'Welcome Display':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
     tab==='shiurim'&&React.createElement(AdminShiurim),
@@ -1026,6 +1033,7 @@ function AdminPanel() {
     tab==='settings'&&React.createElement(AdminSettings),
     tab==='highholidays'&&React.createElement(AdminHighHolidays),
     tab==='seating'&&React.createElement(AdminSeating),
+    tab==='welcomesponsors'&&React.createElement(AdminWelcomeSponsorships),
     tab==='analytics'&&React.createElement(AdminAnalytics),
     tab==='images'&&React.createElement(AdminImages),
     tab==='admins'&&React.createElement(AdminAccounts));
@@ -2623,6 +2631,365 @@ function AdminHighHolidays() {
 
     React.createElement('p',{style:{color:'#888',fontSize:'0.9rem',marginTop:16}},'To assign seats to the physical pews, use the dedicated "Seating" tab in the main admin menu.'));
 }
+
+// ─── Admin: Welcome Display Sponsorships ─────────────────────────
+// CRUD for the cycling sponsor cards on the entrance kiosk welcome page.
+// "Title" is what's being sponsored (Kiddush, Flowers, Friday Night Dinner).
+// "Sponsored by" is the donor name. "Dedication" is optional ("In honor of...").
+function AdminWelcomeSponsorships() {
+  const [items,setItems]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState('');
+  const [form,setForm]=useState({title:'',sponsoredBy:'',dedication:'',active:true,order:0});
+  const [editingId,setEditingId]=useState(null);
+
+  async function load(){
+    setLoading(true);
+    try{ setItems(await apiFetch('/api/admin/welcome/sponsorships')); }catch(e){ setMsg('Error: '+e.message); }
+    setLoading(false);
+  }
+  useEffect(()=>{load();},[]);
+
+  async function save(e){
+    e.preventDefault();setMsg('');
+    if(!form.title.trim()){setMsg('Title required.');return;}
+    try{
+      const payload={
+        title:form.title,
+        sponsoredBy:form.sponsoredBy,
+        dedication:form.dedication,
+        active:form.active,
+        order:parseInt(form.order)||0
+      };
+      if(editingId){
+        await apiFetch('/api/admin/welcome/sponsorships/'+editingId,{method:'PUT',body:JSON.stringify(payload)});
+        setMsg('Updated.');
+      }else{
+        await apiFetch('/api/admin/welcome/sponsorships',{method:'POST',body:JSON.stringify(payload)});
+        setMsg('Added.');
+      }
+      setForm({title:'',sponsoredBy:'',dedication:'',active:true,order:0});
+      setEditingId(null);
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
+  function edit(s){
+    setEditingId(s.id);
+    setForm({title:s.title||'',sponsoredBy:s.sponsoredBy||'',dedication:s.dedication||'',active:s.active!==false,order:s.order||0});
+  }
+  function cancelEdit(){
+    setEditingId(null);
+    setForm({title:'',sponsoredBy:'',dedication:'',active:true,order:0});
+  }
+
+  async function toggleActive(s){
+    try{
+      await apiFetch('/api/admin/welcome/sponsorships/'+s.id,{method:'PUT',body:JSON.stringify({active:!s.active})});
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
+  async function del(id){
+    if(!confirm('Delete this sponsorship card from the welcome screen?'))return;
+    try{
+      await apiFetch('/api/admin/welcome/sponsorships/'+id,{method:'DELETE'});
+      setMsg('Deleted.');
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('required')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},editingId?'Edit Sponsorship Card':'Add Sponsorship Card'),
+      React.createElement('p',{style:{color:'#555',marginBottom:12,fontSize:'0.9rem'}},
+        'These cards rotate on the entrance welcome display every 7 seconds. ',
+        'Use "Title" for what is being sponsored (e.g. "Kiddush", "Seudas Shlishis", "Friday Night Dinner"), ',
+        '"Sponsored by" for the donor name, and "Dedication" for the optional in-honor / in-memory line.'),
+      React.createElement('form',{onSubmit:save},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 100px 100px',gap:12}},
+          React.createElement('div',{className:'form-group'},
+            React.createElement('label',{className:'form-label'},'Title *'),
+            React.createElement('input',{className:'form-input',placeholder:'e.g. Kiddush',value:form.title,onChange:e=>setForm(p=>({...p,title:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},
+            React.createElement('label',{className:'form-label'},'Sponsored by'),
+            React.createElement('input',{className:'form-input',placeholder:'e.g. The Cohen Family',value:form.sponsoredBy,onChange:e=>setForm(p=>({...p,sponsoredBy:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},
+            React.createElement('label',{className:'form-label'},'Active'),
+            React.createElement('select',{className:'form-input',value:form.active?'yes':'no',onChange:e=>setForm(p=>({...p,active:e.target.value==='yes'}))},
+              React.createElement('option',{value:'yes'},'Yes'),
+              React.createElement('option',{value:'no'},'No'))),
+          React.createElement('div',{className:'form-group'},
+            React.createElement('label',{className:'form-label'},'Order'),
+            React.createElement('input',{className:'form-input',type:'number',value:form.order,onChange:e=>setForm(p=>({...p,order:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Dedication (optional)'),
+          React.createElement('input',{className:'form-input',placeholder:'e.g. In honor of their anniversary',value:form.dedication,onChange:e=>setForm(p=>({...p,dedication:e.target.value}))})),
+        React.createElement('div',{style:{display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-primary',type:'submit'},editingId?'Save Changes':'Add Card'),
+          editingId&&React.createElement('button',{className:'btn btn-outline',type:'button',onClick:cancelEdit},'Cancel')))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Current Sponsorship Cards ('+items.length+')'),
+      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
+      items.length===0?React.createElement('p',{style:{color:'#888'}},'No sponsorship cards yet. Add one above and it will start cycling on the welcome display.'):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['#','Title','Sponsored by','Dedication','Active','Actions'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,items.map(s=>React.createElement('tr',{key:s.id,style:s.active===false?{opacity:0.5}:null},
+          React.createElement('td',null,s.order||0),
+          React.createElement('td',{style:{fontWeight:700,color:'#1a2744'}},s.title),
+          React.createElement('td',null,s.sponsoredBy||'—'),
+          React.createElement('td',{style:{color:'#555'}},s.dedication||'—'),
+          React.createElement('td',null,React.createElement('button',{className:'btn btn-sm '+(s.active!==false?'btn-primary':'btn-outline'),onClick:()=>toggleActive(s)},s.active!==false?'On':'Off')),
+          React.createElement('td',null,
+            React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:6},onClick:()=>edit(s)},'Edit'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))))))));
+}
+
+// ─── Welcome / Kiosk Display Page ─────────────────────────────────
+// Admin-only. Designed for a TV at the shul entrance: big welcome message
+// + logo, today's zmanim + davening + classes on one side, cycling sponsor
+// thank-you cards on the other. Light cream theme to feel welcoming.
+function WelcomePage() {
+  const [user,setUser]=useState(null);
+  const [isAdmin,setIsAdmin]=useState(false);
+  const [checking,setChecking]=useState(true);
+  const [schedule,setSchedule]=useState(null);
+  const [fullZmanim,setFullZmanim]=useState(null);
+  const [shiurim,setShiurim]=useState([]);
+  const [sponsorships,setSponsorships]=useState([]);
+  const [sponsorIdx,setSponsorIdx]=useState(0);
+  const [now,setNow]=useState(()=>new Date());
+  const [fading,setFading]=useState(false);
+  const siteImages=useSiteImages();
+
+  // Gate: must be logged in as admin to even render the kiosk page.
+  useEffect(()=>{
+    const unsub=firebase.auth().onAuthStateChanged(async u=>{
+      setUser(u);
+      if(u){
+        try{
+          const t=await u.getIdToken();
+          const r=await fetch(BACKEND_URL+'/api/admin/davening-rules',{headers:{'Authorization':'Bearer '+t}});
+          setIsAdmin(r.ok);
+        }catch{setIsAdmin(false);}
+      }else{
+        setIsAdmin(false);
+      }
+      setChecking(false);
+    });
+    return unsub;
+  },[]);
+
+  // Load data once admin status is known; refresh every 5 minutes.
+  useEffect(()=>{
+    if(!isAdmin) return;
+    function load(){
+      apiFetch('/api/schedule/today').then(setSchedule).catch(()=>{});
+      apiFetch('/api/zmanim/today').then(setFullZmanim).catch(()=>{});
+      apiFetch('/api/shiurim').then(setShiurim).catch(()=>{});
+      apiFetch('/api/welcome/sponsorships').then(setSponsorships).catch(()=>{});
+    }
+    load();
+    const refreshT=setInterval(load,5*60*1000);
+    return ()=>clearInterval(refreshT);
+  },[isAdmin]);
+
+  // Live clock
+  useEffect(()=>{
+    if(!isAdmin) return;
+    const t=setInterval(()=>setNow(new Date()),1000);
+    return ()=>clearInterval(t);
+  },[isAdmin]);
+
+  // Cycle sponsor cards with a short cross-fade.
+  useEffect(()=>{
+    if(sponsorships.length<2) return;
+    const t=setInterval(()=>{
+      setFading(true);
+      setTimeout(()=>{
+        setSponsorIdx(i=>(i+1)%sponsorships.length);
+        setFading(false);
+      },400);
+    },7000);
+    return ()=>clearInterval(t);
+  },[sponsorships.length]);
+
+  if(checking) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Checking access...');
+  if(!user||!isAdmin) return React.createElement(AdminLogin,{onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
+
+  const logoSrc=siteImages.fullscreenLogo||siteImages.topLogo||siteImages.heroImage||'logo.png';
+  const z=fullZmanim?.zmanim||schedule?.zmanim||{};
+  const hebDate=fullZmanim?.hebrewDate?.hebrew||'';
+  const englishDate=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  const clockStr=now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',hour12:true}).toLowerCase();
+  const todayDow=now.getDay();
+  const todayShiurim=shiurim.filter(s=>s.dayOfWeek===todayDow);
+  const isFri=todayDow===5;
+  const showCandles=isFri||(schedule?.dayType==='yomTov');
+
+  const daveningRows=[
+    schedule?.davening?.shacharis&&['Shacharis',schedule.davening.shacharis],
+    schedule?.davening?.earlyMincha&&['Early Mincha',schedule.davening.earlyMincha],
+    schedule?.davening?.mincha&&['Mincha',schedule.davening.mincha],
+    schedule?.davening?.minchaMaariv&&['Mincha / Maariv',schedule.davening.minchaMaariv],
+    schedule?.davening?.maariv&&['Maariv',schedule.davening.maariv]
+  ].filter(Boolean);
+
+  const zmanimRows=[
+    ['Sunrise',fmtZ(z.sunrise)],
+    ['Latest Shema',fmtZ(z.sofZmanShmaMGA||z.sofZmanShma)],
+    ['Plag HaMincha',fmtZ(z.plagHaMincha||z.plagHamincha)],
+    ['Sunset',fmtZ(z.sunset)]
+  ].filter(([_,v])=>v&&v!=='--');
+
+  const current=sponsorships[sponsorIdx];
+
+  return React.createElement('div',{style:{
+    position:'fixed',inset:0,zIndex:9999,
+    background:'linear-gradient(180deg,#faf8f3 0%,#f0ece3 100%)',
+    display:'flex',flexDirection:'column',
+    height:'100vh',width:'100vw',overflow:'hidden',
+    padding:'28px 40px',boxSizing:'border-box',
+    fontFamily:'var(--font-body)'
+  }},
+    React.createElement('style',null,'@keyframes welcomeFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'),
+
+    // Close button (top right)
+    React.createElement('button',{onClick:()=>{window.location.hash='admin';},style:{
+      position:'absolute',top:14,right:14,zIndex:10,
+      background:'rgba(26,39,68,0.08)',color:'#1a2744',
+      border:'1px solid rgba(26,39,68,0.2)',borderRadius:'50%',
+      width:40,height:40,fontSize:'1.1rem',cursor:'pointer'
+    }},'✕'),
+
+    // Top header: logo + welcome text + date/clock
+    React.createElement('div',{style:{
+      textAlign:'center',marginBottom:24,flexShrink:0
+    }},
+      React.createElement('img',{src:logoSrc,alt:'',style:{height:120,width:'auto',marginBottom:12}}),
+      React.createElement('h1',{style:{
+        fontFamily:'var(--font-display)',fontSize:'3.4rem',color:'#1a2744',
+        margin:'0 0 6px',fontWeight:700,letterSpacing:0.5,lineHeight:1.1
+      }},'Welcome to ',React.createElement('span',{style:{color:'#c49a3c'}},'Congregation Ohr Chaim')),
+      React.createElement('div',{style:{fontSize:'1.15rem',color:'#666',letterSpacing:0.5}},
+        englishDate,
+        hebDate&&React.createElement('span',null,'  •  ',React.createElement('span',{style:{color:'#c49a3c',fontWeight:600}},hebDate)),
+        '  •  ',React.createElement('span',{style:{color:'#1a2744',fontWeight:600}},clockStr))
+    ),
+
+    // Two columns
+    React.createElement('div',{style:{
+      display:'grid',gridTemplateColumns:'1fr 1fr',gap:32,
+      flex:1,minHeight:0
+    }},
+
+      // LEFT: Today's davening + zmanim + classes
+      React.createElement('div',{style:{
+        background:'#fff',borderRadius:18,padding:'28px 32px',
+        boxShadow:'0 4px 20px rgba(0,0,0,0.06)',
+        border:'1px solid rgba(196,154,60,0.2)',
+        display:'flex',flexDirection:'column',
+        overflow:'hidden'
+      }},
+        React.createElement('h2',{style:{
+          fontFamily:'var(--font-display)',fontSize:'2rem',color:'#1a2744',
+          margin:'0 0 4px',fontWeight:700,textAlign:'center'
+        }},"Today's Davening"),
+        schedule?.parsha&&React.createElement('p',{style:{textAlign:'center',color:'#c49a3c',fontWeight:600,marginBottom:14}},'Parshas '+schedule.parsha),
+        React.createElement('div',{style:{flex:'0 0 auto'}},
+          daveningRows.length>0
+            ?daveningRows.map(([l,v])=>React.createElement('div',{key:l,style:{
+                display:'flex',justifyContent:'space-between',
+                padding:'10px 0',borderBottom:'1px solid #f0ece3',fontSize:'1.4rem'
+              }},
+              React.createElement('span',{style:{color:'#555',fontWeight:500}},l),
+              React.createElement('span',{style:{color:'#1a2744',fontWeight:700,fontFamily:'var(--font-display)'}},v)))
+            :React.createElement('p',{style:{color:'#888',textAlign:'center',padding:20}},'Loading davening times…'),
+          showCandles&&schedule?.zmanim?.candleLighting&&React.createElement('div',{style:{
+            display:'flex',justifyContent:'space-between',
+            padding:'12px 16px',marginTop:8,
+            background:'rgba(196,154,60,0.1)',borderRadius:10,
+            fontSize:'1.4rem'
+          }},
+            React.createElement('span',{style:{color:'#a07d2e',fontWeight:700}},'Candle Lighting'),
+            React.createElement('span',{style:{color:'#a07d2e',fontWeight:700,fontFamily:'var(--font-display)'}},schedule.zmanim.candleLighting))
+        ),
+
+        // Today's classes
+        todayShiurim.length>0&&React.createElement('div',{style:{marginTop:24,paddingTop:18,borderTop:'2px solid rgba(196,154,60,0.3)'}},
+          React.createElement('h3',{style:{
+            fontFamily:'var(--font-display)',fontSize:'1.5rem',color:'#1a2744',
+            margin:'0 0 12px',fontWeight:700,textAlign:'center'
+          }},"Today's Classes"),
+          todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{padding:'10px 0',borderBottom:'1px solid #f0ece3'}},
+            React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'1.15rem'}},s.title),
+            React.createElement('div',{style:{color:'#666',fontSize:'0.95rem',marginTop:2}},[s.time,s.rabbi,s.location].filter(Boolean).join(' • '))))),
+
+        // Compact zmanim row at the bottom
+        zmanimRows.length>0&&React.createElement('div',{style:{
+          marginTop:'auto',paddingTop:18,borderTop:'2px solid rgba(196,154,60,0.3)',
+          display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:12
+        }},
+          zmanimRows.map(([l,v])=>React.createElement('div',{key:l,style:{textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'0.75rem',color:'#888',letterSpacing:1,textTransform:'uppercase'}},l),
+            React.createElement('div',{style:{fontSize:'1.1rem',fontWeight:700,color:'#1a2744',fontFamily:'var(--font-display)'}},v))))
+      ),
+
+      // RIGHT: cycling sponsorship card
+      React.createElement('div',{style:{
+        background:'linear-gradient(135deg,#1a2744 0%,#243456 100%)',
+        borderRadius:18,padding:'32px 36px',
+        boxShadow:'0 4px 20px rgba(0,0,0,0.08)',
+        display:'flex',flexDirection:'column',
+        alignItems:'center',justifyContent:'center',
+        color:'#fff',position:'relative',overflow:'hidden'
+      }},
+        React.createElement('h2',{style:{
+          fontFamily:'var(--font-display)',fontSize:'1.8rem',color:'#c49a3c',
+          margin:'0 0 20px',fontWeight:700,textAlign:'center',letterSpacing:1
+        }},'Thank You to Our Sponsors'),
+
+        sponsorships.length===0
+          ?React.createElement('div',{style:{textAlign:'center',color:'rgba(255,255,255,0.5)',fontSize:'1.1rem',padding:30}},
+            'No sponsor cards configured yet. Add some in the admin "Welcome Display" tab.')
+          :current&&React.createElement('div',{
+              key:current.id,
+              style:{
+                textAlign:'center',width:'100%',maxWidth:600,
+                opacity:fading?0:1,
+                transition:'opacity 0.4s ease-in-out',
+                animation:fading?'none':'welcomeFade 0.5s ease-out'
+              }
+            },
+              React.createElement('div',{style:{
+                fontSize:'0.95rem',color:'rgba(196,154,60,0.85)',
+                letterSpacing:3,textTransform:'uppercase',marginBottom:14,fontWeight:600
+              }},current.title||'Sponsorship'),
+              current.sponsoredBy&&React.createElement('div',{style:{
+                fontFamily:'var(--font-display)',fontSize:'2.6rem',
+                color:'#fff',fontWeight:700,lineHeight:1.2,marginBottom:14
+              }},current.sponsoredBy),
+              current.dedication&&React.createElement('div',{style:{
+                fontSize:'1.2rem',color:'rgba(255,255,255,0.85)',
+                fontStyle:'italic',lineHeight:1.5,maxWidth:500,margin:'0 auto'
+              }},current.dedication)
+            ),
+
+        // Cycle indicator dots
+        sponsorships.length>1&&React.createElement('div',{style:{
+          display:'flex',gap:8,marginTop:30
+        }},
+          sponsorships.map((s,i)=>React.createElement('div',{key:s.id,style:{
+            width:10,height:10,borderRadius:'50%',
+            background:i===sponsorIdx?'#c49a3c':'rgba(255,255,255,0.25)',
+            transition:'background 0.3s'
+          }})))
+      )
+    )
+  );
+}
+
 // ─── Main App (Top Nav Layout) ───────────────────────────────────
 function App() {
   const [page,setPage]=useState(window.location.hash.replace('#','')||'home');
@@ -2630,6 +2997,10 @@ function App() {
   const siteImages=useSiteImages();
   useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setMobileOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
   function navigate(p){window.location.hash=p;setPage(p);setMobileOpen(false);}
+
+  // Welcome kiosk page renders as a full-viewport overlay with its own admin
+  // gate, so short-circuit the normal site chrome (top bar, hero, footer).
+  if (page === 'welcome') return React.createElement(WelcomePage);
 
   const navItems=[
     {id:'home',label:'Home'},{id:'schedule',label:'Davening'},{id:'calendar',label:'Calendar'},
