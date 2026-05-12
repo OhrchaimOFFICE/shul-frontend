@@ -380,10 +380,30 @@ function ZmanimPanel({onExpand}) {
             return React.createElement('div',{style:{flex:1,display:'flex',alignItems:'center',justifyContent:'center'}},
               React.createElement('img',{
                 src, alt:'',
-                style:{maxWidth:'100%',maxHeight:'48vh',opacity:1,filter}
+                style:{maxWidth:'100%',maxHeight:'42vh',opacity:1,filter}
               })
             );
-          })()
+          })(),
+          // Donor plaque (matches the inset panel in the reference photo).
+          React.createElement('div',{style:{
+            background:'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 100%)',
+            border:'1px solid rgba(196,154,60,0.35)',
+            borderRadius:6,
+            padding:'14px 20px',
+            boxShadow:'inset 0 1px 0 rgba(245,232,200,0.1), 0 4px 12px rgba(0,0,0,0.4)',
+            width:'90%',
+            flexShrink:0,
+            color:'#f5e8c8',
+            fontFamily:'Georgia, "Playfair Display", serif',
+            fontSize:'1.05rem',
+            fontWeight:600,
+            lineHeight:1.45,
+            letterSpacing:0.3
+          }},
+            React.createElement('div',null,'Donated by'),
+            React.createElement('div',null,'Dr. Victor and Irene Sabo'),
+            React.createElement('div',null,'and family')
+          )
         ),
 
         // RIGHT: Weekday column
