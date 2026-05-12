@@ -2761,7 +2761,32 @@ function WelcomePage() {
   const [sponsorIdx,setSponsorIdx]=useState(0);
   const [now,setNow]=useState(()=>new Date());
   const [fading,setFading]=useState(false);
+  const [isFs,setIsFs]=useState(false);
   const siteImages=useSiteImages();
+
+  // Browser fullscreen toggle (uses the Fullscreen API to hide browser chrome
+  // on the TV). Listen so the icon flips if the user presses Esc.
+  function toggleFs(){
+    if(document.fullscreenElement||document.webkitFullscreenElement){
+      (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+    }else{
+      const el=document.documentElement;
+      const req=el.requestFullscreen||el.webkitRequestFullscreen;
+      if(req) req.call(el).catch(()=>{});
+    }
+  }
+  useEffect(()=>{
+    function onChange(){
+      setIsFs(!!(document.fullscreenElement||document.webkitFullscreenElement));
+    }
+    document.addEventListener('fullscreenchange',onChange);
+    document.addEventListener('webkitfullscreenchange',onChange);
+    onChange();
+    return ()=>{
+      document.removeEventListener('fullscreenchange',onChange);
+      document.removeEventListener('webkitfullscreenchange',onChange);
+    };
+  },[]);
 
   // Gate: must be logged in as admin to even render the kiosk page.
   useEffect(()=>{
@@ -2855,13 +2880,31 @@ function WelcomePage() {
   }},
     React.createElement('style',null,'@keyframes welcomeFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'),
 
-    // Close button (top right)
-    React.createElement('button',{onClick:()=>{window.location.hash='admin';},style:{
+    // Top-right controls: fullscreen toggle + close.
+    React.createElement('div',{style:{
       position:'absolute',top:14,right:14,zIndex:10,
-      background:'rgba(26,39,68,0.08)',color:'#1a2744',
-      border:'1px solid rgba(26,39,68,0.2)',borderRadius:'50%',
-      width:40,height:40,fontSize:'1.1rem',cursor:'pointer'
-    }},'✕'),
+      display:'flex',gap:8
+    }},
+      React.createElement('button',{
+        onClick:toggleFs,
+        title:isFs?'Exit fullscreen':'Enter fullscreen',
+        style:{
+          background:'rgba(26,39,68,0.08)',color:'#1a2744',
+          border:'1px solid rgba(26,39,68,0.2)',borderRadius:'50%',
+          width:40,height:40,fontSize:'1.1rem',cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center'
+        }
+      },isFs?'⤡':'⛶'),
+      React.createElement('button',{
+        onClick:()=>{window.location.hash='admin';},
+        title:'Close welcome screen',
+        style:{
+          background:'rgba(26,39,68,0.08)',color:'#1a2744',
+          border:'1px solid rgba(26,39,68,0.2)',borderRadius:'50%',
+          width:40,height:40,fontSize:'1.1rem',cursor:'pointer'
+        }
+      },'✕')
+    ),
 
     // Top header: logo + welcome text + date/clock
     React.createElement('div',{style:{
