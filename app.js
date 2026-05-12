@@ -2861,11 +2861,19 @@ function WelcomePage() {
     schedule?.davening?.maariv&&['Maariv',schedule.davening.maariv]
   ].filter(Boolean);
 
-  const zmanimRows=[
+  // Full daily zmanim list for the ticker at the bottom of the left card.
+  const allZmanim=[
+    ['Alot',fmtZ(z.alotHaShachar||z.alotHashachar)],
+    ['Misheyakir',fmtZ(z.misheyakir)],
     ['Sunrise',fmtZ(z.sunrise)],
-    ['Latest Shema',fmtZ(z.sofZmanShmaMGA||z.sofZmanShma)],
-    ['Plag HaMincha',fmtZ(z.plagHaMincha||z.plagHamincha)],
-    ['Sunset',fmtZ(z.sunset)]
+    ['Shema (MGA)',fmtZ(z.sofZmanShmaMGA)],
+    ['Shema (GRA)',fmtZ(z.sofZmanShma)],
+    ['Tefilla',fmtZ(z.sofZmanTfilla||z.sofZmanTfillaMGA)],
+    ['Chatzos',fmtZ(z.chatzot||z.chatzos)],
+    ['Mincha Gedola',fmtZ(z.minchaGedola)],
+    ['Plag',fmtZ(z.plagHaMincha||z.plagHamincha)],
+    ['Sunset',fmtZ(z.sunset)],
+    ['Tzeis',fmtZ(z.tzeit||z.tzeis)]
   ].filter(([_,v])=>v&&v!=='--');
 
   const current=sponsorships[sponsorIdx];
@@ -2878,7 +2886,10 @@ function WelcomePage() {
     padding:'28px 40px',boxSizing:'border-box',
     fontFamily:'var(--font-body)'
   }},
-    React.createElement('style',null,'@keyframes welcomeFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'),
+    React.createElement('style',null,
+      '@keyframes welcomeFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}'+
+      '@keyframes hTicker{from{transform:translateX(0)}to{transform:translateX(-50%)}}'
+    ),
 
     // Top-right controls: fullscreen toggle + close.
     React.createElement('div',{style:{
@@ -2969,14 +2980,33 @@ function WelcomePage() {
             React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'1.15rem'}},s.title),
             React.createElement('div',{style:{color:'#666',fontSize:'0.95rem',marginTop:2}},[s.time,s.rabbi,s.location].filter(Boolean).join(' • '))))),
 
-        // Compact zmanim row at the bottom
-        zmanimRows.length>0&&React.createElement('div',{style:{
+        // Seamless horizontal ticker of every daily zman. Renders the full
+        // list twice and animates translateX 0 -> -50% (== exactly one copy's
+        // width) so the CSS loop snaps at a pixel-identical position.
+        allZmanim.length>0&&React.createElement('div',{style:{
           marginTop:'auto',paddingTop:18,borderTop:'2px solid rgba(196,154,60,0.3)',
-          display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:12
+          overflow:'hidden',position:'relative',flexShrink:0
         }},
-          zmanimRows.map(([l,v])=>React.createElement('div',{key:l,style:{textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:'0.75rem',color:'#888',letterSpacing:1,textTransform:'uppercase'}},l),
-            React.createElement('div',{style:{fontSize:'1.1rem',fontWeight:700,color:'#1a2744',fontFamily:'var(--font-display)'}},v))))
+          React.createElement('div',{style:{
+            display:'inline-block',whiteSpace:'nowrap',
+            animation:'hTicker '+Math.max(40,allZmanim.length*5)+'s linear infinite'
+          }},
+            [0,1].map(copy=>React.createElement('span',{key:'tg'+copy,style:{display:'inline-block'}},
+              allZmanim.map(([l,v])=>React.createElement('span',{key:l+'-'+copy,style:{
+                display:'inline-flex',alignItems:'baseline',gap:10,
+                padding:'0 28px',whiteSpace:'nowrap'
+              }},
+                React.createElement('span',{style:{
+                  color:'#888',letterSpacing:1.5,textTransform:'uppercase',
+                  fontSize:'0.78rem',fontWeight:600
+                }},l),
+                React.createElement('span',{style:{
+                  color:'#1a2744',fontWeight:700,fontSize:'1.2rem',
+                  fontFamily:'var(--font-display)'
+                }},v)))
+            ))
+          )
+        )
       ),
 
       // RIGHT: cycling sponsorship card
