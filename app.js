@@ -773,7 +773,9 @@ function AdminImages() {
   ];
 
   useEffect(()=>{
-    fetch(BACKEND_URL+'/api/site-images')
+    // cache:no-store — admin needs to see the image they just uploaded, not a
+    // 5-minute-old cached response from the public /api/site-images endpoint.
+    fetch(BACKEND_URL+'/api/site-images',{cache:'no-store'})
       .then(r=>r.ok?r.json():{})
       .then(data=>{setImages(data||{});setLoading(false);})
       .catch(()=>setLoading(false));
@@ -841,7 +843,9 @@ function AdminSlideshow() {
 
   async function load(){
     try{
-      const r=await fetch(BACKEND_URL+'/api/slides');
+      // cache:no-store — same reason as the other admin loaders: the public
+      // /api/slides has a 60-second cache that would hide a just-added slide.
+      const r=await fetch(BACKEND_URL+'/api/slides',{cache:'no-store'});
       setSlides(r.ok?await r.json():[]);
     }catch{setSlides([]);}
     setLoading(false);
@@ -1375,7 +1379,9 @@ function AdminShiurim() {
   const [shiurim,setShiurim]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [form,setForm]=useState({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim'));}catch(e){}setLoading(false);}
+  // cache:no-store so the admin always sees the just-added shiur instead of
+  // the 5-minute Cache-Control: public response served to the homepage.
+  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));}catch(e){}setLoading(false);}
   async function add(){if(!form.title)return;try{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setMsg('Shiur added!');load();}catch(e){setMsg('Error: '+e.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
   return React.createElement('div',null,
