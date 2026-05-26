@@ -3071,10 +3071,17 @@ function WelcomePage() {
 
 // ─── Main App (Top Nav Layout) ───────────────────────────────────
 function App() {
-  const [page,setPage]=useState(window.location.hash.replace('#','')||'home');
+  // "#signup?token=abc123" -> "signup" for route matching. Sub-pages still
+  // read window.location.hash directly for their own query params (signup
+  // token, Stripe checkout sub=success, etc.) — we just don't want the query
+  // string to break the page === 'signup' check upstream.
+  function pageFromHash(){
+    return (window.location.hash.replace('#','').split(/[?&]/)[0])||'home';
+  }
+  const [page,setPage]=useState(pageFromHash());
   const [mobileOpen,setMobileOpen]=useState(false);
   const siteImages=useSiteImages();
-  useEffect(()=>{function h(){setPage(window.location.hash.replace('#','')||'home');setMobileOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
+  useEffect(()=>{function h(){setPage(pageFromHash());setMobileOpen(false);}window.addEventListener('hashchange',h);return()=>window.removeEventListener('hashchange',h);},[]);
   function navigate(p){window.location.hash=p;setPage(p);setMobileOpen(false);}
 
   // Welcome kiosk page renders as a full-viewport overlay with its own admin
