@@ -1960,19 +1960,31 @@ function AdminMembers() {
       React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'📤 Upload Excel File',
         React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:handleUpload,style:{display:'none'}}))),
     prefilled.length>0&&React.createElement('div',{className:'card'},
-      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Pre-filled Signup Links ('+prefilled.length+')'),
-        React.createElement('button',{className:'btn btn-sm btn-primary',onClick:async()=>{
-          const pending=prefilled.filter(a=>!a.claimed&&a.email);
-          if(!pending.length){setMsg('No pending invites to send.');return;}
-          if(!confirm('Send signup emails to '+pending.length+' pending members?'))return;
-          setMsg('Sending...');
-          try{
-            const siteUrl=window.location.origin+window.location.pathname;
-            const res=await apiFetch('/api/admin/send-signup-invites',{method:'POST',body:JSON.stringify({accounts:pending.map(a=>({email:a.email,firstName:a.firstName,lastName:a.lastName,token:a.token})),siteUrl})});
-            setMsg('Sent '+res.sent+' invite emails'+(res.failed?' ('+res.failed+' failed)':''));
-          }catch(e){setMsg('Error: '+e.message);}
-        }},'Send All Invites ('+prefilled.filter(a=>!a.claimed).length+')')),
+        React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:async()=>{
+            const unclaimed=prefilled.filter(a=>!a.claimed).length;
+            if(!unclaimed){setMsg('No unclaimed invites to clear.');return;}
+            if(!confirm('Delete '+unclaimed+' unclaimed pre-filled signup links?\n\nThis cannot be undone. Old invite emails will stop working after deletion. Already-claimed members are NOT affected.'))return;
+            setMsg('Clearing...');
+            try{
+              const r=await apiFetch('/api/admin/prefilled-accounts/unclaimed',{method:'DELETE'});
+              setMsg('Cleared '+r.deleted+' unclaimed invite'+(r.deleted===1?'':'s')+'. '+r.kept+' claimed account'+(r.kept===1?'':'s')+' kept.');
+              load();
+            }catch(e){setMsg('Error: '+e.message);}
+          }},'🗑 Clear Unclaimed'),
+          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:async()=>{
+            const pending=prefilled.filter(a=>!a.claimed&&a.email);
+            if(!pending.length){setMsg('No pending invites to send.');return;}
+            if(!confirm('Send signup emails to '+pending.length+' pending members?'))return;
+            setMsg('Sending...');
+            try{
+              const siteUrl=window.location.origin+window.location.pathname;
+              const res=await apiFetch('/api/admin/send-signup-invites',{method:'POST',body:JSON.stringify({accounts:pending.map(a=>({email:a.email,firstName:a.firstName,lastName:a.lastName,token:a.token})),siteUrl})});
+              setMsg('Sent '+res.sent+' invite emails'+(res.failed?' ('+res.failed+' failed)':''));
+            }catch(e){setMsg('Error: '+e.message);}
+          }},'Send All Invites ('+prefilled.filter(a=>!a.claimed).length+')'))),
       React.createElement('div',{className:'table-container',style:{marginTop:12}},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Status','Link'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,prefilled.slice(0,50).map(a=>React.createElement('tr',{key:a.token},
