@@ -1606,12 +1606,14 @@ function AccountPage() {
   const [yahrzeits,setYahrzeits]=useState([]);
   const [yahrzeitForm,setYahrzeitForm]=useState({deceasedName:'',relationship:'',englishDeathDate:'',notes:''});
   const [yahrzeitBusy,setYahrzeitBusy]=useState(false);
+  const [bills,setBills]=useState([]);
   const siteImages=useSiteImages();
   useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);setLoading(false);});return unsub;},[]);
   useEffect(()=>{if(user){
     apiFetch('/api/auth/profile').then(p=>{setProfile(p);setEditForm({firstName:p.firstName||'',lastName:p.lastName||'',phone:p.phone||'',address:p.address||'',bio:p.bio||''});}).catch(()=>{});
     apiFetch('/api/membership/subscription-status').then(setSubStatus).catch(()=>setSubStatus({active:false}));
     apiFetch('/api/yahrzeits').then(setYahrzeits).catch(()=>{});
+    apiFetch('/api/my-bills').then(setBills).catch(()=>setBills([]));
   }},[user]);
   useEffect(()=>{
     const hash=window.location.hash;
@@ -1724,6 +1726,18 @@ function AccountPage() {
         [['Phone',profile?.phone],['Address',profile?.address],['Bio',profile?.bio],['Spouse',profile?.spouseEmail]].filter(([_,v])=>v).map(([l,v])=>
           React.createElement('div',{key:l,style:{padding:'8px 0',borderBottom:'1px solid #f0ece3'}},React.createElement('span',{style:{color:'#888',marginRight:12}},l+':'),React.createElement('span',{style:{fontWeight:500}},v))),
         React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:16},onClick:()=>setEditing(true)},'Edit Profile'))),
+    // My Bills — only renders when the member has at least one outstanding
+    // pledge / invoice. Each row has a Pay button that opens the magic-link
+    // payment page (same one members get from email invoices).
+    bills.length>0&&React.createElement('div',{className:'card',style:{marginTop:16}},
+      React.createElement('div',{className:'card-header'},'Outstanding Bills ('+bills.length+')'),
+      React.createElement('p',{style:{color:'#555',marginBottom:12,fontSize:'0.9rem'}},'Pay your shul bills below. Each one is a single charge — no recurring subscription is created.'),
+      bills.map(b=>React.createElement('div',{key:b.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 14px',border:'1px solid #e0dcd4',borderRadius:8,marginBottom:8,background:'#faf8f3',flexWrap:'wrap',gap:8}},
+        React.createElement('div',{style:{flex:1,minWidth:200}},
+          React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'1.1rem'}},'$'+parseFloat(b.amount).toFixed(2),' — ',b.reason||'Pledge'),
+          (b.dueDate||b.notes)&&React.createElement('div',{style:{fontSize:'0.85rem',color:'#666',marginTop:3}},[b.dueDate&&'Due '+b.dueDate,b.notes].filter(Boolean).join(' • '))),
+        React.createElement('a',{href:'#pay?token='+b.payToken,className:'btn btn-primary btn-sm'},'Pay'))),
+    ),
     React.createElement('div',{className:'card',style:{marginTop:16}},
       React.createElement('div',{className:'card-header'},'Membership Payment'),
       profile?.membershipPaid
@@ -2167,6 +2181,18 @@ function AdminPledges() {
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
   async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
+  function payLink(p){return window.location.origin+window.location.pathname+'#pay?token='+(p.payToken||'');}
+  function copyPayLink(p){try{navigator.clipboard.writeText(payLink(p));setMsg('Pay link copied to clipboard.');}catch(e){setMsg('Could not copy: '+e.message);}}
+  async function sendInvoiceEmails(){
+    if(!confirm('Send a "Pay $X Now" invoice email to every unpaid pledge with a member email? Members already invoiced recently will get a repeat reminder.'))return;
+    setMsg('Sending...');
+    try{
+      const siteUrl=window.location.origin+window.location.pathname;
+      const r=await apiFetch('/api/admin/send-pledge-reminders',{method:'POST',body:JSON.stringify({siteUrl})});
+      setMsg('Sent '+(r.sent||0)+' invoice email(s)'+(r.skipped?' ('+r.skipped+' skipped — no email on file)':''));
+      load();
+    }catch(e){setMsg('Error: '+e.message);}
+  }
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
@@ -2181,15 +2207,20 @@ function AdminPledges() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>setForm(p=>({...p,notes:e.target.value}))}))),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add'))),
     React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'All Pledges & Billing'),
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Pledges & Billing'),
+        React.createElement('button',{className:'btn btn-sm btn-primary',onClick:sendInvoiceEmails,title:'Email every unpaid pledge a "Pay Now" invoice link'},'📧 Send Invoices to All Unpaid')),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:8}},'Each unpaid pledge has a unique Pay link. Members get it when invoiced by email; you can also copy it below to share manually.'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       pledges.length===0?React.createElement('p',{style:{color:'#888'}},'No pledges yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Name','Amount','Reason','Due','Status','Actions'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('thead',null,React.createElement('tr',null,['Name','Amount','Reason','Due','Status','Pay Link','Actions'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,pledges.map(p=>React.createElement('tr',{key:p.id},
           React.createElement('td',null,p.memberName||'-'),React.createElement('td',{style:{fontWeight:700}},'$'+(p.amount||0).toFixed(2)),
           React.createElement('td',null,p.reason||'-'),React.createElement('td',null,p.dueDate||'-'),
           React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:p.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:p.status==='paid'?'#27ae60':'#c0392b'}},p.status==='paid'?'Paid':'Unpaid')),
+          React.createElement('td',null,
+            p.status!=='paid'&&p.payToken?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>copyPayLink(p),title:payLink(p)},'Copy'):React.createElement('span',{style:{color:'#bbb',fontSize:'0.8rem'}},'—')),
           React.createElement('td',null,
             p.status!=='paid'&&React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>markPaid(p.id),style:{marginRight:4}},'Mark Paid'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(p.id)},'Delete')))))))));
@@ -3099,6 +3130,124 @@ function WelcomePage() {
   );
 }
 
+// ─── Pay a specific bill (pledge) by magic-link token ───────────
+// Public — no login needed. URL pattern: #pay?token=abc123. Fetches the
+// pledge by token, shows the amount + reason, takes a card via Stripe
+// Elements, posts to /api/pay/:token/create-payment, then confirms via
+// Stripe.confirmCardPayment. The backend webhook does the post-payment
+// work (mark pledge paid, record donation, send receipt).
+function PayBillPage() {
+  const [token,setToken]=useState(null);
+  const [bill,setBill]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState('');
+  const [email,setEmail]=useState('');
+  const [submitting,setSubmitting]=useState(false);
+  const [done,setDone]=useState(false);
+  const [cardReady,setCardReady]=useState(false);
+  const cardMountRef=useRef(null);
+  const stripeRef=useRef(null);
+  const cardElementRef=useRef(null);
+
+  // Extract token from hash on mount.
+  useEffect(()=>{
+    const hash=window.location.hash;
+    const t=hash.includes('token=')?hash.split('token=')[1]?.split('&')[0]:null;
+    if(!t){setErr('No bill token provided.');setLoading(false);return;}
+    setToken(t);
+    fetch(BACKEND_URL+'/api/pay/'+t).then(r=>r.json()).then(data=>{
+      if(data.error){setErr(data.error);}else{setBill(data);}
+      setLoading(false);
+    }).catch(e=>{setErr('Failed to load bill: '+e.message);setLoading(false);});
+  },[]);
+
+  // Mount Stripe Elements once we have a valid unpaid bill.
+  useEffect(()=>{
+    if(!bill||bill.status==='paid'||done) return;
+    if(!window.Stripe){setErr('Payment library failed to load. Please refresh.');return;}
+    if(cardElementRef.current) return;
+    const stripe=window.Stripe(STRIPE_PUBLISHABLE_KEY);
+    const elements=stripe.elements();
+    const card=elements.create('card',{style:{base:{fontSize:'18px',color:'#1a2744',fontFamily:'inherit','::placeholder':{color:'#888'}},invalid:{color:'#b00020'}}});
+    let mounted=false;
+    const mount=()=>{
+      if(mounted) return;
+      if(cardMountRef.current){card.mount(cardMountRef.current);mounted=true;}
+      else setTimeout(mount,50);
+    };
+    mount();
+    stripeRef.current=stripe;
+    cardElementRef.current=card;
+    setCardReady(true);
+    return ()=>{try{card.destroy();}catch{}cardElementRef.current=null;setCardReady(false);};
+  },[bill,done]);
+
+  async function handlePay(e){
+    e.preventDefault();
+    if(!stripeRef.current||!cardElementRef.current){setErr('Payment form still loading. Try again in a moment.');return;}
+    setSubmitting(true);setErr('');
+    try{
+      const r=await fetch(BACKEND_URL+'/api/pay/'+token+'/create-payment',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email})
+      });
+      const data=await r.json();
+      if(!r.ok){setErr(data.error||'Payment setup failed.');setSubmitting(false);return;}
+      const result=await stripeRef.current.confirmCardPayment(data.clientSecret,{
+        payment_method:{
+          card:cardElementRef.current,
+          billing_details:{
+            name:bill.memberName||'',
+            email:email||undefined
+          }
+        }
+      });
+      if(result.error){setErr(result.error.message||'Payment failed.');setSubmitting(false);return;}
+      if(result.paymentIntent?.status!=='succeeded'){setErr('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setSubmitting(false);return;}
+      setDone(true);
+    }catch(ex){setErr('Error: '+ex.message);}
+    setSubmitting(false);
+  }
+
+  // Render
+  if(loading) return React.createElement('div',{className:'loading',style:{padding:60}},React.createElement('div',{className:'spinner'}),'Loading bill...');
+  if(err&&!bill) return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+    React.createElement('h2',{style:{color:'#b00020'}},'Unable to load bill'),
+    React.createElement('p',null,err),
+    React.createElement('p',{style:{marginTop:20}},React.createElement('a',{href:'#home',style:{color:'#c49a3c'}},'Return to homepage')));
+  if(bill&&bill.status==='paid') return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+    React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'✅'),
+    React.createElement('h2',{style:{color:'#27ae60'}},'Already Paid'),
+    React.createElement('p',null,'This bill was already paid. Thank you!'),
+    React.createElement('p',{style:{marginTop:20}},React.createElement('a',{href:'#home',style:{color:'#c49a3c'}},'Return to homepage')));
+  if(done) return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+    React.createElement('div',{style:{fontSize:'3rem',marginBottom:16}},'✅'),
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Thank You!'),
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your payment of $'+(bill.amount||0).toFixed(2)+' has been received. A receipt is on its way to your inbox.'),
+    React.createElement('a',{href:'#home',className:'btn btn-primary',style:{marginTop:20,display:'inline-block'}},'Return to homepage'));
+
+  return React.createElement('div',{style:{maxWidth:560,margin:'40px auto'}},
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Pay Your Bill'),
+      bill.memberName&&React.createElement('p',{style:{color:'#555',marginBottom:14}},'Bill for ',React.createElement('strong',null,bill.memberName)),
+      React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,margin:'12px 0 18px',border:'1px solid #e0dcd4'}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0',fontSize:'1.05rem'}},React.createElement('span',{style:{color:'#666'}},'Amount'),React.createElement('span',{style:{fontWeight:700,fontSize:'1.4rem',color:'#1a2744'}},'$'+parseFloat(bill.amount).toFixed(2))),
+        bill.reason&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0'}},React.createElement('span',{style:{color:'#666'}},'For'),React.createElement('span',null,bill.reason)),
+        bill.dueDate&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0'}},React.createElement('span',{style:{color:'#666'}},'Due'),React.createElement('span',null,bill.dueDate))),
+      err&&React.createElement('div',{className:'message message-error'},err),
+      React.createElement('form',{onSubmit:handlePay},
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Email (for receipt)'),
+          React.createElement('input',{className:'form-input',type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'you@example.com'})),
+        React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Card Details'),
+          React.createElement('div',{ref:cardMountRef,style:{padding:'14px 14px',border:'1px solid #d4cfc4',borderRadius:8,background:'#fff',minHeight:52}}),
+          React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginTop:6}},'Secured by Stripe. We never see or store your card number.')),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:submitting||!cardReady,style:{marginTop:8,fontSize:'1.1rem',padding:'14px 28px'}},
+          submitting?'Processing...':'Pay $'+parseFloat(bill.amount).toFixed(2)))));
+}
+
 // ─── Main App (Top Nav Layout) ───────────────────────────────────
 function App() {
   // "#signup?token=abc123" -> "signup" for route matching. Sub-pages still
@@ -3182,6 +3331,7 @@ function App() {
       page==='signup'&&React.createElement(AccountPage),
       page==='admin'&&React.createElement(AdminPanel),
       page==='contact'&&React.createElement(ContactPage),
+      page==='pay'&&React.createElement(PayBillPage),
       page==='privacy'&&React.createElement(PrivacyPage),
       page==='terms'&&React.createElement(TermsPage)),
     // Footer
