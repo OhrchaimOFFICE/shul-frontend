@@ -1766,6 +1766,11 @@ function AdminDonations() {
   const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
   const [reasons,setReasons]=useState([]);
   const [uploading,setUploading]=useState(false);
+  const [importTag,setImportTag]=useState('');
+  // Last batch-import response — surfaced below the upload button so admin can
+  // see exactly how many rows imported, how many were duplicates, how many
+  // linked to a member, and the full per-row error list.
+  const [importResult,setImportResult]=useState(null);
   useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});},[year]);
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
   async function recordManual(e){e.preventDefault();setMsg('');
@@ -1798,14 +1803,22 @@ function AdminDonations() {
 
   async function uploadPayments(e){
     const file=e.target.files[0];if(!file)return;
-    setUploading(true);setMsg('Uploading...');
+    setUploading(true);setMsg('Uploading...');setImportResult(null);
     try{
       const token=await firebase.auth().currentUser.getIdToken();
       const fd=new FormData();fd.append('file',file);
+      if(importTag.trim()) fd.append('importTag',importTag.trim());
       const r=await fetch(BACKEND_URL+'/api/admin/upload-payments',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
       const data=await r.json();
-      if(r.ok){setMsg('Imported '+data.created+' of '+data.total+' payments.'+(data.errors?.length?' Errors: '+data.errors.slice(0,3).join('; ')+(data.errors.length>3?' (+'+(data.errors.length-3)+' more)':''):''));load();}
-      else setMsg('Error: '+(data.error||'upload failed'));
+      if(r.ok){
+        setImportResult(data);
+        const parts=['Imported '+data.created+' of '+data.total];
+        if(data.duplicatesSkipped) parts.push(data.duplicatesSkipped+' duplicates skipped');
+        if(data.memberLinked) parts.push(data.memberLinked+' linked to members');
+        if(data.errors?.length) parts.push(data.errors.length+' errors');
+        setMsg(parts.join(' • '));
+        load();
+      } else setMsg('Error: '+(data.error||'upload failed'));
     }catch(err){setMsg('Error: '+err.message);}
     setUploading(false);
     e.target.value='';
@@ -1833,9 +1846,26 @@ function AdminDonations() {
       React.createElement('button',{className:'btn btn-primary',onClick:importStripePayment},'Import Stripe Payment')),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Batch Import Payments from Excel'),
-      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'Upload a spreadsheet with columns: First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Only First Name, Last Name, and Amount are required.'),
-      React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'Upload Excel / CSV',
-        React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:uploadPayments,style:{display:'none'},disabled:uploading}))),
+      React.createElement('p',{style:{marginBottom:8,color:'#555',fontSize:'0.95rem'}},'Upload a spreadsheet with columns First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Column header capitalization and minor variants (FName, Email Address, Phone #, etc.) are accepted. Only First Name, Last Name, and Amount are required.'),
+      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.85rem'}},'Each row is auto-matched to a member by email then phone. Re-uploading the same file is safe — duplicates (same name + amount + date) are skipped.'),
+      React.createElement('div',{style:{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:8}},
+        React.createElement('div',{className:'form-group',style:{flex:'1 1 220px',marginBottom:0}},
+          React.createElement('label',{className:'form-label'},'Import Tag (optional)'),
+          React.createElement('input',{className:'form-input',placeholder:'e.g. ShulCloud 2024',value:importTag,onChange:e=>setImportTag(e.target.value),disabled:uploading})),
+        React.createElement('label',{className:'btn btn-primary',style:{cursor:uploading?'not-allowed':'pointer',opacity:uploading?0.6:1}},uploading?'Uploading...':'Upload Excel / CSV',
+          React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:uploadPayments,style:{display:'none'},disabled:uploading}))),
+      importResult&&React.createElement('div',{style:{marginTop:12,padding:14,background:'#faf8f3',border:'1px solid #e0dcd4',borderRadius:8}},
+        React.createElement('div',{style:{display:'flex',gap:18,flexWrap:'wrap',fontSize:'0.95rem',marginBottom:importResult.errors?.length?10:0}},
+          React.createElement('span',null,React.createElement('strong',null,'Total rows: '),importResult.total||0),
+          React.createElement('span',{style:{color:'#27ae60'}},React.createElement('strong',null,'Imported: '),importResult.created||0),
+          (importResult.duplicatesSkipped>0)&&React.createElement('span',{style:{color:'#888'}},React.createElement('strong',null,'Duplicates: '),importResult.duplicatesSkipped),
+          (importResult.memberLinked>0)&&React.createElement('span',{style:{color:'#1a2744'}},React.createElement('strong',null,'Linked to members: '),importResult.memberLinked),
+          (importResult.errors?.length>0)&&React.createElement('span',{style:{color:'#c0392b'}},React.createElement('strong',null,'Errors: '),importResult.errors.length)),
+        importResult.detectedColumns?.length>0&&React.createElement('div',{style:{fontSize:'0.85rem',color:'#666',marginBottom:6}},React.createElement('strong',null,'Columns found in your file: '),'[',importResult.detectedColumns.join(', '),']'),
+        importResult.errors?.length>0&&React.createElement('details',{style:{marginTop:6}},
+          React.createElement('summary',{style:{cursor:'pointer',color:'#c0392b',fontWeight:600}},'Show '+importResult.errors.length+' error row'+(importResult.errors.length===1?'':'s')),
+          React.createElement('div',{style:{maxHeight:240,overflowY:'auto',marginTop:8,padding:10,background:'#fff',borderRadius:6,border:'1px solid #e0dcd4',fontSize:'0.82rem',fontFamily:'monospace',lineHeight:1.5}},
+            importResult.errors.map((err,i)=>React.createElement('div',{key:i,style:{paddingBottom:6,marginBottom:6,borderBottom:i<importResult.errors.length-1?'1px solid #f0ece3':'none'}},err)))))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
