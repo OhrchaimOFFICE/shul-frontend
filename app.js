@@ -1282,7 +1282,7 @@ function AdminAutoEmails() {
   }
   const rows=[
     {key:'master',label:'Reminder Scheduler (master switch)',desc:'Master switch for the daily reminder job. When OFF, no membership or pledge reminders are sent regardless of their individual switches.'},
-    {key:'membership',label:'Membership Dues Reminders',desc:'Runs daily at 10:00 AM ET. Emails members with unpaid dues, respecting the reminder frequency set in Settings.'},
+    {key:'membership',label:'Membership Dues Reminders',desc:'Runs monthly on the 1st at 10:00 AM ET. Emails members with unpaid dues (skips members on auto-pay and members whose spouse is already paid).'},
     {key:'pledge',label:'Pledge Reminders',desc:'Runs daily at 10:00 AM ET. Emails members with outstanding pledges after the configured start delay.'},
     {key:'fiscalYear',label:'Annual Tax Receipt Auto-Send',desc:'On January 1, automatically sends every donor a summary of their prior-year giving.'},
   ];
@@ -1947,6 +1947,26 @@ function AdminMembers() {
       await load();
     }catch(err){setMsg('Error: '+err.message);}
   }
+  async function toggleExempt(m){
+    const next=!m.exemptFromDues;
+    try{
+      await apiFetch('/api/admin/members/'+m.uid,{method:'PUT',body:JSON.stringify({exemptFromDues:next})});
+      setMsg(m.displayName+' marked '+(next?'exempt from dues':'not exempt')+'.');
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+  async function editMember(m){
+    const newEmail=prompt('Edit email for '+(m.displayName||m.uid)+'.\n\nChanging the email will update Firebase Auth and send a "set password" link to the NEW address. Leave blank to keep current.', m.email||'');
+    if(newEmail===null) return; // user cancelled
+    const trimmed=(newEmail||'').trim().toLowerCase();
+    if(!trimmed){setMsg('Email cannot be blank.');return;}
+    if(trimmed===(m.email||'').toLowerCase()){setMsg('Email unchanged.');return;}
+    try{
+      const r=await apiFetch('/api/admin/members/'+m.uid,{method:'PUT',body:JSON.stringify({email:trimmed})});
+      setMsg('Email updated.'+(r.passwordResetSent?' Password-set link sent to '+trimmed+'.':r.passwordResetError?' Could not send link: '+r.passwordResetError:''));
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
   async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
     const fd=new FormData();fd.append('file',file);
     try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
@@ -2011,7 +2031,7 @@ function AdminMembers() {
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({membershipPaid:true},'Mark as Paid')},'Mark Paid'),
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({membershipPaid:false},'Mark as Unpaid')},'Mark Unpaid')),
           React.createElement('div',{className:'table-container'},React.createElement('table',null,
-          React.createElement('thead',null,React.createElement('tr',null,['','Name','Email','Phone','Paid','Tag','Spouse','Role'].map(h=>React.createElement('th',{key:h||'sel'},h)))),
+          React.createElement('thead',null,React.createElement('tr',null,['','Name','Email','Phone','Paid','Tag','Spouse','Role','Actions'].map(h=>React.createElement('th',{key:h||'sel'},h)))),
           React.createElement('tbody',null,filtered.map(m=>{
             const spouseName=m.spouseUid&&uidToName[m.spouseUid]?uidToName[m.spouseUid]:(m.spouseEmail||'');
             const tag=m.tagId?tagById[m.tagId]:null;
@@ -2031,7 +2051,10 @@ function AdminMembers() {
                   React.createElement('option',{value:''},'(none)'),
                   tags.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name+' ($'+Number(t.annualDues||0).toFixed(0)+')')))),
               React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
-              React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')));
+              React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')),
+              React.createElement('td',{style:{whiteSpace:'nowrap'}},
+                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>editMember(m),title:'Change email — sends password-set link to new address'},'Edit Email'),
+                React.createElement('button',{className:'btn btn-sm '+(m.exemptFromDues?'btn-outline':'btn-outline'),style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt')));
           })))));
       })()));
 }
