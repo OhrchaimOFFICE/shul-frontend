@@ -1920,6 +1920,8 @@ function AdminMembers() {
   const [tags,setTags]=useState([]);
   const [selected,setSelected]=useState({});
   const [filter,setFilter]=useState('');
+  const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',address:'',spouseEmail:'',sendInvite:true});
+  const [addBusy,setAddBusy]=useState(false);
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
     try{setMembers(await apiFetch('/api/admin/members'));}catch(e){}
@@ -1991,6 +1993,29 @@ function AdminMembers() {
       await load();
     }catch(err){setMsg('Error: '+err.message);}
   }
+  async function addSingleMember(e){
+    e.preventDefault();setMsg('');
+    if(!addForm.firstName.trim()||!addForm.lastName.trim()||!addForm.email.trim()){
+      setMsg('First name, last name, and email are required.');return;
+    }
+    setAddBusy(true);
+    try{
+      const siteUrl=window.location.origin+window.location.pathname;
+      const r=await apiFetch('/api/admin/members/add-single',{method:'POST',body:JSON.stringify({...addForm,siteUrl})});
+      const parts=['Added '+addForm.firstName+' '+addForm.lastName+'.'];
+      if(addForm.sendInvite){
+        if(r.emailSent) parts.push('Welcome email sent to '+addForm.email+'.');
+        else if(r.emailError) parts.push('Email send failed: '+r.emailError+'. Signup link: '+r.signupLink);
+        else parts.push('Welcome email queued.');
+      }else{
+        parts.push('Invite NOT emailed (sendInvite off). Manual link: '+r.signupLink);
+      }
+      setMsg(parts.join(' '));
+      setAddForm({firstName:'',lastName:'',email:'',phone:'',address:'',spouseEmail:'',sendInvite:true});
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+    setAddBusy(false);
+  }
   async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
     const fd=new FormData();fd.append('file',file);
     try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
@@ -2003,6 +2028,25 @@ function AdminMembers() {
       React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Upload Excel with: First Name, Last Name, Email, Phone, Address, Spouse Email. Creates pre-filled signup links.'),
       React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'📤 Upload Excel File',
         React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:handleUpload,style:{display:'none'}}))),
+    // One-off "Add Member" form for when you want to onboard a single person
+    // without uploading an Excel. Same pipeline: creates a prefilledAccounts
+    // row + (by default) fires the welcome+signup email.
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Add Single Member'),
+      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Manually add one member. They get a welcome email with a "Set Up My Account" link. If a pending invite already exists for this email, it is refreshed instead of duplicated.'),
+      React.createElement('form',{onSubmit:addSingleMember},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:addForm.firstName,onChange:e=>setAddForm(p=>({...p,firstName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:addForm.lastName,onChange:e=>setAddForm(p=>({...p,lastName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:addForm.email,onChange:e=>setAddForm(p=>({...p,email:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:addForm.phone,onChange:e=>setAddForm(p=>({...p,phone:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Address'),React.createElement('input',{className:'form-input',value:addForm.address,onChange:e=>setAddForm(p=>({...p,address:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Spouse Email'),React.createElement('input',{className:'form-input',type:'email',value:addForm.spouseEmail,onChange:e=>setAddForm(p=>({...p,spouseEmail:e.target.value}))}))),
+        React.createElement('div',{style:{display:'flex',gap:12,alignItems:'center',marginTop:8,flexWrap:'wrap'}},
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem',color:'#555'}},
+            React.createElement('input',{type:'checkbox',checked:addForm.sendInvite,onChange:e=>setAddForm(p=>({...p,sendInvite:e.target.checked}))}),
+            'Email welcome + signup link to this member'),
+          React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:addBusy},addBusy?'Adding...':'Add Member')))),
     prefilled.length>0&&React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Pre-filled Signup Links ('+prefilled.length+')'),
