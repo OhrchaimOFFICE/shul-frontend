@@ -2162,7 +2162,7 @@ function AdminSettings() {
     // Automated Reminders
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Automated Email Reminders'),
-      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends reminders daily at 10:00 AM for unpaid membership dues and outstanding pledges. Members with auto-payment enabled are skipped.'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends membership-dues reminders monthly on the 1st at 10:00 AM ET, and pledge reminders daily at 10:00 AM ET. Members with auto-payment enabled are skipped.'),
       React.createElement('div',{className:'form-group'},
         React.createElement('label',{className:'form-label'},'Master Switch'),
         React.createElement('select',{className:'form-input',style:{maxWidth:300},value:reminderSettings.enabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,enabled:e.target.value==='on'}))},
