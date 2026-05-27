@@ -559,6 +559,59 @@ function HomePage({navigate}) {
           ):React.createElement('p',{style:{color:'#888'}},'Loading...'))),
       // Column 3: Zmanim panel
       React.createElement(ZmanimPanel,{onExpand:()=>navigate('zmanim')})),
+
+    // Full-width prominent Shiurim card — shows every weekly shiur grouped
+    // by day, with today's classes highlighted. Only renders if there's at
+    // least one shiur configured.
+    shiurim.length>0&&(()=>{
+      const DAY_LABEL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
+      const todayDow=new Date().getDay();
+      const byDay={};
+      shiurim.forEach(s=>{
+        const d=Number.isFinite(s.dayOfWeek)?s.dayOfWeek:7;
+        if(!byDay[d]) byDay[d]=[];
+        byDay[d].push(s);
+      });
+      const dowOrder=Object.keys(byDay).map(Number).sort((a,b)=>{
+        // Today first, then forward through the week, wrapping around.
+        const aa=(a-todayDow+7)%7, bb=(b-todayDow+7)%7;
+        return aa-bb;
+      });
+      return React.createElement('div',{className:'card',style:{marginTop:10,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.35)'}},
+        React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('span',null,'📖 Weekly Shiurim'),
+          React.createElement('span',{className:'badge',style:{cursor:'pointer'},onClick:()=>navigate('shiurim')},'See all')),
+        React.createElement('div',{style:{
+          display:'grid',
+          gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))',
+          gap:10,marginTop:8
+        }},
+          dowOrder.map(dow=>{
+            const isToday=dow===todayDow;
+            return React.createElement('div',{key:dow,style:{
+              background:isToday?'rgba(196,154,60,0.1)':'var(--cream)',
+              border:isToday?'2px solid var(--gold)':'1px solid var(--border)',
+              borderRadius:'var(--radius)',
+              padding:'12px 14px',
+              display:'flex',flexDirection:'column',gap:6
+            }},
+              React.createElement('div',{style:{
+                display:'flex',justifyContent:'space-between',alignItems:'center',
+                marginBottom:4,paddingBottom:6,borderBottom:'1px solid rgba(0,0,0,0.06)'
+              }},
+                React.createElement('span',{style:{fontWeight:700,color:'var(--navy)',fontSize:'0.95rem'}},DAY_LABEL[dow]||'Other'),
+                isToday&&React.createElement('span',{style:{
+                  background:'var(--gold)',color:'var(--navy)',fontSize:'0.7rem',
+                  fontWeight:800,padding:'2px 8px',borderRadius:10,letterSpacing:0.5
+                }},'TODAY')),
+              byDay[dow].map(s=>React.createElement('div',{key:s.id},
+                React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'0.95rem'}},s.title),
+                React.createElement('div',{style:{fontSize:'0.82rem',color:'var(--text-medium)',marginTop:2}},
+                  [s.time,s.rabbi,s.location].filter(Boolean).join(' • ')),
+                s.topic&&React.createElement('div',{style:{fontSize:'0.78rem',color:'var(--text-light)',fontStyle:'italic',marginTop:2}},s.topic))));
+          })));
+    })(),
+
     // Quick links
     React.createElement('div',{className:'quick-links'},
       [['Weekly Schedule','schedule'],['Calendar','calendar'],['Shiurim','shiurim'],['Full Zmanim','zmanim']].map(([l,p])=>
