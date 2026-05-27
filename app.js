@@ -1967,6 +1967,30 @@ function AdminMembers() {
       await load();
     }catch(err){setMsg('Error: '+err.message);}
   }
+  async function deleteOne(m){
+    const label=m.displayName||m.email||m.uid;
+    if(!confirm('DELETE '+label+'?\n\nThis will permanently remove their member profile, Firebase Auth login, and any pending signup invites. Their donation history is preserved as tax records.\n\nThis cannot be undone.'))return;
+    try{
+      const r=await apiFetch('/api/admin/members/purge-by-email',{method:'POST',body:JSON.stringify({emails:[m.email||'']})});
+      const result=(r.results||[])[0]||{};
+      setMsg('Deleted '+(m.email||label)+': '+(result.usersDeleted||0)+' user, '+(result.authDeleted||0)+' login, '+(result.prefilledDeleted||0)+' pending invite.');
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+  async function purgeDeadEmails(){
+    const raw=prompt('Paste emails to permanently delete (one per line, or comma-separated). For each email we delete the member profile, Firebase Auth login, and pending invites. Donation history is preserved.');
+    if(!raw) return;
+    const emails=raw.split(/[,\n\r\s]+/).map(s=>s.trim().toLowerCase()).filter(Boolean);
+    if(!emails.length){setMsg('No valid emails.');return;}
+    if(!confirm('Permanently delete '+emails.length+' account'+(emails.length===1?'':'s')+'?\n\n'+emails.join('\n')+'\n\nThis cannot be undone.'))return;
+    setMsg('Purging...');
+    try{
+      const r=await apiFetch('/api/admin/members/purge-by-email',{method:'POST',body:JSON.stringify({emails})});
+      const totals=(r.results||[]).reduce((acc,x)=>({u:acc.u+(x.usersDeleted||0),a:acc.a+(x.authDeleted||0),p:acc.p+(x.prefilledDeleted||0),e:acc.e+(x.errors||[]).length}),{u:0,a:0,p:0,e:0});
+      setMsg('Purged '+emails.length+' email'+(emails.length===1?'':'s')+': '+totals.u+' user docs, '+totals.a+' logins, '+totals.p+' invites'+(totals.e?' ('+totals.e+' errors — check server logs)':'')+'.');
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
   async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
     const fd=new FormData();fd.append('file',file);
     try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
@@ -2023,7 +2047,8 @@ function AdminMembers() {
           React.createElement('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap'}},
             React.createElement('input',{className:'form-input',style:{flex:'1 1 200px'},placeholder:'Search name or email...',value:filter,onChange:e=>setFilter(e.target.value)}),
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>selectAll(filtered)},'Select all shown'),
-            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearSel},'Clear ('+selectedUids.length+')')),
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearSel},'Clear ('+selectedUids.length+')'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:purgeDeadEmails,title:'Paste a list of dead emails to permanently delete in one go'},'🗑 Purge by Email...')),
           selectedUids.length>0&&React.createElement('div',{style:{padding:10,background:'#faf8f3',borderRadius:6,marginBottom:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
             React.createElement('strong',{style:{marginRight:8}},selectedUids.length+' selected:'),
             React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>bulk({exemptFromDues:true},'Mark as Exempt from Dues')},'Mark Exempt'),
@@ -2054,7 +2079,8 @@ function AdminMembers() {
               React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')),
               React.createElement('td',{style:{whiteSpace:'nowrap'}},
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>editMember(m),title:'Change email — sends password-set link to new address'},'Edit Email'),
-                React.createElement('button',{className:'btn btn-sm '+(m.exemptFromDues?'btn-outline':'btn-outline'),style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt')));
+                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt'),
+                React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>deleteOne(m),title:'Permanently delete this member'},'🗑')));
           })))));
       })()));
 }
