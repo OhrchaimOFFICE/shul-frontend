@@ -1336,7 +1336,7 @@ function AdminAutoEmails() {
   const rows=[
     {key:'master',label:'Reminder Scheduler (master switch)',desc:'Master switch for the daily reminder job. When OFF, no membership or pledge reminders are sent regardless of their individual switches.'},
     {key:'membership',label:'Membership Dues Reminders',desc:'Runs monthly on the 1st at 10:00 AM ET. Emails members with unpaid dues (skips members on auto-pay and members whose spouse is already paid).'},
-    {key:'pledge',label:'Pledge Reminders',desc:'Runs daily at 10:00 AM ET. Emails members with outstanding pledges after the configured start delay.'},
+    {key:'pledge',label:'Pledge Reminders',desc:'Runs monthly on the 1st at 10:00 AM ET. Emails members with outstanding pledges after the configured start delay.'},
     {key:'fiscalYear',label:'Annual Tax Receipt Auto-Send',desc:'On January 1, automatically sends every donor a summary of their prior-year giving.'},
   ];
   if(!state) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
@@ -2215,7 +2215,7 @@ function AdminSettings() {
     // Automated Reminders
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Automated Email Reminders'),
-      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends membership-dues reminders monthly on the 1st at 10:00 AM ET, and pledge reminders daily at 10:00 AM ET. Members with auto-payment enabled are skipped.'),
+      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends membership-dues reminders monthly on the 1st at 10:00 AM ET, and pledge reminders monthly on the 1st at 10:00 AM ET. Members with auto-payment enabled are skipped.'),
       React.createElement('div',{className:'form-group'},
         React.createElement('label',{className:'form-label'},'Master Switch'),
         React.createElement('select',{className:'form-input',style:{maxWidth:300},value:reminderSettings.enabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,enabled:e.target.value==='on'}))},
@@ -2246,10 +2246,7 @@ function AdminSettings() {
                 React.createElement('option',{value:'off'},'Off'),React.createElement('option',{value:'on'},'On'))),
             React.createElement('div',{className:'form-group',style:{marginBottom:0}},
               React.createElement('label',{className:'form-label'},'Start reminders after X days'),
-              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.pledgeStartAfterDays,onChange:e=>setReminderSettings(p=>({...p,pledgeStartAfterDays:parseInt(e.target.value)||7}))})),
-            React.createElement('div',{className:'form-group',style:{marginBottom:0}},
-              React.createElement('label',{className:'form-label'},'Then repeat every X days'),
-              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.pledgeFrequencyDays,onChange:e=>setReminderSettings(p=>({...p,pledgeFrequencyDays:parseInt(e.target.value)||30}))}))))),
+              React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.pledgeStartAfterDays,onChange:e=>setReminderSettings(p=>({...p,pledgeStartAfterDays:parseInt(e.target.value)||7}))}))))),
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
         React.createElement('button',{className:'btn btn-primary',onClick:saveReminders},'Save Reminder Settings'),
         React.createElement('button',{className:'btn btn-outline',onClick:runNow,disabled:running},running?'Running...':'Run Reminders Now'))),
