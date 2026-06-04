@@ -1832,27 +1832,30 @@ function AccountPage() {
 function AdminDonations() {
   const [donations,setDonations]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [year,setYear]=useState(new Date().getFullYear());
-  const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
+  const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:'',pledgeId:''});
   const [reasons,setReasons]=useState([]);
+  const [openBills,setOpenBills]=useState([]);
   const [uploading,setUploading]=useState(false);
   const [importTag,setImportTag]=useState('');
   // Last batch-import response — surfaced below the upload button so admin can
   // see exactly how many rows imported, how many were duplicates, how many
   // linked to a member, and the full per-row error list.
   const [importResult,setImportResult]=useState(null);
-  useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});},[year]);
+  useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});loadBills();},[year]);
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
+  async function loadBills(){try{const all=await apiFetch('/api/admin/pledges');setOpenBills((all||[]).filter(p=>p.status!=='paid'));}catch(e){}}
   async function recordManual(e){e.preventDefault();setMsg('');
     try{
       const payload={...mf,amount:parseFloat(mf.amount),type:'donation'};
       if(mf.fiscalYear){payload.fiscalYear=parseInt(mf.fiscalYear);}
       if(!mf.fiscalYear)delete payload.fiscalYear;
       if(!mf.date)delete payload.date;
+      if(!mf.pledgeId)delete payload.pledgeId;
       const res=await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify(payload)});
       const tail=res.routedToOffice?' Receipt sent to the office for printing.':res.receiptSent?' Receipt emailed to donor.':'';
-      setMsg('Payment recorded.'+tail);
-      setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:''});
-      load();
+      setMsg('Payment recorded.'+(mf.pledgeId?' Applied to the selected invoice (marked paid).':'')+tail);
+      setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:'',pledgeId:''});
+      load();loadBills();
     }catch(err){setMsg('Error: '+err.message);}}
   async function importStripePayment(){
     const id=prompt('Paste the Stripe Payment ID (starts with "pi_") from the Stripe dashboard payment page:');
@@ -1908,6 +1911,25 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Date (optional)'),React.createElement('input',{className:'form-input',type:'date',value:mf.date,onChange:e=>setMf(p=>({...p,date:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Fiscal Year (optional)'),React.createElement('input',{className:'form-input',type:'number',placeholder:'e.g. 2025',value:mf.fiscalYear,onChange:e=>setMf(p=>({...p,fiscalYear:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
+        React.createElement('div',{className:'form-group',style:{marginTop:8,background:'#faf8f3',padding:12,borderRadius:6,border:'1px solid #e0dcd4'}},
+          React.createElement('label',{className:'form-label'},'Apply to an open invoice / bill (optional)'),
+          React.createElement('select',{className:'form-input',value:mf.pledgeId,onChange:e=>{
+            const id=e.target.value;
+            const bill=openBills.find(b=>b.id===id);
+            if(bill){
+              const nm=(bill.memberName||'').trim().split(' ');
+              setMf(p=>({...p,pledgeId:id,
+                firstName:p.firstName||nm[0]||'',
+                lastName:p.lastName||nm.slice(1).join(' ')||'',
+                email:p.email||bill.memberEmail||'',
+                amount:p.amount||(bill.amount!=null?String(bill.amount):''),
+                reason:bill.reason||p.reason}));
+            } else { setMf(p=>({...p,pledgeId:''})); }
+          }},
+            React.createElement('option',{value:''},'— Not applied to a bill —'),
+            openBills.map(b=>React.createElement('option',{key:b.id,value:b.id},
+              (b.reason||'Bill')+' — $'+(b.amount!=null?Number(b.amount).toFixed(2):'?')+' — '+(b.memberName||b.memberEmail||'')+(b.dueDate?(' ('+b.dueDate+')'):'')))),
+          mf.pledgeId&&React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.85rem',color:'#555'}},'Recording this payment will mark the selected bill — and any linked kiddush/seudas shlishis sponsorship — as paid.')),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Import a Stripe Payment'),
@@ -2345,10 +2367,19 @@ function AdminPledges() {
   const [pledges,setPledges]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [form,setForm]=useState({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});
   const [pledgeReasons,setPledgeReasons]=useState([]);
+  const [sf,setSf]=useState({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
   useEffect(()=>{load();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
   async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
   async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
+  async function addSponsorship(e){e.preventDefault();setMsg('');
+    if(!sf.date||!sf.firstName||!sf.lastName){setMsg('Error: date and name are required');return;}
+    try{
+      const r=await apiFetch('/api/admin/sponsorships',{method:'POST',body:JSON.stringify({...sf,siteUrl:window.location.origin+window.location.pathname})});
+      setMsg('Sponsorship added ($'+(r.amount!=null?Number(r.amount).toFixed(2):'?')+'). A bill was created'+(r.invoiceSent?' and emailed':'')+' — record payment in the Donations tab and apply it to this invoice.');
+      setSf({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
+      load();
+    }catch(err){setMsg('Error: '+err.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
   function payLink(p){return window.location.origin+window.location.pathname+'#pay?token='+(p.payToken||'');}
   function copyPayLink(p){try{navigator.clipboard.writeText(payLink(p));setMsg('Pay link copied to clipboard.');}catch(e){setMsg('Could not copy: '+e.message);}}
@@ -2364,6 +2395,20 @@ function AdminPledges() {
   }
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Add Kiddush / Seudas Shlishis Sponsorship'),
+      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:0,marginBottom:12}},'For recording a sponsorship manually, including after the Wednesday cutoff. Creates the sponsorship plus a bill (invoice). Record payment in the Donations tab and apply it to the bill to mark it paid.'),
+      React.createElement('form',{onSubmit:addSponsorship},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Shabbos / Date *'),React.createElement('input',{className:'form-input',type:'date',value:sf.date,onChange:e=>setSf(p=>({...p,date:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Type *'),React.createElement('select',{className:'form-input',value:sf.type,onChange:e=>setSf(p=>({...p,type:e.target.value}))},React.createElement('option',{value:'kiddush'},'Kiddush'),React.createElement('option',{value:'seudasShlishis'},'Seudas Shlishis'))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:sf.firstName,onChange:e=>setSf(p=>({...p,firstName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:sf.lastName,onChange:e=>setSf(p=>({...p,lastName:e.target.value})),required:true})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:sf.email,onChange:e=>setSf(p=>({...p,email:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:sf.phone,onChange:e=>setSf(p=>({...p,phone:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Dedication'),React.createElement('input',{className:'form-input',value:sf.dedication,onChange:e=>setSf(p=>({...p,dedication:e.target.value})),placeholder:'e.g. In honor of...'}))),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,marginTop:10,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:sf.sendInvoice,onChange:e=>setSf(p=>({...p,sendInvoice:e.target.checked}))}),'Email the sponsor an invoice with a Pay-Now link'),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add Sponsorship'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Pledge / Billing Item'),
       React.createElement('form',{onSubmit:add},
