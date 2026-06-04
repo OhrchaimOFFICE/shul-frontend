@@ -7,6 +7,42 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 function getTodayStr() { return new Date().toLocaleDateString('en-CA'); }
 function formatDisplayDate(ds) { return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function getSundayOfWeek(ds) { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-d.getDay()); return d.toISOString().split('T')[0]; }
+
+// pdf.js (vendored, same-origin) — loaded on demand the first time an admin
+// attaches a PDF flyer, then used to rasterize each page to a JPEG so the
+// flyer can be DISPLAYED inline in the weekly email.
+let _pdfjsPromise=null;
+function loadPdfJs(){
+  if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if(_pdfjsPromise) return _pdfjsPromise;
+  _pdfjsPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='/vendor/pdf.min.js';
+    s.onload=()=>{try{window.pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdf.worker.min.js';resolve(window.pdfjsLib);}catch(e){reject(e);}};
+    s.onerror=()=>reject(new Error('Failed to load the PDF library'));
+    document.head.appendChild(s);
+  });
+  return _pdfjsPromise;
+}
+async function renderPdfToImages(file,opts){
+  const {scale=1.6,quality=0.82,maxPages=10}=opts||{};
+  const pdfjsLib=await loadPdfJs();
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const out=[];
+  const n=Math.min(pdf.numPages,maxPages);
+  for(let i=1;i<=n;i++){
+    const page=await pdf.getPage(i);
+    const viewport=page.getViewport({scale});
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({canvasContext:ctx,viewport}).promise;
+    out.push(canvas.toDataURL('image/jpeg',quality).split(',')[1]);
+  }
+  return out;
+}
 async function apiFetch(path, options={}) {
   const token = await firebase.auth().currentUser?.getIdToken();
   const headers = {'Content-Type':'application/json',...options.headers};
@@ -2462,7 +2498,8 @@ function AdminEmailCenter() {
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   const [weeklyShiurim,setWeeklyShiurim]=useState([]);
   const [weeklyShiurSel,setWeeklyShiurSel]=useState({}); // {shiurId: bool}
-  const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, base64}
+  const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, images:[base64]}
+  const [weeklyPdfBusy,setWeeklyPdfBusy]=useState(false);
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
   // Custom per-member selection (shared between Compose and Weekly)
@@ -2532,9 +2569,15 @@ function AdminEmailCenter() {
     try{
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,pdfName:weeklyPdf?weeklyPdf.name:null})});
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds})});
       let html=res.html||'';
       if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
+      // Render the flyer pages inline (data URIs) at the bottom for the preview.
+      if(weeklyPdf&&weeklyPdf.images&&weeklyPdf.images.length){
+        const imgs=weeklyPdf.images.map(b=>'<img src="data:image/jpeg;base64,'+b+'" style="max-width:100%;height:auto;display:block;margin:0 auto 12px;border:1px solid #e0dcd4;border-radius:4px;">').join('');
+        const flyerHtml='<h3 style="color:#1a2744;margin:24px 0 8px;border-top:2px solid #c49a3c;padding-top:16px;">This Week\'s Flyer</h3>'+imgs;
+        html=html.replace('<p style="text-align:center;margin-top:20px;color:#888',flyerHtml+'<p style="text-align:center;margin-top:20px;color:#888');
+      }
       setWeeklyPreviewHtml(html);
     }catch(err){setMsg('Error: '+err.message);}
   }
@@ -2545,8 +2588,8 @@ function AdminEmailCenter() {
       const targetEmails=getTargetEmails(weeklyTargetGroup);
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfBase64:weeklyPdf?weeklyPdf.base64:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(weeklyPdf?' (with PDF attached)':'')+'. Check the log in a minute for results.');
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(weeklyPdf?' (flyer shown at bottom)':'')+'. Check the log in a minute for results.');
       setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
@@ -2652,16 +2695,20 @@ function AdminEmailCenter() {
               weeklyShiurim.map(s=>React.createElement('label',{key:s.id,style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.85rem'}},
                 React.createElement('input',{type:'checkbox',checked:!!weeklyShiurSel[s.id],onChange:e=>setWeeklyShiurSel(p=>({...p,[s.id]:e.target.checked}))}),
                 (DAY_NAMES[s.dayOfWeek]?DAY_NAMES[s.dayOfWeek].slice(0,3)+' ':'')+s.title+(s.time?' ('+s.time+')':''))))),
-          React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:'pointer',margin:0}},'Attach PDF',
-            React.createElement('input',{type:'file',accept:'application/pdf',style:{display:'none'},onChange:e=>{
+          React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:weeklyPdfBusy?'wait':'pointer',margin:0,opacity:weeklyPdfBusy?0.6:1}},weeklyPdfBusy?'Rendering…':'Attach PDF flyer',
+            React.createElement('input',{type:'file',accept:'application/pdf',disabled:weeklyPdfBusy,style:{display:'none'},onChange:async e=>{
               const f=e.target.files[0];if(!f)return;
               if(f.type!=='application/pdf'){setMsg('Please choose a PDF file.');return;}
-              if(f.size>8*1024*1024){setMsg('PDF too large (max 8MB).');return;}
-              const r=new FileReader();
-              r.onload=()=>{setWeeklyPdf({name:f.name,base64:(String(r.result||'').split(',')[1]||'')});};
-              r.readAsDataURL(f);
+              if(f.size>15*1024*1024){setMsg('PDF too large (max 15MB).');return;}
+              setWeeklyPdfBusy(true);setMsg('Rendering PDF…');
+              try{
+                const images=await renderPdfToImages(f);
+                if(!images.length){setMsg('Could not read that PDF.');}
+                else{setWeeklyPdf({name:f.name,images});setMsg('Flyer ready ('+images.length+' page'+(images.length>1?'s':'')+') — it will display at the bottom of the email.');}
+              }catch(err){setMsg('PDF error: '+err.message);}
+              setWeeklyPdfBusy(false);
             }})),
-          weeklyPdf&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555'}},'📄 '+weeklyPdf.name+' ',
+          weeklyPdf&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555'}},'📄 '+weeklyPdf.name+' ('+weeklyPdf.images.length+'p) ',
             React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdf(null);},style:{color:'#c0392b',marginLeft:6}},'remove'))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
