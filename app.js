@@ -1938,6 +1938,7 @@ function AdminDonations() {
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
         React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center'}},
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg('Error: '+e.message);}}},'Match to Members'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg('Error: '+e.message);}}},'Remove Duplicates'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg('Error: '+e.message);}}},'Send '+year+' Tax Receipts'),
           React.createElement('select',{className:'form-input',style:{width:100},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027,2028].map(y=>React.createElement('option',{key:y,value:y},y))))),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
@@ -2020,6 +2021,16 @@ function AdminMembers() {
       const r=await apiFetch('/api/admin/members/'+m.uid,{method:'PUT',body:JSON.stringify({email:trimmed})});
       setMsg('Email updated.'+(r.passwordResetSent?' Password-set link sent to '+trimmed+'.':r.passwordResetError?' Could not send link: '+r.passwordResetError:''));
       await load();
+    }catch(err){setMsg('Error: '+err.message);}
+  }
+  async function resetPassword(m){
+    const label=m.displayName||m.email||m.uid;
+    if(!m.email){setMsg(label+' has no email on file — cannot reset password.');return;}
+    if(!confirm('Reset password for '+label+'?\n\nA password-reset link will be emailed to '+m.email+'. They can use it to choose a new password.'))return;
+    setMsg('Sending reset link...');
+    try{
+      const r=await apiFetch('/api/admin/members/'+m.uid+'/reset-password',{method:'POST'});
+      setMsg('Password-reset link sent to '+(r.email||m.email)+'.');
     }catch(err){setMsg('Error: '+err.message);}
   }
   async function deleteOne(m){
@@ -2176,6 +2187,7 @@ function AdminMembers() {
               React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')),
               React.createElement('td',{style:{whiteSpace:'nowrap'}},
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>editMember(m),title:'Change email — sends password-set link to new address'},'Edit Email'),
+                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>resetPassword(m),title:'Email a password-reset link to this member'},'Reset PW'),
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt'),
                 React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>deleteOne(m),title:'Permanently delete this member'},'🗑')));
           })))));
