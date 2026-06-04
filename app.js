@@ -2460,6 +2460,8 @@ function AdminEmailCenter() {
   const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule - Congregation Ohr Chaim");
   const [weeklyPreviewHtml,setWeeklyPreviewHtml]=useState('');
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
+  const [weeklyIncludeShiurim,setWeeklyIncludeShiurim]=useState(true);
+  const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, base64}
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
   // Custom per-member selection (shared between Compose and Weekly)
@@ -2527,7 +2529,7 @@ function AdminEmailCenter() {
     setMsg('');
     try{
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate})});
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,includeShiurim:weeklyIncludeShiurim,pdfName:weeklyPdf?weeklyPdf.name:null})});
       let html=res.html||'';
       if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
       setWeeklyPreviewHtml(html);
@@ -2539,9 +2541,9 @@ function AdminEmailCenter() {
     try{
       const targetEmails=getTargetEmails(weeklyTargetGroup);
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject})});
-      setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
-      apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,includeShiurim:weeklyIncludeShiurim,pdfBase64:weeklyPdf?weeklyPdf.base64:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(weeklyPdf?' (with PDF attached)':'')+'. Check the log in a minute for results.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2635,6 +2637,21 @@ function AdminEmailCenter() {
         weeklyTargetGroup==='custom'&&MemberPicker(),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule - supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,fontSize:'0.9rem'}},
+            React.createElement('input',{type:'checkbox',checked:weeklyIncludeShiurim,onChange:e=>setWeeklyIncludeShiurim(e.target.checked)}),
+            'Include weekly shiurim'),
+          React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:'pointer',margin:0}},'Attach PDF',
+            React.createElement('input',{type:'file',accept:'application/pdf',style:{display:'none'},onChange:e=>{
+              const f=e.target.files[0];if(!f)return;
+              if(f.type!=='application/pdf'){setMsg('Please choose a PDF file.');return;}
+              if(f.size>8*1024*1024){setMsg('PDF too large (max 8MB).');return;}
+              const r=new FileReader();
+              r.onload=()=>{setWeeklyPdf({name:f.name,base64:(String(r.result||'').split(',')[1]||'')});};
+              r.readAsDataURL(f);
+            }})),
+          weeklyPdf&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555'}},'📄 '+weeklyPdf.name+' ',
+            React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdf(null);},style:{color:'#c0392b',marginLeft:6}},'remove'))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
