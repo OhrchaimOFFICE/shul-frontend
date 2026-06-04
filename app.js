@@ -624,8 +624,10 @@ function SchedulePage({navigate}) {
   const [loading,setLoading]=useState(true);
   const [startDate,setStartDate]=useState(getSundayOfWeek(getTodayStr()));
   useEffect(()=>{
+    let cancelled=false;
     setLoading(true);
-    apiFetch('/api/schedule/week?start='+startDate).then(d=>{setWeek(d.week);setLoading(false);}).catch(()=>setLoading(false));
+    apiFetch('/api/schedule/week?start='+startDate).then(d=>{if(cancelled)return;setWeek(d.week);setLoading(false);}).catch(()=>{if(!cancelled)setLoading(false);});
+    return ()=>{cancelled=true;};
   },[startDate]);
   function shift(n){const d=new Date(startDate+'T12:00:00');d.setDate(d.getDate()+n);setStartDate(d.toISOString().split('T')[0]);}
   function hdrClass(day){if(day.dayType==='shabbos')return'day-card-header shabbos';if(day.dayType==='yomTov')return'day-card-header yomtov';return'day-card-header';}
@@ -667,7 +669,7 @@ function CalendarPage() {
   const [month,setMonth]=useState(today.getMonth()+1);
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
-  useEffect(()=>{setLoading(true);apiFetch('/api/calendar/'+year+'/'+month).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[year,month]);
+  useEffect(()=>{let cancelled=false;setLoading(true);apiFetch('/api/calendar/'+year+'/'+month).then(d=>{if(cancelled)return;setData(d);setLoading(false);}).catch(()=>{if(!cancelled)setLoading(false);});return ()=>{cancelled=true;};},[year,month]);
   function prev(){if(month===1){setMonth(12);setYear(y=>y-1);}else setMonth(m=>m-1);}
   function next(){if(month===12){setMonth(1);setYear(y=>y+1);}else setMonth(m=>m+1);}
   const firstDay=new Date(year,month-1,1).getDay();
@@ -703,7 +705,7 @@ function CalendarPage() {
 // ─── Full Zmanim ─────────────────────────────────────────────────
 function ZmanimPage() {
   const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [dateStr,setDateStr]=useState(getTodayStr());
-  useEffect(()=>{setLoading(true);apiFetch('/api/zmanim/'+dateStr).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[dateStr]);
+  useEffect(()=>{let cancelled=false;setLoading(true);apiFetch('/api/zmanim/'+dateStr).then(d=>{if(cancelled)return;setData(d);setLoading(false);}).catch(()=>{if(!cancelled)setLoading(false);});return ()=>{cancelled=true;};},[dateStr]);
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(!data) return React.createElement('p',null,'Unable to load.');
   const z=data.zmanim;
@@ -2566,7 +2568,7 @@ function AdminEmailCenter() {
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{className:'card-header'},'Email Preview'),
-        React.createElement('div',{style:{border:'1px solid #e0dcd4',borderRadius:6,padding:16,background:'#fff'},dangerouslySetInnerHTML:{__html:composeForm.html}}))),
+        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:composeForm.html||'',style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
 
     // ── Weekly schedule with date range + custom text + preview ──
     subTab==='weekly'&&React.createElement('div',null,
@@ -2596,7 +2598,7 @@ function AdminEmailCenter() {
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setWeeklyPreviewHtml('')},'Close')),
-        React.createElement('div',{style:{border:'1px solid #e0dcd4',borderRadius:6,padding:16,background:'#fff',marginTop:12},dangerouslySetInnerHTML:{__html:weeklyPreviewHtml}}))),
+        React.createElement('iframe',{title:'Weekly email preview',sandbox:'',srcDoc:weeklyPreviewHtml||'',style:{width:'100%',height:600,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
 
     // ── Templates ──
     subTab==='templates'&&React.createElement('div',null,
@@ -2760,9 +2762,13 @@ function AdminAnalytics() {
     // All transactions
     view==='transactions'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'All Transactions ('+data.totalCount+')'),
+      // Render at most 500 rows in the DOM. Rendering all of them (up to
+      // 10,000) created ~60k DOM nodes and froze the tab. Totals above are
+      // computed server-side over the full set, so they stay accurate.
+      (data.donations||[]).length>500&&React.createElement('div',{className:'message',style:{marginBottom:12,color:'#888'}},'Showing the first 500 of '+(data.donations||[]).length+' transactions in this range. Narrow the date range to see specific records.'),
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Category','Method','Note'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,(data.donations||[]).map(d=>React.createElement('tr',{key:d.id},
+        React.createElement('tbody',null,(data.donations||[]).slice(0,500).map(d=>React.createElement('tr',{key:d.id},
           React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),
           React.createElement('td',{style:{cursor:'pointer',color:'#2980b9'},onClick:()=>{setSelectedPerson(d.displayName);setView('byDonor');}},d.displayName||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),
