@@ -2472,8 +2472,8 @@ function AdminEmailCenter() {
     try{
       const targetEmails=getTargetEmails(composeForm.targetGroup);
       const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html})});
-      setMsg('Sent to '+res.sent+' recipients'+(res.failed?' ('+res.failed+' failed)':''));
-      apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background. Check the log in a minute for delivery results.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
