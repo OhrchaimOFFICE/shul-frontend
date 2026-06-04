@@ -2460,7 +2460,8 @@ function AdminEmailCenter() {
   const [weeklySubject,setWeeklySubject]=useState("This Week's Davening Schedule - Congregation Ohr Chaim");
   const [weeklyPreviewHtml,setWeeklyPreviewHtml]=useState('');
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
-  const [weeklyIncludeShiurim,setWeeklyIncludeShiurim]=useState(true);
+  const [weeklyShiurim,setWeeklyShiurim]=useState([]);
+  const [weeklyShiurSel,setWeeklyShiurSel]=useState({}); // {shiurId: bool}
   const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, base64}
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
@@ -2472,6 +2473,7 @@ function AdminEmailCenter() {
     apiFetch('/api/admin/email/recipients').then(setRecipients).catch(()=>{});
     apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});
     apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+    apiFetch('/api/shiurim').then(list=>{setWeeklyShiurim(list||[]);const sel={};(list||[]).forEach(s=>{sel[s.id]=true;});setWeeklyShiurSel(sel);}).catch(()=>{});
   },[]);
 
   function getTargetEmails(group){
@@ -2529,7 +2531,8 @@ function AdminEmailCenter() {
     setMsg('');
     try{
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,includeShiurim:weeklyIncludeShiurim,pdfName:weeklyPdf?weeklyPdf.name:null})});
+      const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,pdfName:weeklyPdf?weeklyPdf.name:null})});
       let html=res.html||'';
       if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
       setWeeklyPreviewHtml(html);
@@ -2541,7 +2544,8 @@ function AdminEmailCenter() {
     try{
       const targetEmails=getTargetEmails(weeklyTargetGroup);
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,includeShiurim:weeklyIncludeShiurim,pdfBase64:weeklyPdf?weeklyPdf.base64:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
+      const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfBase64:weeklyPdf?weeklyPdf.base64:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
       setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(weeklyPdf?' (with PDF attached)':'')+'. Check the log in a minute for results.');
       setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
@@ -2638,9 +2642,16 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule - supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
         React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
-          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,fontSize:'0.9rem'}},
-            React.createElement('input',{type:'checkbox',checked:weeklyIncludeShiurim,onChange:e=>setWeeklyIncludeShiurim(e.target.checked)}),
-            'Include weekly shiurim'),
+          React.createElement('div',{style:{flexBasis:'100%'}},
+            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6}},
+              React.createElement('span',{style:{fontSize:'0.9rem',fontWeight:600}},'Include shiurim in this email:'),
+              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'0.8rem',color:'#c49a3c'},onClick:e=>{e.preventDefault();const all={};weeklyShiurim.forEach(s=>{all[s.id]=true;});setWeeklyShiurSel(all);}},'All'),
+              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'0.8rem',color:'#c49a3c'},onClick:e=>{e.preventDefault();setWeeklyShiurSel({});}},'None')),
+            weeklyShiurim.length===0?React.createElement('span',{style:{fontSize:'0.85rem',color:'#888'}},'No shiurim on file.'):
+            React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'6px 16px'}},
+              weeklyShiurim.map(s=>React.createElement('label',{key:s.id,style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.85rem'}},
+                React.createElement('input',{type:'checkbox',checked:!!weeklyShiurSel[s.id],onChange:e=>setWeeklyShiurSel(p=>({...p,[s.id]:e.target.checked}))}),
+                (DAY_NAMES[s.dayOfWeek]?DAY_NAMES[s.dayOfWeek].slice(0,3)+' ':'')+s.title+(s.time?' ('+s.time+')':''))))),
           React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:'pointer',margin:0}},'Attach PDF',
             React.createElement('input',{type:'file',accept:'application/pdf',style:{display:'none'},onChange:e=>{
               const f=e.target.files[0];if(!f)return;
