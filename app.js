@@ -2671,15 +2671,11 @@ function AdminEmailCenter() {
     try{
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds})});
+      // Send the flyer images so the backend renders the flyer into the preview
+      // exactly as the sent email does (no fragile client-side HTML splicing).
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null})});
       let html=res.html||'';
       if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
-      // Render the flyer pages inline (data URIs) at the bottom for the preview.
-      if(weeklyPdf&&weeklyPdf.images&&weeklyPdf.images.length){
-        const imgs=weeklyPdf.images.map(b=>'<img src="data:image/jpeg;base64,'+b+'" style="max-width:100%;height:auto;display:block;margin:0 auto 12px;border:1px solid #e0dcd4;border-radius:4px;">').join('');
-        const flyerHtml='<h3 style="color:#1a2744;margin:24px 0 8px;border-top:2px solid #c49a3c;padding-top:16px;">This Week\'s Flyer</h3>'+imgs;
-        html=html.replace('<p style="text-align:center;margin-top:20px;color:#888',flyerHtml+'<p style="text-align:center;margin-top:20px;color:#888');
-      }
       setWeeklyPreviewHtml(html);
     }catch(err){setMsg('Error: '+err.message);}
   }
@@ -2788,7 +2784,7 @@ function AdminEmailCenter() {
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
         weeklyTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already got this subject in the most recent batch (per the log) and sends only to the rest. Keep the Subject the same; the weekly content regenerates automatically.'),
         weeklyTargetGroup==='custom'&&MemberPicker(),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule - supports HTML, <img> tags for images)'),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (appears just under the davening schedule, above shiurim/sponsorships - supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
         React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
           React.createElement('div',{style:{flexBasis:'100%'}},
