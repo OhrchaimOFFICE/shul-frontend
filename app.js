@@ -2049,12 +2049,35 @@ function AdminMembers() {
   const [filter,setFilter]=useState('');
   const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',address:'',spouseEmail:'',sendInvite:true});
   const [addBusy,setAddBusy]=useState(false);
+  const [membershipDues,setMembershipDues]=useState(0);
+  const [payModal,setPayModal]=useState(null); // member being marked paid
+  const [payForm,setPayForm]=useState({method:'check',otherMethod:'',amount:''});
+  const [payBusy,setPayBusy]=useState(false);
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
     try{setMembers(await apiFetch('/api/admin/members'));}catch(e){}
     try{setPrefilled(await apiFetch('/api/admin/prefilled-accounts'));}catch(e){}
     try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){}
+    try{const ms=await apiFetch('/api/admin/membership-settings');setMembershipDues(Number(ms&&ms.annualDues)||0);}catch(e){}
     setLoading(false);
+  }
+  function openPayModal(m){
+    const tag=m.tagId?tags.find(t=>t.id===m.tagId):null;
+    const dues=tag?Number(tag.annualDues||0):membershipDues;
+    setPayForm({method:'check',otherMethod:'',amount:dues?String(dues):''});
+    setPayModal(m);
+  }
+  async function confirmPay(){
+    if(!payModal)return;
+    const method=payForm.method==='other'?(payForm.otherMethod.trim()||'other'):payForm.method;
+    setPayBusy(true);setMsg('');
+    try{
+      const r=await apiFetch('/api/admin/members/'+payModal.uid+'/membership-paid',{method:'POST',body:JSON.stringify({method,amount:parseFloat(payForm.amount)||0})});
+      setMsg((payModal.displayName||'Member')+' membership marked paid ('+method+(r.amount?(' · $'+Number(r.amount).toFixed(2)):'')+')'+(r.spouseUpdated?' — spouse resolved too':'')+'.');
+      setPayModal(null);
+      await load();
+    }catch(err){setMsg('Error: '+err.message);}
+    setPayBusy(false);
   }
   function toggleSel(uid){setSelected(p=>{const n={...p};if(n[uid])delete n[uid];else n[uid]=true;return n;});}
   function selectAll(rows){setSelected(p=>{const n={...p};rows.forEach(r=>{if(r.uid)n[r.uid]=true;});return n;});}
@@ -2160,6 +2183,23 @@ function AdminMembers() {
     }catch(err){setMsg('Error: '+err.message);}setUploading(false);e.target.value='';}
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    payModal&&React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000},onClick:()=>{if(!payBusy)setPayModal(null);}},
+      React.createElement('div',{style:{background:'#fff',borderRadius:10,padding:20,width:'90%',maxWidth:420,boxShadow:'0 10px 40px rgba(0,0,0,0.2)'},onClick:e=>e.stopPropagation()},
+        React.createElement('h3',{style:{margin:'0 0 4px',color:'#1a2744'}},'Mark Membership Paid'),
+        React.createElement('p',{style:{margin:'0 0 14px',color:'#555',fontSize:'0.9rem'}},payModal.displayName||payModal.email||'Member'),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),
+          React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:payForm.amount,onChange:e=>setPayForm(p=>({...p,amount:e.target.value}))})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment method'),
+          React.createElement('select',{className:'form-input',value:payForm.method,onChange:e=>setPayForm(p=>({...p,method:e.target.value}))},
+            React.createElement('option',{value:'check'},'Check'),
+            React.createElement('option',{value:'cash'},'Cash'),
+            React.createElement('option',{value:'other'},'Other...'))),
+        payForm.method==='other'&&React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Specify method'),
+          React.createElement('input',{className:'form-input',placeholder:'e.g. Zelle, credit card, wire',value:payForm.otherMethod,onChange:e=>setPayForm(p=>({...p,otherMethod:e.target.value}))})),
+        React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'4px 0 12px'}},'Resolves this member'+(payModal.spouseUid?' and their spouse':'')+'. The amount is logged as a Membership Dues payment.'),
+        React.createElement('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+          React.createElement('button',{className:'btn btn-outline',onClick:()=>setPayModal(null),disabled:payBusy},'Cancel'),
+          React.createElement('button',{className:'btn btn-primary',onClick:confirmPay,disabled:payBusy},payBusy?'Saving...':'Confirm Paid'))) ),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Upload Member Roster (Excel)'),
       React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Upload Excel with: First Name, Last Name, Email, Phone, Address, Spouse Email. Creates pre-filled signup links.'),
@@ -2259,7 +2299,7 @@ function AdminMembers() {
               React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
               React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')),
               React.createElement('td',{style:{whiteSpace:'nowrap'}},
-                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>editMember(m),title:'Change email — sends password-set link to new address'},'Edit Email'),
+                !m.exemptFromDues&&!m.membershipPaid&&React.createElement('button',{className:'btn btn-sm btn-primary',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>openPayModal(m),title:'Record a manual dues payment (cash/check/other) and resolve membership'},'Mark Paid'),
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>resetPassword(m),title:'Email a password-reset link to this member'},'Reset PW'),
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt'),
                 React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>deleteOne(m),title:'Permanently delete this member'},'🗑')));
