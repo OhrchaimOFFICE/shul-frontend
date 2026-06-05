@@ -2409,13 +2409,24 @@ function AdminPledges() {
   useEffect(()=>{load();loadSponsorships();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
   async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
   async function loadSponsorships(){try{setSponsorships(await apiFetch('/api/admin/sponsorships'));}catch(e){}}
-  function startEditSp(s){setEditSp({id:s.id,firstName:s.firstName||'',lastName:s.lastName||'',email:s.email||'',phone:s.phone||'',dedication:s.dedication||'',amount:s.amount!=null?String(s.amount):''});}
+  function startEditSp(s){setEditSp({id:s.id,source:s.source,firstName:s.firstName||'',lastName:s.lastName||'',email:s.email||'',phone:s.phone||'',dedication:s.dedication||'',amount:s.amount!=null?String(s.amount):''});}
   async function saveEditSp(){setMsg('');try{
-    const body={firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount:editSp.amount===''?undefined:parseFloat(editSp.amount)};
-    await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify(body)});
+    const amount=editSp.amount===''?undefined:parseFloat(editSp.amount);
+    if(editSp.source==='pledge'){
+      // Backed by a bill (no sponsorship doc) — edit the pledge fields directly.
+      const body={memberName:((editSp.firstName||'')+' '+(editSp.lastName||'')).trim(),memberEmail:editSp.email,memberPhone:editSp.phone,notes:editSp.dedication?('Dedication: '+editSp.dedication):''};
+      if(amount!==undefined)body.amount=amount;
+      await apiFetch('/api/admin/pledges/'+editSp.id,{method:'PUT',body:JSON.stringify(body)});
+    } else {
+      await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify({firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount})});
+    }
     setMsg('Sponsorship updated.');setEditSp(null);loadSponsorships();load();
   }catch(err){setMsg('Error: '+err.message);}}
-  async function delSp(id){if(!confirm('Delete this sponsorship? Its unpaid bill (if any) will be removed too.'))return;try{const r=await apiFetch('/api/admin/sponsorships/'+id,{method:'DELETE'});setMsg('Sponsorship deleted.'+(r.billRemoved?' Linked bill removed.':''));loadSponsorships();load();}catch(e){setMsg('Error: '+e.message);}}
+  async function delSp(s){if(!confirm('Delete this sponsorship? Its unpaid bill (if any) will be removed too.'))return;try{
+    if(s.source==='pledge'){await apiFetch('/api/admin/pledges/'+s.id,{method:'DELETE'});setMsg('Sponsorship bill deleted.');}
+    else{const r=await apiFetch('/api/admin/sponsorships/'+s.id,{method:'DELETE'});setMsg('Sponsorship deleted.'+(r.billRemoved?' Linked bill removed.':''));}
+    loadSponsorships();load();
+  }catch(e){setMsg('Error: '+e.message);}}
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
   async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
   async function addSponsorship(e){e.preventDefault();setMsg('');
@@ -2482,7 +2493,7 @@ function AdminPledges() {
           React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:s.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:s.status==='paid'?'#27ae60':'#c0392b'}},s.status==='paid'?'Paid':'Unpaid')),
           React.createElement('td',null,
             React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditSp(s)},'Edit'),
-            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delSp(s.id)},'Delete')))))))),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delSp(s)},'Delete')))))))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Pledge / Billing Item'),
       React.createElement('form',{onSubmit:add},
