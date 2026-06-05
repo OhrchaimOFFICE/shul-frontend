@@ -3342,7 +3342,8 @@ function WelcomePage() {
     ['Tzeis',fmtZ(z.tzeit||z.tzeis)]
   ].filter(([_,v])=>v&&v!=='--');
 
-  const current=sponsorships[sponsorIdx];
+  // Clamp the index in case the list shrank after a refetch (avoids a blank card).
+  const current=sponsorships.length?sponsorships[sponsorIdx%sponsorships.length]:null;
 
   return React.createElement('div',{style:{
     position:'fixed',inset:0,zIndex:9999,
