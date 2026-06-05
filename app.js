@@ -2559,7 +2559,7 @@ function AdminEmailCenter() {
     apiFetch('/api/admin/email/recipients').then(setRecipients).catch(()=>{});
     apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});
     apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
-    apiFetch('/api/shiurim').then(list=>{setWeeklyShiurim(list||[]);const sel={};(list||[]).forEach(s=>{sel[s.id]=true;});setWeeklyShiurSel(sel);}).catch(()=>{});
+    apiFetch('/api/shiurim',{cache:'no-store'}).then(list=>{setWeeklyShiurim(list||[]);const sel={};(list||[]).forEach(s=>{sel[s.id]=true;});setWeeklyShiurSel(sel);}).catch(()=>{});
   },[]);
 
   function getTargetEmails(group){
