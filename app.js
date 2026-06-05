@@ -2404,8 +2404,18 @@ function AdminPledges() {
   const [form,setForm]=useState({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});
   const [pledgeReasons,setPledgeReasons]=useState([]);
   const [sf,setSf]=useState({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
-  useEffect(()=>{load();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
+  const [sponsorships,setSponsorships]=useState([]);
+  const [editSp,setEditSp]=useState(null); // {id, firstName, lastName, email, phone, dedication, amount}
+  useEffect(()=>{load();loadSponsorships();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
   async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
+  async function loadSponsorships(){try{setSponsorships(await apiFetch('/api/admin/sponsorships'));}catch(e){}}
+  function startEditSp(s){setEditSp({id:s.id,firstName:s.firstName||'',lastName:s.lastName||'',email:s.email||'',phone:s.phone||'',dedication:s.dedication||'',amount:s.amount!=null?String(s.amount):''});}
+  async function saveEditSp(){setMsg('');try{
+    const body={firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount:editSp.amount===''?undefined:parseFloat(editSp.amount)};
+    await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify(body)});
+    setMsg('Sponsorship updated.');setEditSp(null);loadSponsorships();load();
+  }catch(err){setMsg('Error: '+err.message);}}
+  async function delSp(id){if(!confirm('Delete this sponsorship? Its unpaid bill (if any) will be removed too.'))return;try{const r=await apiFetch('/api/admin/sponsorships/'+id,{method:'DELETE'});setMsg('Sponsorship deleted.'+(r.billRemoved?' Linked bill removed.':''));loadSponsorships();load();}catch(e){setMsg('Error: '+e.message);}}
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
   async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
   async function addSponsorship(e){e.preventDefault();setMsg('');
@@ -2414,7 +2424,7 @@ function AdminPledges() {
       const r=await apiFetch('/api/admin/sponsorships',{method:'POST',body:JSON.stringify({...sf,siteUrl:window.location.origin+window.location.pathname})});
       setMsg('Sponsorship added ($'+(r.amount!=null?Number(r.amount).toFixed(2):'?')+'). A bill was created'+(r.invoiceSent?' and emailed':'')+' — record payment in the Donations tab and apply it to this invoice.');
       setSf({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
-      load();
+      load();loadSponsorships();
     }catch(err){setMsg('Error: '+err.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
   function payLink(p){return window.location.origin+window.location.pathname+'#pay?token='+(p.payToken||'');}
@@ -2445,6 +2455,34 @@ function AdminPledges() {
           React.createElement('div',{className:'form-group',style:{gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Dedication'),React.createElement('input',{className:'form-input',value:sf.dedication,onChange:e=>setSf(p=>({...p,dedication:e.target.value})),placeholder:'e.g. In honor of...'}))),
         React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,marginTop:10,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:sf.sendInvoice,onChange:e=>setSf(p=>({...p,sendInvoice:e.target.checked}))}),'Email the sponsor an invoice with a Pay-Now link'),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add Sponsorship'))),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{className:'card-header'},'Sponsorships ('+sponsorships.length+')'),
+      editSp&&React.createElement('div',{style:{background:'#faf8f3',border:'1px solid #e0dcd4',borderRadius:8,padding:14,marginBottom:14}},
+        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',marginBottom:8}},'Edit sponsorship details'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:10}},
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'First Name'),React.createElement('input',{className:'form-input',value:editSp.firstName,onChange:e=>setEditSp(p=>({...p,firstName:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Last Name'),React.createElement('input',{className:'form-input',value:editSp.lastName,onChange:e=>setEditSp(p=>({...p,lastName:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:editSp.email,onChange:e=>setEditSp(p=>({...p,email:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:editSp.phone,onChange:e=>setEditSp(p=>({...p,phone:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:editSp.amount,onChange:e=>setEditSp(p=>({...p,amount:e.target.value}))})),
+          React.createElement('div',{className:'form-group',style:{marginBottom:0,gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Dedication'),React.createElement('input',{className:'form-input',value:editSp.dedication,onChange:e=>setEditSp(p=>({...p,dedication:e.target.value}))}))),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:10}},
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:saveEditSp},'Save Changes'),
+          React.createElement('button',{className:'btn btn-outline btn-sm',onClick:()=>setEditSp(null)},'Cancel')),
+        React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.8rem',color:'#888'}},'Changes also update the linked unpaid bill. Date and type are fixed — to change those, delete and re-add.')),
+      sponsorships.length===0?React.createElement('p',{style:{color:'#888'}},'No sponsorships yet.'):
+      React.createElement('div',{className:'table-container'},React.createElement('table',null,
+        React.createElement('thead',null,React.createElement('tr',null,['Date','Type','Sponsor','Dedication','Amount','Status','Actions'].map(h=>React.createElement('th',{key:h},h)))),
+        React.createElement('tbody',null,sponsorships.map(s=>React.createElement('tr',{key:s.id},
+          React.createElement('td',null,s.date||'-'),
+          React.createElement('td',null,s.type==='kiddush'?'Kiddush':'Seudas Shlishis'),
+          React.createElement('td',null,s.displayName||((s.firstName||'')+' '+(s.lastName||'')).trim()||'-'),
+          React.createElement('td',{style:{fontSize:'0.85rem',color:'#555',maxWidth:220}},s.dedication||'-'),
+          React.createElement('td',{style:{fontWeight:700}},'$'+(s.amount||0).toFixed(2)),
+          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:s.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:s.status==='paid'?'#27ae60':'#c0392b'}},s.status==='paid'?'Paid':'Unpaid')),
+          React.createElement('td',null,
+            React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditSp(s)},'Edit'),
+            React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delSp(s.id)},'Delete')))))))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Pledge / Billing Item'),
       React.createElement('form',{onSubmit:add},
