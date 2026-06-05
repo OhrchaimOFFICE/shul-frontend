@@ -1,4 +1,7 @@
-const BACKEND_URL = "https://shul-backend.onrender.com";
+// Same-origin: Firebase Hosting rewrites /api/** to the Cloud Function, so the
+// API is served from this site's own domain (no CORS). For local dev against a
+// remote backend, set window.__BACKEND_URL__ before app.js loads.
+const BACKEND_URL = (typeof window !== 'undefined' && window.__BACKEND_URL__) || "";
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51TNzTG0rialmjNgrf4IGmygXrLa91bSAJ0kPe616KM9UOwkfVd5Fez0Vsyf5BFDstKaoLCbv4prVqNE7FmwPRSvP00S6BSyVs3";
 if (window.__firebaseConfig__ && !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig__);
 const { useState, useEffect, useCallback, useRef } = React;
