@@ -1469,16 +1469,23 @@ function AdminOverrides() {
 function AdminShiurim() {
   const [shiurim,setShiurim]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [form,setForm]=useState({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});
+  const [editingId,setEditingId]=useState(null);
   useEffect(()=>{load();},[]);
   // cache:no-store so the admin always sees the just-added shiur instead of
   // the 5-minute Cache-Control: public response served to the homepage.
   async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));}catch(e){}setLoading(false);}
-  async function add(){if(!form.title)return;try{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setMsg('Shiur added!');load();}catch(e){setMsg('Error: '+e.message);}}
-  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
+  function resetForm(){setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setEditingId(null);}
+  async function save(){if(!form.title)return;try{
+    if(editingId){await apiFetch('/api/admin/shiurim/'+editingId,{method:'PUT',body:JSON.stringify(form)});setMsg('Shiur updated!');}
+    else{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setMsg('Shiur added!');}
+    resetForm();load();
+  }catch(e){setMsg('Error: '+e.message);}}
+  function startEdit(s){setEditingId(s.id);setForm({title:s.title||'',rabbi:s.rabbi||'',time:s.time||'',dayOfWeek:Number(s.dayOfWeek)||0,topic:s.topic||'',recurring:s.recurring!==false,location:s.location||''});window.scrollTo({top:0,behavior:'smooth'});}
+  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});if(editingId===id)resetForm();load();}catch(e){setMsg('Error: '+e.message);}}
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Add Shiur'),
+      React.createElement('div',{className:'card-header'},editingId?'Edit Shiur':'Add Shiur'),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Title *'),React.createElement('input',{className:'form-input',value:form.title,onChange:e=>setForm(p=>({...p,title:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Rabbi / Speaker'),React.createElement('input',{className:'form-input',value:form.rabbi,onChange:e=>setForm(p=>({...p,rabbi:e.target.value}))})),
@@ -1491,7 +1498,9 @@ function AdminShiurim() {
           React.createElement('select',{className:'form-input',value:form.recurring?'recurring':'oneTime',onChange:e=>setForm(p=>({...p,recurring:e.target.value==='recurring'}))},
             React.createElement('option',{value:'recurring'},'Weekly Recurring'),
             React.createElement('option',{value:'oneTime'},'One-Time Event')))),
-      React.createElement('button',{className:'btn btn-primary',onClick:add,style:{marginTop:12}},'Add Shiur')),
+      React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+        React.createElement('button',{className:'btn btn-primary',onClick:save},editingId?'Save Changes':'Add Shiur'),
+        editingId&&React.createElement('button',{className:'btn btn-outline',onClick:resetForm},'Cancel'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Current Shiurim ('+shiurim.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
@@ -1501,6 +1510,7 @@ function AdminShiurim() {
         React.createElement('div',{className:'shiur-info'},
           React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:6,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:8}},'One-time')),
           React.createElement('div',{className:'shiur-details'},[s.time,s.rabbi,s.topic,s.location].filter(Boolean).join(' • '))),
+        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEdit(s)},'Edit'),
         React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))));
 }
 
@@ -2606,8 +2616,8 @@ function AdminEmailCenter() {
     e.preventDefault();setSending(true);setMsg('');
     try{
       const targetEmails=getTargetEmails(composeForm.targetGroup);
-      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background. Check the log in a minute for delivery results.');
+      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html,resumeFromLog:composeForm.targetGroup==='resume'})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'. Check the log in a minute for delivery results.');
       setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
@@ -2637,8 +2647,8 @@ function AdminEmailCenter() {
       const targetEmails=getTargetEmails(weeklyTargetGroup);
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null,pdfName:weeklyPdf?weeklyPdf.name:null})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(weeklyPdf?' (flyer shown at bottom)':'')+'. Check the log in a minute for results.');
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null,pdfName:weeklyPdf?weeklyPdf.name:null,resumeFromLog:weeklyTargetGroup==='resume'})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdf?' (flyer shown at bottom)':'')+'. Check the log in a minute for results.');
       setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
@@ -2699,7 +2709,9 @@ function AdminEmailCenter() {
             React.createElement('option',{value:'members'},'Members Only'),
             React.createElement('option',{value:'unpaid'},'Unpaid Members'),
             React.createElement('option',{value:'admins'},'Admins Only'),
-            React.createElement('option',{value:'custom'},'Pick specific members...')),
+            React.createElement('option',{value:'custom'},'Pick specific members...'),
+            React.createElement('option',{value:'resume'},'Resume — only those not yet sent (from log)')),
+          composeForm.targetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c',marginTop:6}},'Will skip anyone who already received this exact subject in the last 3 days and send to the rest. Use the same subject as the interrupted send.'),
           composeForm.targetGroup==='custom'&&MemberPicker()),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
@@ -2727,9 +2739,11 @@ function AdminEmailCenter() {
               React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
               React.createElement('option',{value:'admins'},'Admins'),
-              React.createElement('option',{value:'custom'},'Pick specific members...'))),
+              React.createElement('option',{value:'custom'},'Pick specific members...'),
+              React.createElement('option',{value:'resume'},'Resume — only those not yet sent'))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
+        weeklyTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already received this subject in the last 3 days (per the log) and sends only to the rest. Keep the Subject the same as the interrupted send.'),
         weeklyTargetGroup==='custom'&&MemberPicker(),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (will appear below the schedule - supports HTML, <img> tags for images)'),
           React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
