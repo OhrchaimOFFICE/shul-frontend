@@ -2602,6 +2602,16 @@ function AdminEmailCenter() {
   const [weeklyShiurSel,setWeeklyShiurSel]=useState({}); // {shiurId: bool}
   const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, images:[base64]}
   const [weeklyPdfBusy,setWeeklyPdfBusy]=useState(false);
+  // Sponsorship email
+  const nextShabbos=(()=>{const d=new Date(getTodayStr()+'T12:00:00');d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));return d.toISOString().split('T')[0];})();
+  const [spDate,setSpDate]=useState(nextShabbos);
+  const [spKiddush,setSpKiddush]=useState(true);
+  const [spSeudas,setSpSeudas]=useState(true);
+  const [spOtherOn,setSpOtherOn]=useState(false);
+  const [spOtherText,setSpOtherText]=useState('');
+  const [spSubject,setSpSubject]=useState('Sponsorship Opportunities - Congregation Ohr Chaim');
+  const [spTargetGroup,setSpTargetGroup]=useState('all');
+  const [spPreviewHtml,setSpPreviewHtml]=useState('');
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
   // Custom per-member selection (shared between Compose and Weekly)
@@ -2693,6 +2703,22 @@ function AdminEmailCenter() {
     setSending(false);
   }
 
+  function spBody(extra){return JSON.stringify({date:spDate,includeKiddush:spKiddush,includeSeudas:spSeudas,otherText:spOtherOn?spOtherText:null,subject:spSubject,siteUrl:window.location.origin+window.location.pathname,...extra});}
+  async function previewSponsorship(){setMsg('');
+    if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');return;}
+    try{const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({preview:true})});setSpPreviewHtml(res.html||'');}catch(err){setMsg('Error: '+err.message);}
+  }
+  async function sendSponsorship(){setSending(true);setMsg('');
+    try{
+      if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');setSending(false);return;}
+      const targetEmails=getTargetEmails(spTargetGroup);
+      const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({recipients:targetEmails,resumeFromLog:spTargetGroup==='resume'})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'. Check the log in a minute.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
+    }catch(err){setMsg('Error: '+err.message);}
+    setSending(false);
+  }
+
   async function saveTemplate(e){
     e.preventDefault();setMsg('');
     try{await apiFetch('/api/admin/email/templates',{method:'POST',body:JSON.stringify(tplForm)});setMsg('Template saved!');setTplForm({name:'',subject:'',html:''});
@@ -2735,8 +2761,8 @@ function AdminEmailCenter() {
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      ['compose','weekly','templates','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
-        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='templates'?'Templates':'Email Log'))),
+      ['compose','weekly','sponsorship','templates','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
+        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='templates'?'Templates':'Email Log'))),
 
     // ── Compose with live preview ──
     subTab==='compose'&&React.createElement('div',null,
@@ -2821,6 +2847,41 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setWeeklyPreviewHtml('')},'Close')),
         React.createElement('iframe',{title:'Weekly email preview',sandbox:'',srcDoc:weeklyPreviewHtml||'',style:{width:'100%',height:600,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
+
+    // ── Sponsorship email ──
+    subTab==='sponsorship'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Sponsorship Email'),
+        React.createElement('p',{style:{marginTop:0,color:'#555',fontSize:'0.9rem'}},'Choose what to include. Kiddush / Seudas Shlishis pull that Shabbos’s status — the sponsor if booked, or an "available, sponsor it" appeal with price + link if open.'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Shabbos / Date'),
+            React.createElement('input',{className:'form-input',type:'date',value:spDate,onChange:e=>setSpDate(e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
+            React.createElement('select',{className:'form-input',value:spTargetGroup,onChange:e=>setSpTargetGroup(e.target.value)},
+              React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
+              React.createElement('option',{value:'members'},'Members'),
+              React.createElement('option',{value:'admins'},'Admins'),
+              React.createElement('option',{value:'custom'},'Pick specific members...'),
+              React.createElement('option',{value:'resume'},'Resume — only those not yet sent'))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
+            React.createElement('input',{className:'form-input',value:spSubject,onChange:e=>setSpSubject(e.target.value)}))),
+        spTargetGroup==='custom'&&MemberPicker(),
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:6,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+          React.createElement('span',{style:{fontWeight:600,fontSize:'0.9rem'}},'Include:'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spKiddush,onChange:e=>setSpKiddush(e.target.checked)}),'Kiddush'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spSeudas,onChange:e=>setSpSeudas(e.target.checked)}),'Seudas Shlishis'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spOtherOn,onChange:e=>setSpOtherOn(e.target.checked)}),'Other')),
+        spOtherOn&&React.createElement('div',{className:'form-group',style:{marginTop:12}},React.createElement('label',{className:'form-label'},'Other — custom content (supports HTML, <img> tags)'),
+          React.createElement('textarea',{className:'form-input',rows:5,value:spOtherText,onChange:e=>setSpOtherText(e.target.value),placeholder:'Add any other sponsorship (e.g. Shalosh Seudos, flowers, a yahrzeit, an appeal...).'})),
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
+          React.createElement('button',{className:'btn btn-outline',onClick:previewSponsorship},'Generate Preview'),
+          React.createElement('button',{className:'btn btn-primary',onClick:sendSponsorship,disabled:sending},sending?'Sending...':'Send Sponsorship Email'))),
+      spTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already got this exact subject in the most recent batch. Keep the Subject the same as the interrupted send.'),
+      spPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSpPreviewHtml('')},'Close')),
+        React.createElement('iframe',{title:'Sponsorship email preview',sandbox:'',srcDoc:spPreviewHtml||'',style:{width:'100%',height:500,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
 
     // ── Templates ──
     subTab==='templates'&&React.createElement('div',null,
