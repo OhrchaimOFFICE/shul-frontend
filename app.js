@@ -2626,12 +2626,18 @@ function AdminEmailCenter() {
   },[]);
 
   function getTargetEmails(group){
-    if(group==='custom') return Object.keys(selectedEmails).filter(e=>selectedEmails[e]);
-    if(group==='members') return recipients.filter(r=>r.role==='member').map(r=>r.email);
-    if(group==='unpaid') return recipients.filter(r=>!r.membershipPaid&&!r.autoPayment).map(r=>r.email);
-    if(group==='admins') return recipients.filter(r=>r.role==='admin').map(r=>r.email);
-    return recipients.map(r=>r.email);
+    const dedupe=list=>[...new Set(list.filter(Boolean))];
+    if(group==='custom') return dedupe(Object.keys(selectedEmails).filter(e=>selectedEmails[e]));
+    if(group==='members') return dedupe(recipients.filter(r=>r.role==='member').map(r=>r.email));
+    if(group==='unpaid') return dedupe(recipients.filter(r=>!r.membershipPaid&&!r.autoPayment&&!r.pending).map(r=>r.email));
+    if(group==='admins') return dedupe(recipients.filter(r=>r.role==='admin').map(r=>r.email));
+    // 'allPlusPending' and 'resume' target everyone incl. unclaimed invitees.
+    if(group==='allPlusPending'||group==='resume') return dedupe(recipients.map(r=>r.email));
+    // default 'all' = registered accounts only (excludes pending invitees).
+    return dedupe(recipients.filter(r=>!r.pending).map(r=>r.email));
   }
+  const pendingCount=recipients.filter(r=>r.pending).length;
+  const registeredCount=recipients.length-pendingCount;
 
   function toggleEmail(email){
     setSelectedEmails(p=>{const n={...p};if(n[email])delete n[email];else n[email]=true;return n;});
@@ -2770,7 +2776,8 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'card-header'},'Compose Email'),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
           React.createElement('select',{className:'form-input',value:composeForm.targetGroup,onChange:e=>setComposeForm(p=>({...p,targetGroup:e.target.value}))},
-            React.createElement('option',{value:'all'},'All Members ('+recipients.length+')'),
+            React.createElement('option',{value:'all'},'All Members ('+registeredCount+')'),
+            React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
             React.createElement('option',{value:'members'},'Members Only'),
             React.createElement('option',{value:'unpaid'},'Unpaid Members'),
             React.createElement('option',{value:'admins'},'Admins Only'),
@@ -2801,7 +2808,8 @@ function AdminEmailCenter() {
             React.createElement('input',{className:'form-input',type:'date',value:weeklyEndDate,min:weeklyStartDate,onChange:e=>setWeeklyEndDate(e.target.value)})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
             React.createElement('select',{className:'form-input',value:weeklyTargetGroup,onChange:e=>setWeeklyTargetGroup(e.target.value)},
-              React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
+              React.createElement('option',{value:'all'},'All ('+registeredCount+')'),
+              React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
               React.createElement('option',{value:'admins'},'Admins'),
               React.createElement('option',{value:'custom'},'Pick specific members...'),
@@ -2858,7 +2866,8 @@ function AdminEmailCenter() {
             React.createElement('input',{className:'form-input',type:'date',value:spDate,onChange:e=>setSpDate(e.target.value)})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
             React.createElement('select',{className:'form-input',value:spTargetGroup,onChange:e=>setSpTargetGroup(e.target.value)},
-              React.createElement('option',{value:'all'},'All ('+recipients.length+')'),
+              React.createElement('option',{value:'all'},'All ('+registeredCount+')'),
+              React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
               React.createElement('option',{value:'admins'},'Admins'),
               React.createElement('option',{value:'custom'},'Pick specific members...'),
