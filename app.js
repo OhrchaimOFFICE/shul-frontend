@@ -11,6 +11,47 @@ function getTodayStr() { return new Date().toLocaleDateString('en-CA'); }
 function formatDisplayDate(ds) { return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function getSundayOfWeek(ds) { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-d.getDay()); return d.toISOString().split('T')[0]; }
 
+// Client copy of the backend's emailTextToHtml (server.js) — used only so the
+// Compose live preview matches what the server will send. KEEP IN SYNC.
+function emailTextToHtml(text){
+  if(!text)return '';
+  let html=String(text).replace(/\r\n/g,'\n');
+  html=html.replace(/(^|[\s(])(https?:\/\/[^\s<>"')]+)/g,(m,pre,url)=>pre+'<a href="'+url+'" style="color:#c49a3c;font-weight:600;">'+url+'</a>');
+  html=html.replace(/\n/g,'<br>');
+  html=html.replace(/(<\/(?:p|div|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th|blockquote)>)(\s*<br>)+/gi,'$1');
+  html=html.replace(/(<br>\s*)+(<(?:p|div|h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th|blockquote|hr)\b)/gi,'$2');
+  return html;
+}
+
+// Insert-at-cursor helpers for the email editors ("Insert Link" / "Donate
+// button" toolbar). Works on the textarea's current selection.
+function insertIntoTextarea(textareaId,currentValue,setValue,buildSnippet){
+  const el=document.getElementById(textareaId);
+  const start=el?el.selectionStart:currentValue.length;
+  const end=el?el.selectionEnd:currentValue.length;
+  const snippet=buildSnippet(currentValue.slice(start,end));
+  if(snippet==null)return;
+  setValue(currentValue.slice(0,start)+snippet+currentValue.slice(end));
+}
+function makeLinkSnippet(selectedText){
+  const url=prompt('Link URL:','https://');
+  if(!url||url==='https://')return null;
+  return '<a href="'+url+'" style="color:#c49a3c;font-weight:600;">'+(selectedText||url)+'</a>';
+}
+function makeDonateButtonSnippet(){
+  const label=prompt('Button text:','Donate Now');
+  if(label===null)return null;
+  const link=window.location.origin+window.location.pathname+'#donate';
+  return '\n<p style="text-align:center;margin:18px 0;"><a href="'+link+'" style="background:#c49a3c;color:#1a2744;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:700;display:inline-block;">'+(label.trim()||'Donate Now')+'</a></p>\n';
+}
+// Toolbar row rendered above each email editor.
+function EditorToolbar(textareaId,currentValue,setValue){
+  return React.createElement('div',{style:{display:'flex',gap:6,marginBottom:6,alignItems:'center'}},
+    React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',style:{padding:'3px 10px',fontSize:'0.78rem'},onClick:()=>insertIntoTextarea(textareaId,currentValue,setValue,makeLinkSnippet),title:'Select text first to turn it into a link, or insert a bare link'},'🔗 Insert Link'),
+    React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',style:{padding:'3px 10px',fontSize:'0.78rem'},onClick:()=>insertIntoTextarea(textareaId,currentValue,setValue,makeDonateButtonSnippet),title:'Insert a gold Donate button at the cursor'},'💛 Donate Button'),
+    React.createElement('span',{style:{fontSize:'0.75rem',color:'#888'}},'Line breaks and pasted URLs are formatted automatically.'));
+}
+
 // pdf.js (vendored, same-origin) — loaded on demand the first time an admin
 // attaches a PDF flyer, then used to rasterize each page to a JPEG so the
 // flyer can be DISPLAYED inline in the weekly email.
@@ -2687,12 +2728,10 @@ function AdminEmailCenter() {
     try{
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      // Send the flyer images so the backend renders the flyer into the preview
-      // exactly as the sent email does (no fragile client-side HTML splicing).
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null})});
-      let html=res.html||'';
-      if(weeklyCustomText) html=html.replace('</table>','</table><div style="padding:16px 0;border-top:2px solid #c49a3c;margin-top:16px;">'+weeklyCustomText+'</div>');
-      setWeeklyPreviewHtml(html);
+      // The backend composes the whole preview (flyer + custom text with link/
+      // line-break formatting) exactly as the sent email — no client splicing.
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,customText:weeklyCustomText,pdfImages:weeklyPdf?weeklyPdf.images:null})});
+      setWeeklyPreviewHtml(res.html||'');
     }catch(err){setMsg('Error: '+err.message);}
   }
 
@@ -2788,14 +2827,15 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
-          React.createElement('textarea',{className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
+          EditorToolbar('composeHtmlTA',composeForm.html,v=>setComposeForm(p=>({...p,html:v}))),
+          React.createElement('textarea',{id:'composeHtmlTA',className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('compose')},'Upload Image'),
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{className:'card-header'},'Email Preview'),
-        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:composeForm.html||'',style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
+        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:emailTextToHtml(composeForm.html)||'',style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
 
     // ── Weekly schedule with date range + custom text + preview ──
     subTab==='weekly'&&React.createElement('div',null,
@@ -2818,8 +2858,9 @@ function AdminEmailCenter() {
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
         weeklyTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already got this subject in the most recent batch (per the log) and sends only to the rest. Keep the Subject the same; the weekly content regenerates automatically.'),
         weeklyTargetGroup==='custom'&&MemberPicker(),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (appears just under the davening schedule, above shiurim/sponsorships - supports HTML, <img> tags for images)'),
-          React.createElement('textarea',{className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here...'})),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (appears just under the davening schedule, above shiurim/sponsorships)'),
+          EditorToolbar('weeklyCustomTA',weeklyCustomText,setWeeklyCustomText),
+          React.createElement('textarea',{id:'weeklyCustomTA',className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here... Paragraphs, links, and HTML all work.'})),
         React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
           React.createElement('div',{style:{flexBasis:'100%'}},
             React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6}},
@@ -2880,8 +2921,9 @@ function AdminEmailCenter() {
           React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spKiddush,onChange:e=>setSpKiddush(e.target.checked)}),'Kiddush'),
           React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spSeudas,onChange:e=>setSpSeudas(e.target.checked)}),'Seudas Shlishis'),
           React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spOtherOn,onChange:e=>setSpOtherOn(e.target.checked)}),'Other')),
-        spOtherOn&&React.createElement('div',{className:'form-group',style:{marginTop:12}},React.createElement('label',{className:'form-label'},'Other — custom content (supports HTML, <img> tags)'),
-          React.createElement('textarea',{className:'form-input',rows:5,value:spOtherText,onChange:e=>setSpOtherText(e.target.value),placeholder:'Add any other sponsorship (e.g. Shalosh Seudos, flowers, a yahrzeit, an appeal...).'})),
+        spOtherOn&&React.createElement('div',{className:'form-group',style:{marginTop:12}},React.createElement('label',{className:'form-label'},'Other — custom content'),
+          EditorToolbar('spOtherTA',spOtherText,setSpOtherText),
+          React.createElement('textarea',{id:'spOtherTA',className:'form-input',rows:5,value:spOtherText,onChange:e=>setSpOtherText(e.target.value),placeholder:'Add any other sponsorship (e.g. Shalosh Seudos, flowers, a yahrzeit, an appeal...). Paragraphs, links, and HTML all work.'})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{className:'btn btn-outline',onClick:previewSponsorship},'Generate Preview'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendSponsorship,disabled:sending},sending?'Sending...':'Send Sponsorship Email'))),
