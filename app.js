@@ -2,6 +2,20 @@
 // API is served from this site's own domain (no CORS). For local dev against a
 // remote backend, set window.__BACKEND_URL__ before app.js loads.
 const BACKEND_URL = (typeof window !== 'undefined' && window.__BACKEND_URL__) || "";
+// --- Native (Capacitor) helpers. On the web these fall back to browser behavior. ---
+// In the iOS/Android app the page origin is capacitor://localhost, so shareable
+// links and external navigation must be handled explicitly.
+const IS_NATIVE = !!(typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const SITE_URL = IS_NATIVE ? 'https://ohrchaim.org' : (typeof window !== 'undefined' ? window.location.origin : '');
+// Open an external URL (e.g. Stripe Checkout). In the native app this routes
+// through the in-app browser plugin; in a normal browser it opens a new tab.
+function openExternal(url){
+  if(IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
+    window.Capacitor.Plugins.Browser.open({url:url});
+  } else {
+    window.open(url,'_blank');
+  }
+}
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51TNzTG0rialmjNgrf4IGmygXrLa91bSAJ0kPe616KM9UOwkfVd5Fez0Vsyf5BFDstKaoLCbv4prVqNE7FmwPRSvP00S6BSyVs3";
 if (window.__firebaseConfig__ && !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig__);
 const { useState, useEffect, useCallback, useRef } = React;
@@ -41,7 +55,7 @@ function makeLinkSnippet(selectedText){
 function makeDonateButtonSnippet(){
   const label=prompt('Button text:','Donate Now');
   if(label===null)return null;
-  const link=window.location.origin+window.location.pathname+'#donate';
+  const link=SITE_URL+'/#donate';
   return '\n<p style="text-align:center;margin:18px 0;"><a href="'+link+'" style="background:#c49a3c;color:#1a2744;padding:12px 28px;text-decoration:none;border-radius:6px;font-weight:700;display:inline-block;">'+(label.trim()||'Donate Now')+'</a></p>\n';
 }
 // Toolbar row rendered above each email editor.
@@ -1148,6 +1162,8 @@ function AdminPanel() {
   if(!user||!isAdmin) return React.createElement(AdminLogin,{onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
   function openWelcomeDisplay(){
     // Open in a new tab so the admin can keep working while the kiosk runs.
+    // In the native app there are no tabs, so navigate in place instead.
+    if(IS_NATIVE){ window.location.hash = '#welcome'; return; }
     const url = window.location.pathname + '#welcome';
     window.open(url, '_blank');
   }
@@ -1771,7 +1787,7 @@ function AccountPage() {
     setSubBusy(true);setMsg('');
     try{
       const res=await apiFetch('/api/membership/create-subscription-checkout',{method:'POST',body:JSON.stringify({interval})});
-      if(res.url) window.location.href=res.url;
+      if(res.url) openExternal(res.url);
     }catch(e){setMsg('Error: '+e.message);setSubBusy(false);}
   }
 

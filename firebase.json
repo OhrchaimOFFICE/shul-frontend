@@ -12,7 +12,14 @@
       "README.md",
       "MIGRATION.md",
       "_headers",
-      "*.xlsx"
+      "*.xlsx",
+      "package.json",
+      "package-lock.json",
+      "capacitor.config.json",
+      "build.mjs",
+      "native.js",
+      "www/**",
+      "ios/**"
     ],
     "rewrites": [
       { "source": "/api/**", "function": { "functionId": "api", "region": "us-central1" } },

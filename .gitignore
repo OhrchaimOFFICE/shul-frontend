@@ -13,3 +13,11 @@ node_modules/
 
 # Firebase
 .firebase/
+
+# Capacitor / iOS build artifacts
+www/
+ios/App/Pods/
+ios/App/App/public/
+ios/App/build/
+ios/DerivedData/
+*.xcuserstate
