@@ -13,7 +13,9 @@ function openExternal(url){
   if(IS_NATIVE && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser){
     window.Capacitor.Plugins.Browser.open({url:url});
   } else {
-    window.open(url,'_blank');
+    // Web: same-tab redirect (matches the original Stripe-checkout behavior and
+    // avoids popup blockers).
+    window.location.href = url;
   }
 }
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51TNzTG0rialmjNgrf4IGmygXrLa91bSAJ0kPe616KM9UOwkfVd5Fez0Vsyf5BFDstKaoLCbv4prVqNE7FmwPRSvP00S6BSyVs3";
