@@ -103,6 +103,29 @@ async function renderPdfToImages(file,opts){
   }
   return out;
 }
+// JPEG/PNG flyers skip pdf.js entirely: draw onto a canvas and re-encode as
+// JPEG so they ride the same inline-image pipeline as rasterized PDF pages.
+function renderImageToJpeg(file,opts){
+  const {maxDim=1600,quality=0.82}=opts||{};
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const s=Math.min(1,maxDim/Math.max(img.naturalWidth,img.naturalHeight));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(img.naturalWidth*s));
+        canvas.height=Math.max(1,Math.round(img.naturalHeight*s));
+        const ctx=canvas.getContext('2d');
+        ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',quality).split(',')[1]);
+      }catch(e){reject(e);}finally{URL.revokeObjectURL(url);}
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Could not read that image'));};
+    img.src=url;
+  });
+}
 async function apiFetch(path, options={}) {
   const token = await firebase.auth().currentUser?.getIdToken();
   const headers = {'Content-Type':'application/json',...options.headers};
@@ -1767,6 +1790,7 @@ function AccountPage() {
   const [error,setError]=useState('');const [editing,setEditing]=useState(false);const [editForm,setEditForm]=useState({});const [msg,setMsg]=useState('');
   const [subStatus,setSubStatus]=useState(null);
   const [subBusy,setSubBusy]=useState(false);
+  const [delBusy,setDelBusy]=useState(false);
   const [yahrzeits,setYahrzeits]=useState([]);
   const [yahrzeitForm,setYahrzeitForm]=useState({deceasedName:'',relationship:'',englishDeathDate:'',notes:''});
   const [yahrzeitBusy,setYahrzeitBusy]=useState(false);
@@ -1823,6 +1847,18 @@ function AccountPage() {
       setSubStatus(s);
     }catch(e){setMsg('Error: '+e.message);}
     setSubBusy(false);
+  }
+
+  async function deleteAccount(){
+    if(!confirm('Permanently delete your account? This cannot be undone. Your profile and reminders will be removed and any automatic membership payment canceled.'))return;
+    if(!confirm('Are you absolutely sure? Tap OK to permanently delete your account now.'))return;
+    setDelBusy(true);setMsg('');
+    try{
+      await apiFetch('/api/auth/account',{method:'DELETE'});
+      await firebase.auth().signOut();
+      alert('Your account has been permanently deleted.');
+      window.location.hash='#home';
+    }catch(e){setMsg('Error: '+e.message);setDelBusy(false);}
   }
   useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
 
@@ -1919,6 +1955,10 @@ function AccountPage() {
           React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('year')},subBusy?'Loading...':'Pay annually'),
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))),
+    React.createElement('div',{className:'card',style:{marginTop:16,borderColor:'rgba(176,0,32,0.35)'}},
+      React.createElement('div',{className:'card-header'},'Delete Account'),
+      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Permanently delete your account and personal profile. This cannot be undone. Any active automatic membership payment will be canceled. (Past donation receipts are retained as required for tax and accounting records.)'),
+      React.createElement('button',{className:'btn btn-danger',disabled:delBusy,onClick:deleteAccount},delBusy?'Deleting...':'Delete My Account')),
     React.createElement('div',{className:'card',style:{marginTop:16}},
       React.createElement('div',{className:'card-header'},'Yahrzeit Reminders'),
       React.createElement('p',{style:{color:'#555',marginBottom:12}},'Add yahrzeit dates for loved ones. We will email you a reminder 10 days before each year\'s observance.'),
@@ -2660,7 +2700,7 @@ function AdminEmailCenter() {
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   const [weeklyShiurim,setWeeklyShiurim]=useState([]);
   const [weeklyShiurSel,setWeeklyShiurSel]=useState({}); // {shiurId: bool}
-  const [weeklyPdf,setWeeklyPdf]=useState(null); // {name, images:[base64]}
+  const [weeklyPdfs,setWeeklyPdfs]=useState([]); // up to 5 of {name, images:[base64]}
   const [weeklyPdfBusy,setWeeklyPdfBusy]=useState(false);
   // Sponsorship email
   const nextShabbos=(()=>{const d=new Date(getTodayStr()+'T12:00:00');d.setDate(d.getDate()+((6-d.getDay()+7)%7||7));return d.toISOString().split('T')[0];})();
@@ -2749,7 +2789,7 @@ function AdminEmailCenter() {
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
       // The backend composes the whole preview (flyer + custom text with link/
       // line-break formatting) exactly as the sent email — no client splicing.
-      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,customText:weeklyCustomText,pdfImages:weeklyPdf?weeklyPdf.images:null})});
+      const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,customText:weeklyCustomText,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null})});
       setWeeklyPreviewHtml(res.html||'');
     }catch(err){setMsg('Error: '+err.message);}
   }
@@ -2760,8 +2800,8 @@ function AdminEmailCenter() {
       const targetEmails=getTargetEmails(weeklyTargetGroup);
       if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdf?weeklyPdf.images:null,pdfName:weeklyPdf?weeklyPdf.name:null,resumeFromLog:weeklyTargetGroup==='resume'})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdf?' (flyer shown at bottom)':'')+'. Check the log in a minute for results.');
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null,pdfName:weeklyPdfs.length?weeklyPdfs.map(p=>p.name).join(', '):null,resumeFromLog:weeklyTargetGroup==='resume'})});
+      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdfs.length?' (flyer'+(weeklyPdfs.length>1?'s':'')+' shown at bottom)':'')+'. Check the log in a minute for results.');
       setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
@@ -2891,21 +2931,33 @@ function AdminEmailCenter() {
               weeklyShiurim.map(s=>React.createElement('label',{key:s.id,style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.85rem'}},
                 React.createElement('input',{type:'checkbox',checked:!!weeklyShiurSel[s.id],onChange:e=>setWeeklyShiurSel(p=>({...p,[s.id]:e.target.checked}))}),
                 (DAY_NAMES[s.dayOfWeek]?DAY_NAMES[s.dayOfWeek].slice(0,3)+' ':'')+s.title+(s.time?' ('+s.time+')':''))))),
-          React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:weeklyPdfBusy?'wait':'pointer',margin:0,opacity:weeklyPdfBusy?0.6:1}},weeklyPdfBusy?'Rendering…':'Attach PDF flyer',
-            React.createElement('input',{type:'file',accept:'application/pdf',disabled:weeklyPdfBusy,style:{display:'none'},onChange:async e=>{
-              const f=e.target.files[0];if(!f)return;
-              if(f.type!=='application/pdf'){setMsg('Please choose a PDF file.');return;}
-              if(f.size>15*1024*1024){setMsg('PDF too large (max 15MB).');return;}
-              setWeeklyPdfBusy(true);setMsg('Rendering PDF…');
+          weeklyPdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:weeklyPdfBusy?'wait':'pointer',margin:0,opacity:weeklyPdfBusy?0.6:1}},weeklyPdfBusy?'Rendering…':(weeklyPdfs.length?'Add another flyer':'Attach flyer (PDF or JPEG)'),
+            React.createElement('input',{type:'file',accept:'application/pdf,image/jpeg,image/png',multiple:true,disabled:weeklyPdfBusy,style:{display:'none'},onChange:async e=>{
+              const files=Array.from(e.target.files||[]);e.target.value='';
+              if(!files.length)return;
+              if(weeklyPdfs.length+files.length>5){setMsg('Up to 5 flyers per email — you have '+weeklyPdfs.length+' attached and picked '+files.length+' more.');return;}
+              const okTypes=['application/pdf','image/jpeg','image/png'];
+              for(const f of files){
+                if(!okTypes.includes(f.type)){setMsg('"'+f.name+'" is not a PDF or JPEG/PNG image.');return;}
+                if(f.size>15*1024*1024){setMsg('"'+f.name+'" is too large (max 15MB per file).');return;}
+              }
+              setWeeklyPdfBusy(true);setMsg('Rendering flyer'+(files.length>1?'s':'')+'…');
               try{
-                const images=await renderPdfToImages(f);
-                if(!images.length){setMsg('Could not read that PDF.');}
-                else{setWeeklyPdf({name:f.name,images});setMsg('Flyer ready ('+images.length+' page'+(images.length>1?'s':'')+') — it will display at the bottom of the email.');}
-              }catch(err){setMsg('PDF error: '+err.message);}
+                const added=[];
+                for(const f of files){
+                  const images=f.type==='application/pdf'?await renderPdfToImages(f):[await renderImageToJpeg(f)];
+                  if(!images.length){setMsg('Could not read "'+f.name+'".');setWeeklyPdfBusy(false);return;}
+                  added.push({name:f.name,images});
+                }
+                setWeeklyPdfs(p=>[...p,...added]);
+                const total=weeklyPdfs.length+added.length;
+                setMsg('Flyer'+(total>1?'s':'')+' ready ('+total+' of 5) — shown at the bottom of the email in the order listed.');
+              }catch(err){setMsg('Flyer error: '+err.message);}
               setWeeklyPdfBusy(false);
             }})),
-          weeklyPdf&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555'}},'📄 '+weeklyPdf.name+' ('+weeklyPdf.images.length+'p) ',
-            React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdf(null);},style:{color:'#c0392b',marginLeft:6}},'remove'))),
+          weeklyPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+            weeklyPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
+              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
