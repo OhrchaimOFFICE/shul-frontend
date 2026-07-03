@@ -23,7 +23,11 @@ if (window.__firebaseConfig__ && !firebase.apps.length) firebase.initializeApp(w
 const { useState, useEffect, useCallback, useRef } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-function getTodayStr() { return new Date().toLocaleDateString('en-CA'); }
+// "Today" per the shul's timezone (America/New_York), NOT the viewer's — so a
+// member davening from Israel doesn't see the wrong day's schedule/candle time.
+function getTodayStr() { return new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'}); }
+// ET day-of-week (0=Sun..6=Sat). Parsing the ET date string at noon is offset-safe.
+function getTodayDow() { return new Date(getTodayStr()+'T12:00:00').getDay(); }
 function formatDisplayDate(ds) { return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function getSundayOfWeek(ds) { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-d.getDay()); return d.toISOString().split('T')[0]; }
 
@@ -82,6 +86,10 @@ function loadPdfJs(){
     s.onerror=()=>reject(new Error('Failed to load the PDF library'));
     document.head.appendChild(s);
   });
+  // Don't cache a rejected promise — otherwise one transient script-load failure
+  // would permanently break PDF attach until a full page reload. Clear it so the
+  // next attempt retries.
+  _pdfjsPromise.catch(()=>{_pdfjsPromise=null;});
   return _pdfjsPromise;
 }
 async function renderPdfToImages(file,opts){
@@ -101,6 +109,10 @@ async function renderPdfToImages(file,opts){
     await page.render({canvasContext:ctx,viewport}).promise;
     out.push(canvas.toDataURL('image/jpeg',quality).split(',')[1]);
   }
+  // Flag when the PDF had more pages than we rendered, so the caller can warn
+  // the admin instead of silently dropping the tail pages.
+  out.truncated=pdf.numPages>maxPages;
+  out.totalPages=pdf.numPages;
   return out;
 }
 // JPEG/PNG flyers skip pdf.js entirely: draw onto a canvas and re-encode as
@@ -344,18 +356,22 @@ function ZmanimPanel({onExpand}) {
 
   useEffect(()=>{
     loadData();
-    // Auto-refresh at midnight
+    // Auto-refresh at midnight. Keep the latest timer id in a holder so cleanup
+    // clears the CURRENTLY-pending chained timer (not just the first one) —
+    // otherwise each night's re-scheduled timer survived unmount and fired
+    // state updates on a dead component.
+    let timer=null;
     function scheduleRefresh(){
       const now=new Date();
       const midnight=new Date(now);
       midnight.setHours(24,0,5,0); // 12:00:05 AM next day
       const ms=midnight.getTime()-now.getTime();
-      return setTimeout(()=>{loadData();if(iframeRef.current){
+      timer=setTimeout(()=>{loadData();if(iframeRef.current){
         const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;font-size:11px;}</style></head><body>'+
         '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=11&fcolor=1a2744&hcolor=faf8f3&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>';
         iframeRef.current.srcdoc=html;}scheduleRefresh();},ms);
     }
-    const timer=scheduleRefresh();
+    scheduleRefresh();
     return ()=>clearTimeout(timer);
   },[]);
 
@@ -367,14 +383,14 @@ function ZmanimPanel({onExpand}) {
   },[]);
 
   // Today's shiurim (filter by day of week)
-  const todayDow=new Date().getDay();
+  const todayDow=getTodayDow();
   const todayShiurim=shiurim.filter(s=>s.dayOfWeek===todayDow);
 
   function openFullscreen(){setFullscreen(true);}
   function closeFullscreen(){setFullscreen(false);}
 
   // Only show candle lighting on Friday or Yom Tov
-  const isFriday=new Date().getDay()===5;
+  const isFriday=getTodayDow()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
 
   // Fullscreen TV board: traditional Hebrew shul layout, two columns + center
@@ -560,7 +576,7 @@ function ZmanimPanel({onExpand}) {
     React.createElement('div',{className:'zmanim-panel-title'},
       React.createElement('img',{src:'logo.png',alt:'',className:'panel-tree-icon'}),
       "Today's Zmanim & Schedule"),
-    React.createElement('iframe',{ref:iframeRef,style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
+    React.createElement('iframe',{ref:iframeRef,sandbox:'allow-scripts',style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
     // Davening times
     schedule&&React.createElement('div',{style:{marginTop:8,borderTop:'2px solid #c49a3c',paddingTop:8}},
       React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'0.9rem',marginBottom:6}},'Davening Times'),
@@ -589,7 +605,7 @@ function ZmanimTicker() {
   useEffect(()=>{apiFetchSWR('/api/zmanim/today',{onFresh:setData});},[]);
   if(!data) return null;
   const z=data.zmanim;
-  const isFri=new Date().getDay()===5;
+  const isFri=getTodayDow()===5;
   const items=[['Sunrise',z.sunrise],['Shma',z.sofZmanShma],['Chatzos',z.chatzot],['Plag',z.plagHaMincha],['Sunset',z.sunset]].filter(([_,v])=>v);
   const showCandle=isFri&&z.candleLighting;
   return React.createElement('div',{className:'zmanim-ticker'},
@@ -626,7 +642,7 @@ function HomePage({navigate}) {
     });
   },[]);
 
-  const isFriday=new Date().getDay()===5;
+  const isFriday=getTodayDow()===5;
   const showCandles=isFriday||(schedule?.dayType==='yomTov');
   const shabbosShiurim=shiurim.filter(s=>s.dayOfWeek===6);
   const sb=shabbosData; // shorthand
@@ -684,7 +700,7 @@ function HomePage({navigate}) {
     // least one shiur configured.
     shiurim.length>0&&(()=>{
       const DAY_LABEL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
-      const todayDow=new Date().getDay();
+      const todayDow=getTodayDow();
       const byDay={};
       shiurim.forEach(s=>{
         const d=Number.isFinite(s.dayOfWeek)?s.dayOfWeek:7;
@@ -872,13 +888,20 @@ function ShiurimPage() {
 }
 
 // ─── Admin Login ─────────────────────────────────────────────────
-function AdminLogin({onLogin}) {
+function AdminLogin({onLogin,notAdmin}) {
   const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(false);
   async function handle(e){e.preventDefault();setError('');setLoading(true);
     try{await firebase.auth().signInWithEmailAndPassword(email,password);onLogin();}catch(err){setError(err.message);}setLoading(false);}
   return React.createElement('div',{className:'auth-container'},
     React.createElement('div',{className:'auth-title'},'Admin Login'),
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
+    // Distinguish "wrong password" (error) from "signed in, but this account has
+    // no admin access" — otherwise a valid non-admin sign-in just silently
+    // redisplays a blank form and looks broken.
+    notAdmin&&React.createElement('div',{className:'message message-error'},
+      'You are signed in, but this account does not have administrator access. Contact the office if you believe this is an error.',
+      React.createElement('div',{style:{marginTop:8}},
+        React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign out'))),
     error&&React.createElement('div',{className:'message message-error'},error),
     React.createElement('form',{onSubmit:handle},
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:email,onChange:e=>setEmail(e.target.value),required:true})),
@@ -1182,9 +1205,17 @@ function TermsPage() {
 // ─── Admin Panel ─────────────────────────────────────────────────
 function AdminPanel() {
   const [user,setUser]=useState(null);const [isAdmin,setIsAdmin]=useState(false);const [checking,setChecking]=useState(true);const [tab,setTab]=useState('rules');
-  useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(async u=>{setUser(u);if(u){try{const t=await u.getIdToken();const r=await fetch(BACKEND_URL+'/api/admin/davening-rules',{headers:{'Authorization':'Bearer '+t}});setIsAdmin(r.ok);}catch{setIsAdmin(false);}}setChecking(false);});return unsub;},[]);
+  async function checkAccess(u){
+    setChecking(true);
+    if(u){try{const t=await u.getIdToken(true);const r=await fetch(BACKEND_URL+'/api/admin/davening-rules',{headers:{'Authorization':'Bearer '+t}});setIsAdmin(r.ok);}catch{setIsAdmin(false);}}
+    else setIsAdmin(false);
+    setChecking(false);
+  }
+  useEffect(()=>{const unsub=firebase.auth().onAuthStateChanged(u=>{setUser(u);checkAccess(u);});return unsub;},[]);
   if(checking) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Checking access...');
-  if(!user||!isAdmin) return React.createElement(AdminLogin,{onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
+  // Signed in but NOT an admin: say so explicitly instead of silently redisplaying
+  // a blank login form (which looks like the password was wrong).
+  if(!user||!isAdmin) return React.createElement(AdminLogin,{notAdmin:!!user&&!isAdmin,onLogin:()=>checkAccess(firebase.auth().currentUser)});
   function openWelcomeDisplay(){
     // Open in a new tab so the admin can keep working while the kiosk runs.
     // In the native app there are no tabs, so navigate in place instead.
@@ -1291,7 +1322,7 @@ function AdminSeating() {
 
   async function load(){
     setLoading(true);
-    try{ setData(await apiFetch('/api/admin/seating/chart')); }catch(e){ setMsg('Error: '+e.message); }
+    try{ setData(await apiFetch('/api/admin/seating/chart')); setMsg(''); }catch(e){ setMsg('Error: '+e.message); }
     setLoading(false);
   }
   useEffect(()=>{load();},[]);
@@ -1352,7 +1383,12 @@ function AdminSeating() {
     }catch(e){setMsg('Error: '+e.message);}
   }
 
-  if(loading||!data) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
+  // Load failed (not still loading) → show the error + retry instead of an
+  // eternal spinner.
+  if(!data) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:24}},
+    React.createElement('p',{className:'message message-error'},msg||'Could not load the seating chart.'),
+    React.createElement('button',{className:'btn btn-outline',onClick:load},'Retry'));
 
   const maxCol=Math.max(...data.layout.seats.map(s=>s.col))+1;
   const maxRow=Math.max(...data.layout.seats.map(s=>s.row))+1;
@@ -1440,9 +1476,9 @@ function AdminAutoEmails() {
   const [state,setState]=useState(null);
   const [msg,setMsg]=useState('');
   const [saving,setSaving]=useState(false);
-  useEffect(()=>{
-    apiFetch('/api/admin/auto-emails').then(setState).catch(err=>setMsg('Error loading: '+err.message));
-  },[]);
+  const [loadErr,setLoadErr]=useState('');
+  function loadState(){setLoadErr('');apiFetch('/api/admin/auto-emails').then(setState).catch(err=>setLoadErr(err.message||'Failed to load'));}
+  useEffect(()=>{loadState();},[]);
   async function toggle(key){
     if(!state||saving)return;
     const next={...state,[key]:!state[key]};
@@ -1463,6 +1499,9 @@ function AdminAutoEmails() {
     {key:'pledge',label:'Pledge Reminders',desc:'Runs monthly on the 1st at 10:00 AM ET. Emails members with outstanding pledges after the configured start delay.'},
     {key:'fiscalYear',label:'Annual Tax Receipt Auto-Send',desc:'On January 1, automatically sends every donor a summary of their prior-year giving.'},
   ];
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:24}},
+    React.createElement('p',{className:'message message-error'},'Could not load auto-email settings: '+loadErr),
+    React.createElement('button',{className:'btn btn-outline',onClick:loadState},'Retry'));
   if(!state) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   return React.createElement('div',null,
     React.createElement('div',{className:'card'},
@@ -1488,11 +1527,17 @@ function AdminAutoEmails() {
 
 // ─── Admin Rules Editor ──────────────────────────────────────────
 function AdminRulesEditor() {
-  const [rules,setRules]=useState({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState('');
-  useEffect(()=>{apiFetch('/api/admin/davening-rules').then(d=>{setRules(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  const [rules,setRules]=useState({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState('');const [loadErr,setLoadErr]=useState('');
+  function loadRules(){setLoading(true);setLoadErr('');apiFetch('/api/admin/davening-rules').then(d=>{setRules(d);setLoading(false);}).catch(e=>{setLoadErr(e.message||'Failed to load');setLoading(false);});}
+  useEffect(()=>{loadRules();},[]);
   function upd(k,v){setRules(p=>({...p,[k]:v}));}
   async function save(){setSaving(true);setMsg('');try{await apiFetch('/api/admin/davening-rules',{method:'PUT',body:JSON.stringify(rules)});setMsg('Rules saved!');}catch(e){setMsg('Error: '+e.message);}setSaving(false);}
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  // Never render the editor (with hardcoded defaults) on a load failure — saving
+  // would overwrite the shul's real configured times with defaults.
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:24}},
+    React.createElement('p',{className:'message message-error'},'Could not load the current rules: '+loadErr),
+    React.createElement('button',{className:'btn btn-outline',onClick:loadRules},'Retry'));
   const fields=[
     {key:'weekdayShacharis',label:'Weekday Shacharis (Mon-Fri)',def:'6:55 AM',desc:'Regular weekday morning prayer'},
     {key:'sundayShacharis',label:'Sunday Shacharis',def:'8:15 AM',desc:'Sunday morning prayer'},
@@ -1524,7 +1569,7 @@ function AdminOverrides() {
   const [overrides,setOverrides]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [nd,setNd]=useState('');const [nt,setNt]=useState({shacharis:'',mincha:'',maariv:'',earlyMincha:'',minchaMaariv:''});const [nn,setNn]=useState('');
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setOverrides(await apiFetch('/api/admin/schedule-overrides'));}catch(e){}setLoading(false);}
+  async function load(){setLoading(true);try{setOverrides(await apiFetch('/api/admin/schedule-overrides'));setMsg('');}catch(e){setMsg('Error loading overrides: '+e.message);}setLoading(false);}
   async function add(){if(!nd)return;setMsg('');try{const times={};Object.entries(nt).forEach(([k,v])=>{if(v)times[k]=v;});await apiFetch('/api/admin/schedule-override',{method:'POST',body:JSON.stringify({date:nd,times,note:nn})});setMsg('Override added!');setNd('');setNt({shacharis:'',mincha:'',maariv:'',earlyMincha:'',minchaMaariv:''});setNn('');load();}catch(e){setMsg('Error: '+e.message);}}
   async function del(date){if(!confirm('Delete override for '+date+'?'))return;try{await apiFetch('/api/admin/schedule-override/'+date,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
   return React.createElement('div',null,
@@ -1559,7 +1604,7 @@ function AdminShiurim() {
   useEffect(()=>{load();},[]);
   // cache:no-store so the admin always sees the just-added shiur instead of
   // the 5-minute Cache-Control: public response served to the homepage.
-  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));}catch(e){}setLoading(false);}
+  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));setMsg('');}catch(e){setMsg('Error loading shiurim: '+e.message);}setLoading(false);}
   function resetForm(){setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setEditingId(null);}
   async function save(){if(!form.title)return;try{
     if(editingId){await apiFetch('/api/admin/shiurim/'+editingId,{method:'PUT',body:JSON.stringify(form)});setMsg('Shiur updated!');}
@@ -1604,7 +1649,7 @@ function AdminShiurim() {
 function AdminAccounts() {
   const [admins,setAdmins]=useState([]);const [loading,setLoading]=useState(true);const [email,setEmail]=useState('');const [msg,setMsg]=useState('');
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setAdmins(await apiFetch('/api/admin/users'));}catch(e){}setLoading(false);}
+  async function load(){setLoading(true);try{setAdmins(await apiFetch('/api/admin/users'));setMsg('');}catch(e){setMsg('Error loading admins: '+e.message);}setLoading(false);}
   async function add(){if(!email)return;setMsg('');try{await apiFetch('/api/admin/make-admin',{method:'POST',body:JSON.stringify({email})});setMsg('Admin added!');setEmail('');load();}catch(e){setMsg('Error: '+e.message);}}
   async function remove(uid){if(!confirm('Remove admin?'))return;try{await apiFetch('/api/admin/remove-admin',{method:'POST',body:JSON.stringify({uid})});load();}catch(e){setMsg('Error: '+e.message);}}
   return React.createElement('div',null,
@@ -1638,6 +1683,7 @@ function DonatePage() {
   const cardMountRef=useRef(null);
   const stripeRef=useRef(null);
   const cardElementRef=useRef(null);
+  const paidPiRef=useRef(null); // holds a succeeded PaymentIntent id so a confirm retry never re-charges
 
   useEffect(()=>{apiFetch('/api/donations/reasons').then(setReasons).catch(()=>setReasons(['General Donation','Membership Dues','Building Fund','Torah Fund','Yahrzeit','In Honor Of','In Memory Of','Other']));},[]);
 
@@ -1669,22 +1715,36 @@ function DonatePage() {
     if(!stripeRef.current||!cardElementRef.current){setMsg('Payment form is still loading. Please wait a moment and try again.');return;}
     setLoading(true);setMsg('');
     try{
-      const pi=await apiFetch('/api/donations/create-payment',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),type:'donation'})});
-      const result=await stripeRef.current.confirmCardPayment(pi.clientSecret,{
-        payment_method:{
-          card:cardElementRef.current,
-          billing_details:{
-            name:(form.firstName+' '+form.lastName).trim(),
-            email:form.email,
-            phone:form.phone||undefined
+      // If a previous attempt already charged the card but the confirm step
+      // failed, DON'T create a new PaymentIntent / charge again — just retry the
+      // server-side confirm with the already-succeeded PaymentIntent. This is
+      // what prevents a network blip on /confirm from double-charging a donor.
+      let paidPiId=paidPiRef.current;
+      if(!paidPiId){
+        const pi=await apiFetch('/api/donations/create-payment',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),type:'donation'})});
+        const result=await stripeRef.current.confirmCardPayment(pi.clientSecret,{
+          payment_method:{
+            card:cardElementRef.current,
+            billing_details:{
+              name:(form.firstName+' '+form.lastName).trim(),
+              email:form.email,
+              phone:form.phone||undefined
+            }
           }
-        }
-      });
-      if(result.error){setMsg(result.error.message||'Payment failed. Please check your card details.');setLoading(false);return;}
-      if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setLoading(false);return;}
-      await apiFetch('/api/donations/confirm',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),paymentIntentId:result.paymentIntent.id,type:'donation'})});
+        });
+        if(result.error){setMsg(result.error.message||'Payment failed. Please check your card details.');setLoading(false);return;}
+        if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setLoading(false);return;}
+        paidPiId=result.paymentIntent.id;
+        paidPiRef.current=paidPiId; // remember so a confirm retry never re-charges
+      }
+      await apiFetch('/api/donations/confirm',{method:'POST',body:JSON.stringify({...form,amount:parseFloat(form.amount),paymentIntentId:paidPiId,type:'donation'})});
+      paidPiRef.current=null;
       setStep('done');
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){
+      setMsg(paidPiRef.current
+        ? 'Your card was charged, but saving the receipt hit a snag. Please click Donate once more to finish — you will NOT be charged again.'
+        : 'Error: '+err.message);
+    }
     setLoading(false);
   }
 
@@ -1982,6 +2042,7 @@ function AdminDonations() {
   const [donations,setDonations]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [year,setYear]=useState(new Date().getFullYear());
   const [mf,setMf]=useState({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:'',pledgeId:''});
+  const [mfBusy,setMfBusy]=useState(false);
   const [reasons,setReasons]=useState([]);
   const [openBills,setOpenBills]=useState([]);
   const [uploading,setUploading]=useState(false);
@@ -1993,7 +2054,7 @@ function AdminDonations() {
   useEffect(()=>{load();apiFetch('/api/donations/reasons').then(setReasons).catch(()=>{});loadBills();},[year]);
   async function load(){setLoading(true);try{setDonations(await apiFetch('/api/admin/donations?year='+year));}catch(e){}setLoading(false);}
   async function loadBills(){try{const all=await apiFetch('/api/admin/pledges');setOpenBills((all||[]).filter(p=>p.status!=='paid'));}catch(e){}}
-  async function recordManual(e){e.preventDefault();setMsg('');
+  async function recordManual(e){e.preventDefault();if(mfBusy)return;setMsg('');setMfBusy(true);
     try{
       const payload={...mf,amount:parseFloat(mf.amount),type:'donation'};
       if(mf.fiscalYear){payload.fiscalYear=parseInt(mf.fiscalYear);}
@@ -2002,10 +2063,12 @@ function AdminDonations() {
       if(!mf.pledgeId)delete payload.pledgeId;
       const res=await apiFetch('/api/admin/manual-payment',{method:'POST',body:JSON.stringify(payload)});
       const tail=res.routedToOffice?' Receipt sent to the office for printing.':res.receiptSent?' Receipt emailed to donor.':'';
-      setMsg('Payment recorded.'+(mf.pledgeId?' Applied to the selected invoice (marked paid).':'')+tail);
+      const billNote=mf.pledgeId?(res.billFullyPaid===false?' Applied to the selected invoice (partial — balance remaining).':' Applied to the selected invoice (marked paid).'):'';
+      setMsg('Payment recorded.'+billNote+tail);
       setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:'',pledgeId:''});
       load();loadBills();
-    }catch(err){setMsg('Error: '+err.message);}}
+    }catch(err){setMsg('Error: '+err.message);}
+    setMfBusy(false);}
   async function importStripePayment(){
     const id=prompt('Paste the Stripe Payment ID (starts with "pi_") from the Stripe dashboard payment page:');
     if(!id)return;
@@ -2078,8 +2141,8 @@ function AdminDonations() {
             React.createElement('option',{value:''},'— Not applied to a bill —'),
             openBills.map(b=>React.createElement('option',{key:b.id,value:b.id},
               (b.reason||'Bill')+' — $'+(b.amount!=null?Number(b.amount).toFixed(2):'?')+' — '+(b.memberName||b.memberEmail||'')+(b.dueDate?(' ('+b.dueDate+')'):'')))),
-          mf.pledgeId&&React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.85rem',color:'#555'}},'Recording this payment will mark the selected bill — and any linked kiddush/seudas shlishis sponsorship — as paid.')),
-        React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Record Payment'))),
+          mf.pledgeId&&React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.85rem',color:'#555'}},'Recording this payment applies it to the selected bill — and any linked kiddush/seudas shlishis sponsorship. The bill is marked paid only once the full balance is covered.')),
+        React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:mfBusy,style:{marginTop:8}},mfBusy?'Recording...':'Record Payment'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Import a Stripe Payment'),
       React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'If a Stripe payment cleared but is missing from the list below, paste its Payment ID (starts with "pi_") here to add it. You can find the ID on the Stripe dashboard payment page. Idempotent: won\'t double-add.'),
@@ -2231,11 +2294,14 @@ function AdminMembers() {
   }
   async function deleteOne(m){
     const label=m.displayName||m.email||m.uid;
+    if(!m.uid){setMsg('Cannot delete: this member has no account id.');return;}
     if(!confirm('DELETE '+label+'?\n\nThis will permanently remove their member profile, Firebase Auth login, and any pending signup invites. Their donation history is preserved as tax records.\n\nThis cannot be undone.'))return;
     try{
-      const r=await apiFetch('/api/admin/members/purge-by-email',{method:'POST',body:JSON.stringify({emails:[m.email||'']})});
+      // Delete by uid, not email — so a spouse/housemate sharing the same email
+      // address is NOT deleted along with this member.
+      const r=await apiFetch('/api/admin/members/purge-by-uid',{method:'POST',body:JSON.stringify({uid:m.uid})});
       const result=(r.results||[])[0]||{};
-      setMsg('Deleted '+(m.email||label)+': '+(result.usersDeleted||0)+' user, '+(result.authDeleted||0)+' login, '+(result.prefilledDeleted||0)+' pending invite.');
+      setMsg('Deleted '+label+': '+(result.usersDeleted||0)+' user, '+(result.authDeleted||0)+' login, '+(result.prefilledDeleted||0)+' pending invite.');
       await load();
     }catch(err){setMsg('Error: '+err.message);}
   }
@@ -2260,7 +2326,7 @@ function AdminMembers() {
     }
     setAddBusy(true);
     try{
-      const siteUrl=window.location.origin+window.location.pathname;
+      const siteUrl=SITE_URL+'/';
       const r=await apiFetch('/api/admin/members/add-single',{method:'POST',body:JSON.stringify({...addForm,siteUrl})});
       const parts=['Added '+addForm.firstName+' '+addForm.lastName+'.'];
       if(addForm.sendInvite){
@@ -2345,7 +2411,7 @@ function AdminMembers() {
             if(!confirm('Send signup emails to '+pending.length+' pending members?'))return;
             setMsg('Sending...');
             try{
-              const siteUrl=window.location.origin+window.location.pathname;
+              const siteUrl=SITE_URL+'/';
               const res=await apiFetch('/api/admin/send-signup-invites',{method:'POST',body:JSON.stringify({accounts:pending.map(a=>({email:a.email,firstName:a.firstName,lastName:a.lastName,token:a.token})),siteUrl})});
               setMsg('Sent '+res.sent+' invite emails'+(res.failed?' ('+res.failed+' failed)':''));
             }catch(e){setMsg('Error: '+e.message);}
@@ -2581,23 +2647,23 @@ function AdminPledges() {
     loadSponsorships();load();
   }catch(e){setMsg('Error: '+e.message);}}
   async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
-  async function markPaid(id){try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
+  async function markPaid(id){if(!confirm('Mark this bill as fully paid? This stops future reminders for it.'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
   async function addSponsorship(e){e.preventDefault();setMsg('');
     if(!sf.date||!sf.firstName||!sf.lastName){setMsg('Error: date and name are required');return;}
     try{
-      const r=await apiFetch('/api/admin/sponsorships',{method:'POST',body:JSON.stringify({...sf,siteUrl:window.location.origin+window.location.pathname})});
+      const r=await apiFetch('/api/admin/sponsorships',{method:'POST',body:JSON.stringify({...sf,siteUrl:SITE_URL+'/'})});
       setMsg('Sponsorship added ($'+(r.amount!=null?Number(r.amount).toFixed(2):'?')+'). A bill was created'+(r.invoiceSent?' and emailed':'')+' — record payment in the Donations tab and apply it to this invoice.');
       setSf({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
       load();loadSponsorships();
     }catch(err){setMsg('Error: '+err.message);}}
   async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
-  function payLink(p){return window.location.origin+window.location.pathname+'#pay?token='+(p.payToken||'');}
+  function payLink(p){return SITE_URL+'/'+'#pay?token='+(p.payToken||'');}
   function copyPayLink(p){try{navigator.clipboard.writeText(payLink(p));setMsg('Pay link copied to clipboard.');}catch(e){setMsg('Could not copy: '+e.message);}}
   async function sendInvoiceEmails(){
     if(!confirm('Send a "Pay $X Now" invoice email to every unpaid pledge with a member email? Members already invoiced recently will get a repeat reminder.'))return;
     setMsg('Sending...');
     try{
-      const siteUrl=window.location.origin+window.location.pathname;
+      const siteUrl=SITE_URL+'/';
       const r=await apiFetch('/api/admin/send-pledge-reminders',{method:'POST',body:JSON.stringify({siteUrl})});
       setMsg('Sent '+(r.sent||0)+' invoice email(s)'+(r.skipped?' ('+r.skipped+' skipped — no email on file)':''));
       load();
@@ -2772,12 +2838,16 @@ function AdminEmailCenter() {
   }
 
   async function sendBlast(e){
-    e.preventDefault();setSending(true);setMsg('');
+    e.preventDefault();setMsg('');
+    const targetEmails=getTargetEmails(composeForm.targetGroup);
+    if(!targetEmails.length){setMsg('No recipients in the selected group.');return;}
+    if(!confirm('Send this email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
+    setSending(true);
     try{
-      const targetEmails=getTargetEmails(composeForm.targetGroup);
       const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html,resumeFromLog:composeForm.targetGroup==='resume'})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'. Check the log in a minute for delivery results.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
+      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
+      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2795,30 +2865,38 @@ function AdminEmailCenter() {
   }
 
   async function sendWeeklyCustom(){
-    setSending(true);setMsg('');
+    setMsg('');
+    if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');return;}
+    const targetEmails=getTargetEmails(weeklyTargetGroup);
+    if(!targetEmails.length){setMsg('No recipients in the selected group.');return;}
+    if(!confirm('Send the weekly schedule email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
+    setSending(true);
     try{
-      const targetEmails=getTargetEmails(weeklyTargetGroup);
-      if(weeklyEndDate&&weeklyEndDate<weeklyStartDate){setMsg('End date must be on or after start date.');setSending(false);return;}
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
       const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null,pdfName:weeklyPdfs.length?weeklyPdfs.map(p=>p.name).join(', '):null,resumeFromLog:weeklyTargetGroup==='resume'})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdfs.length?' (flyer'+(weeklyPdfs.length>1?'s':'')+' shown at bottom)':'')+'. Check the log in a minute for results.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
+      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
+      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdfs.length?' — flyer'+(weeklyPdfs.length>1?'s':'')+' shown at bottom':'')+'.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
 
-  function spBody(extra){return JSON.stringify({date:spDate,includeKiddush:spKiddush,includeSeudas:spSeudas,otherText:spOtherOn?spOtherText:null,subject:spSubject,siteUrl:window.location.origin+window.location.pathname,...extra});}
+  function spBody(extra){return JSON.stringify({date:spDate,includeKiddush:spKiddush,includeSeudas:spSeudas,otherText:spOtherOn?spOtherText:null,subject:spSubject,siteUrl:SITE_URL+'/',...extra});}
   async function previewSponsorship(){setMsg('');
     if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');return;}
     try{const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({preview:true})});setSpPreviewHtml(res.html||'');}catch(err){setMsg('Error: '+err.message);}
   }
-  async function sendSponsorship(){setSending(true);setMsg('');
+  async function sendSponsorship(){setMsg('');
+    if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');return;}
+    const targetEmails=getTargetEmails(spTargetGroup);
+    if(!targetEmails.length){setMsg('No recipients in the selected group.');return;}
+    if(!confirm('Send the sponsorship email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
+    setSending(true);
     try{
-      if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');setSending(false);return;}
-      const targetEmails=getTargetEmails(spTargetGroup);
       const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({recipients:targetEmails,resumeFromLog:spTargetGroup==='resume'})});
-      setMsg('Sending to '+(res.queued||targetEmails.length)+' recipients in the background'+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'. Check the log in a minute.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
+      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
+      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'.');
+      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2944,20 +3022,32 @@ function AdminEmailCenter() {
               setWeeklyPdfBusy(true);setMsg('Rendering flyer'+(files.length>1?'s':'')+'…');
               try{
                 const added=[];
+                const warnings=[];
                 for(const f of files){
                   const images=f.type==='application/pdf'?await renderPdfToImages(f):[await renderImageToJpeg(f)];
                   if(!images.length){setMsg('Could not read "'+f.name+'".');setWeeklyPdfBusy(false);return;}
+                  if(images.truncated)warnings.push('"'+f.name+'" has '+images.totalPages+' pages; only the first '+images.length+' were attached.');
                   added.push({name:f.name,images});
                 }
-                setWeeklyPdfs(p=>[...p,...added]);
-                const total=weeklyPdfs.length+added.length;
-                setMsg('Flyer'+(total>1?'s':'')+' ready ('+total+' of 5) — shown at the bottom of the email in the order listed.');
+                const next=[...weeklyPdfs,...added];
+                // Guard against a doomed send: the whole payload (all flyers'
+                // base64 JPEG pages) must fit under the backend's 25MB JSON body
+                // limit. Warn now rather than let the send fail after the fact.
+                const bytes=next.reduce((sum,p)=>sum+p.images.reduce((s,b64)=>s+b64.length,0),0);
+                if(bytes>20*1024*1024){
+                  setMsg('Those flyers total ~'+Math.round(bytes/1048576)+'MB, which is too large to email reliably. Remove one, or use fewer/lower-resolution pages.');
+                  setWeeklyPdfBusy(false);return;
+                }
+                setWeeklyPdfs(next);
+                setWeeklyPreviewHtml(''); // stale — force a fresh preview after the flyer set changed
+                const total=next.length;
+                setMsg((warnings.length?warnings.join(' ')+' ':'')+'Flyer'+(total>1?'s':'')+' ready ('+total+' of 5) — shown at the bottom of the email in the order listed.');
               }catch(err){setMsg('Flyer error: '+err.message);}
               setWeeklyPdfBusy(false);
             }})),
           weeklyPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
             weeklyPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
-              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
+              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));setWeeklyPreviewHtml('');},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
@@ -3486,7 +3576,7 @@ function WelcomePage() {
   },[sponsorships.length]);
 
   if(checking) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Checking access...');
-  if(!user||!isAdmin) return React.createElement(AdminLogin,{onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
+  if(!user||!isAdmin) return React.createElement(AdminLogin,{notAdmin:!!user&&!isAdmin,onLogin:()=>{setChecking(true);setTimeout(()=>setChecking(false),500);}});
 
   const logoSrc=siteImages.fullscreenLogo||siteImages.topLogo||siteImages.heroImage||'logo.png';
   const z=fullZmanim?.zmanim||schedule?.zmanim||{};
@@ -3727,6 +3817,7 @@ function PayBillPage() {
   const cardMountRef=useRef(null);
   const stripeRef=useRef(null);
   const cardElementRef=useRef(null);
+  const clientSecretRef=useRef(null); // reused across retries so we don't create a second PaymentIntent
 
   // Extract token from hash on mount.
   useEffect(()=>{
@@ -3766,14 +3857,23 @@ function PayBillPage() {
     if(!stripeRef.current||!cardElementRef.current){setErr('Payment form still loading. Try again in a moment.');return;}
     setSubmitting(true);setErr('');
     try{
-      const r=await fetch(BACKEND_URL+'/api/pay/'+token+'/create-payment',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({email})
-      });
-      const data=await r.json();
-      if(!r.ok){setErr(data.error||'Payment setup failed.');setSubmitting(false);return;}
-      const result=await stripeRef.current.confirmCardPayment(data.clientSecret,{
+      // Reuse the same PaymentIntent across retries (cache its clientSecret) so a
+      // transient error after a successful charge doesn't mint a second PI and
+      // double-charge the member; confirmCardPayment on an already-succeeded PI
+      // just returns 'succeeded'.
+      let clientSecret=clientSecretRef.current;
+      if(!clientSecret){
+        const r=await fetch(BACKEND_URL+'/api/pay/'+token+'/create-payment',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({email})
+        });
+        const data=await r.json();
+        if(!r.ok){setErr(data.error||'Payment setup failed.');setSubmitting(false);return;}
+        clientSecret=data.clientSecret;
+        clientSecretRef.current=clientSecret;
+      }
+      const result=await stripeRef.current.confirmCardPayment(clientSecret,{
         payment_method:{
           card:cardElementRef.current,
           billing_details:{
