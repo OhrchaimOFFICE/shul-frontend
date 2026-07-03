@@ -2752,6 +2752,7 @@ function AdminEmailCenter() {
   const [templates,setTemplates]=useState([]);
   const [recipients,setRecipients]=useState([]);
   const [log,setLog]=useState([]);
+  const [jobs,setJobs]=useState([]); // background send jobs (weekly/blast/sponsorship)
   const [msg,setMsg]=useState('');
   const [sending,setSending]=useState(false);
   // Compose form with preview
@@ -2784,12 +2785,24 @@ function AdminEmailCenter() {
   const [selectedEmails,setSelectedEmails]=useState({});
   const [pickerFilter,setPickerFilter]=useState('');
 
+  function loadJobs(){return apiFetch('/api/admin/email/jobs').then(setJobs).catch(()=>{});}
   useEffect(()=>{
     apiFetch('/api/admin/email/recipients').then(setRecipients).catch(()=>{});
     apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});
     apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
+    loadJobs();
     apiFetch('/api/shiurim',{cache:'no-store'}).then(list=>{setWeeklyShiurim(list||[]);const sel={};(list||[]).forEach(s=>{sel[s.id]=true;});setWeeklyShiurSel(sel);}).catch(()=>{});
   },[]);
+  // Auto-refresh the jobs panel while any send is still in progress, and refresh
+  // the email log alongside it so delivery results appear without a manual reload.
+  useEffect(()=>{
+    const active=jobs.some(j=>j.status==='running');
+    if(!active) return;
+    const t=setInterval(()=>{loadJobs();apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
+    return ()=>clearInterval(t);
+  },[jobs]);
+  async function retryJob(id){setMsg('');try{const r=await apiFetch('/api/admin/email/jobs/'+id+'/retry',{method:'POST'});setMsg('Retrying '+(r.requeued||0)+' recipient(s).');loadJobs();setTimeout(loadJobs,3000);}catch(e){setMsg('Error: '+e.message);}}
+  async function cancelJob(id){if(!confirm('Cancel this send? Recipients not yet emailed will be skipped.'))return;setMsg('');try{await apiFetch('/api/admin/email/jobs/'+id+'/cancel',{method:'POST'});loadJobs();}catch(e){setMsg('Error: '+e.message);}}
 
   function getTargetEmails(group){
     const dedupe=list=>[...new Set(list.filter(Boolean))];
@@ -2844,10 +2857,9 @@ function AdminEmailCenter() {
     if(!confirm('Send this email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
     setSending(true);
     try{
-      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html,resumeFromLog:composeForm.targetGroup==='resume'})});
-      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
-      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
+      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html})});
+      setMsg('Queued for '+(res.queued||targetEmails.length)+' recipient'+((res.queued||targetEmails.length)===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
+      loadJobs();setTimeout(loadJobs,3000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2873,10 +2885,10 @@ function AdminEmailCenter() {
     setSending(true);
     try{
       const shiurIds=weeklyShiurim.filter(s=>weeklyShiurSel[s.id]).map(s=>s.id);
-      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null,pdfName:weeklyPdfs.length?weeklyPdfs.map(p=>p.name).join(', '):null,resumeFromLog:weeklyTargetGroup==='resume'})});
-      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
-      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+(weeklyPdfs.length?' — flyer'+(weeklyPdfs.length>1?'s':'')+' shown at bottom':'')+'.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
+      const res=await apiFetch('/api/admin/email/send-weekly-custom',{method:'POST',body:JSON.stringify({recipients:targetEmails,startDate:weeklyStartDate,endDate:weeklyEndDate,customText:weeklyCustomText,subject:weeklySubject,shiurIds,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null,pdfName:weeklyPdfs.length?weeklyPdfs.map(p=>p.name).join(', '):null})});
+      const q=res.queued||targetEmails.length;
+      setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background'+(weeklyPdfs.length?' (flyer'+(weeklyPdfs.length>1?'s':'')+' at the bottom)':'')+'. Watch progress under "Sending" below.');
+      loadJobs();setTimeout(loadJobs,3000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2893,10 +2905,10 @@ function AdminEmailCenter() {
     if(!confirm('Send the sponsorship email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
     setSending(true);
     try{
-      const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({recipients:targetEmails,resumeFromLog:spTargetGroup==='resume'})});
-      const sent=(res.sent!=null?res.sent:res.queued||targetEmails.length);
-      setMsg('Sent to '+sent+' recipient'+(sent===1?'':'s')+(res.failed?' ('+res.failed+' failed)':'')+(res.skippedAlready?' ('+res.skippedAlready+' already had it, skipped)':'')+'.');
-      setTimeout(()=>{apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},2000);
+      const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({recipients:targetEmails})});
+      const q=res.queued||targetEmails.length;
+      setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
+      loadJobs();setTimeout(loadJobs,3000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
   }
@@ -2940,11 +2952,41 @@ function AdminEmailCenter() {
 
   function loadTemplate(tpl){setComposeForm({subject:tpl.subject||'',html:tpl.html||'',targetGroup:composeForm.targetGroup});setSubTab('compose');}
 
+  // Live send-progress panel. Every bulk send is a background job; this shows
+  // each job's status and progress and lets an admin retry failures or cancel.
+  const activeJobs=jobs.filter(j=>j.status==='running');
+  function JobsPanel(){
+    const statusLabel={running:'Sending…',done:'Sent',errors:'Sent with errors',cancelled:'Cancelled',failed:'Failed'};
+    const statusColor={running:'#a05a2c',done:'#27ae60',errors:'#c0392b',cancelled:'#888',failed:'#c0392b'};
+    return React.createElement('div',{className:'card'},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Sending Progress'),
+        React.createElement('button',{className:'btn btn-sm btn-outline',onClick:loadJobs},'Refresh')),
+      React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:'6px 0 12px'}},'Bulk emails send in the background so you don\'t have to wait. Progress updates automatically; a send that stops partway finishes on its own within a minute — you no longer need to "resume" manually.'),
+      jobs.length===0?React.createElement('p',{style:{color:'#888'}},'No recent sends.'):
+      React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+        jobs.map(j=>React.createElement('div',{key:j.id,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:'10px 12px',background:'#faf8f3'}},
+          React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+            React.createElement('div',{style:{fontWeight:700,color:'#1a2744',flex:'1 1 200px'}},j.subject||'(no subject)'),
+            React.createElement('span',{style:{fontWeight:700,fontSize:'0.82rem',color:statusColor[j.status]||'#555'}},statusLabel[j.status]||j.status)),
+          React.createElement('div',{style:{fontSize:'0.85rem',color:'#555',marginTop:4}},
+            (j.sentCount||0)+' of '+(j.total||0)+' sent'+(j.failedCount?', '+j.failedCount+' failed':'')+(j.pendingCount?', '+j.pendingCount+' remaining':'')),
+          React.createElement('div',{style:{height:6,background:'#e0dcd4',borderRadius:3,marginTop:6,overflow:'hidden'}},
+            React.createElement('div',{style:{height:'100%',width:(j.total?Math.round(((j.sentCount||0)+(j.failedCount||0))/j.total*100):0)+'%',background:statusColor[j.status]||'#c49a3c'}})),
+          ((j.status==='errors'||j.status==='failed')||j.status==='running')&&React.createElement('div',{style:{marginTop:8,display:'flex',gap:8}},
+            (j.status==='errors'||j.status==='failed')&&React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>retryJob(j.id)},'Retry failed ('+(j.failedCount||j.pendingCount||0)+')'),
+            j.status==='running'&&React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>cancelJob(j.id)},'Cancel'))))));
+  }
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      ['compose','weekly','sponsorship','templates','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
-        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='templates'?'Templates':'Email Log'))),
+      ['compose','weekly','sponsorship','templates','sending','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='sending')loadJobs();}},
+        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='templates'?'Templates':t==='sending'?('Sending'+(activeJobs.length?' ('+activeJobs.length+')':'')):'Email Log'))),
+    // Always surface an in-progress send banner, even off the Sending tab.
+    activeJobs.length>0&&subTab!=='sending'&&React.createElement('div',{className:'message message-success',style:{cursor:'pointer'},onClick:()=>setSubTab('sending')},
+      activeJobs.length+' send'+(activeJobs.length>1?'s':'')+' in progress — click to view progress.'),
+
+    subTab==='sending'&&JobsPanel(),
 
     // ── Compose with live preview ──
     subTab==='compose'&&React.createElement('div',null,
@@ -2957,9 +2999,7 @@ function AdminEmailCenter() {
             React.createElement('option',{value:'members'},'Members Only'),
             React.createElement('option',{value:'unpaid'},'Unpaid Members'),
             React.createElement('option',{value:'admins'},'Admins Only'),
-            React.createElement('option',{value:'custom'},'Pick specific members...'),
-            React.createElement('option',{value:'resume'},'Resume — only those not yet sent (from log)')),
-          composeForm.targetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c',marginTop:6}},'Finishes an interrupted send: skips everyone who already got this subject in the most recent batch (per the log) and sends to the rest. Match the Subject exactly, and re-enter the same body — the log stores who got it, not the email content.'),
+            React.createElement('option',{value:'custom'},'Pick specific members...')),
           composeForm.targetGroup==='custom'&&MemberPicker()),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
@@ -2989,11 +3029,9 @@ function AdminEmailCenter() {
               React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
               React.createElement('option',{value:'admins'},'Admins'),
-              React.createElement('option',{value:'custom'},'Pick specific members...'),
-              React.createElement('option',{value:'resume'},'Resume — only those not yet sent'))),
+              React.createElement('option',{value:'custom'},'Pick specific members...'))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:weeklySubject,onChange:e=>setWeeklySubject(e.target.value)}))),
-        weeklyTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already got this subject in the most recent batch (per the log) and sends only to the rest. Keep the Subject the same; the weekly content regenerates automatically.'),
         weeklyTargetGroup==='custom'&&MemberPicker(),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (appears just under the davening schedule, above shiurim/sponsorships)'),
           EditorToolbar('weeklyCustomTA',weeklyCustomText,setWeeklyCustomText),
@@ -3072,8 +3110,7 @@ function AdminEmailCenter() {
               React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
               React.createElement('option',{value:'members'},'Members'),
               React.createElement('option',{value:'admins'},'Admins'),
-              React.createElement('option',{value:'custom'},'Pick specific members...'),
-              React.createElement('option',{value:'resume'},'Resume — only those not yet sent'))),
+              React.createElement('option',{value:'custom'},'Pick specific members...'))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:spSubject,onChange:e=>setSpSubject(e.target.value)}))),
         spTargetGroup==='custom'&&MemberPicker(),
@@ -3088,7 +3125,6 @@ function AdminEmailCenter() {
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{className:'btn btn-outline',onClick:previewSponsorship},'Generate Preview'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendSponsorship,disabled:sending},sending?'Sending...':'Send Sponsorship Email'))),
-      spTargetGroup==='resume'&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c'}},'Resume mode: skips anyone who already got this exact subject in the most recent batch. Keep the Subject the same as the interrupted send.'),
       spPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
