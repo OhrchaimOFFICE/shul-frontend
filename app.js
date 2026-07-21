@@ -674,6 +674,7 @@ function HomePage({navigate}) {
             schedule.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
             schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row',key:'mm'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
             schedule.davening?.maariv&&React.createElement('div',{className:'time-row',key:'ma'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
+            isFriday&&schedule.zmanim?.earlyCandleLighting&&React.createElement('div',{className:'time-row',key:'ecl'},React.createElement('span',{className:'time-label'},'Early Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.earlyCandleLighting)),
             showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row',key:'cl'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))]
           ):React.createElement('p',{style:{color:'#888'}},'Unable to load.')),
         React.createElement(HeroSlideshow)),
@@ -683,6 +684,7 @@ function HomePage({navigate}) {
           React.createElement('div',{className:'card-header'},'This Shabbos',sb?.parsha&&React.createElement('span',{className:'badge'},sb.parsha)),
           sb?React.createElement('div',null,
             React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#c49a3c',marginBottom:2,letterSpacing:0.5}},'FRIDAY NIGHT'),
+            sb.earlyCandleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.earlyCandleLighting)),
             sb.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.candleLighting)),
             sb.fridayMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Kabbalas Shabbos'),React.createElement('span',{className:'time-value'},sb.fridayMincha)),
             React.createElement('div',{style:{fontSize:'0.95rem',fontWeight:700,color:'#c49a3c',marginTop:6,marginBottom:2,letterSpacing:0.5}},'SHABBOS DAY'),
@@ -804,6 +806,7 @@ function SchedulePage({navigate}) {
               day.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},day.davening.mincha)),
               day.davening?.minchaMaariv&&React.createElement('div',{className:'time-row',key:'mm'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},day.davening.minchaMaariv)),
               day.davening?.maariv&&React.createElement('div',{className:'time-row',key:'ma'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},day.davening.maariv)),
+              new Date(day.date+'T12:00:00').getDay()===5&&day.zmanim?.earlyCandleLighting&&React.createElement('div',{className:'time-row',key:'ecl'},React.createElement('span',{className:'time-label'},'Early Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.earlyCandleLighting)),
               (new Date(day.date+'T12:00:00').getDay()===5||day.dayType==='yomTov')&&day.zmanim?.candleLighting&&React.createElement('div',{className:'time-row',key:'cl'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.candleLighting)),
               new Date(day.date+'T12:00:00').getDay()===6&&day.zmanim?.tzeis&&React.createElement('div',{className:'time-row',key:'hv'},React.createElement('span',{className:'time-label'},'Havdalah'),React.createElement('span',{className:'time-value'},day.zmanim.tzeis))],
               React.createElement('div',{style:{marginTop:8,paddingTop:8,borderTop:'1px solid #f0ece3'}},
