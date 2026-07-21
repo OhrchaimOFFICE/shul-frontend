@@ -28,6 +28,18 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 function getTodayStr() { return new Date().toLocaleDateString('en-CA',{timeZone:'America/New_York'}); }
 // ET day-of-week (0=Sun..6=Sat). Parsing the ET date string at noon is offset-safe.
 function getTodayDow() { return new Date(getTodayStr()+'T12:00:00').getDay(); }
+// Render a special Jewish-holiday schedule (Tisha B'Av, etc.) as time rows with
+// optional italic notes. Used anywhere a day's davening times are shown.
+function holidayScheduleRows(hs){
+  if(!hs||!hs.items||!hs.items.length) return null;
+  return React.createElement('div',{className:'holiday-schedule'},
+    React.createElement('div',{style:{fontWeight:700,color:'#c49a3c',marginBottom:4}},hs.name),
+    hs.items.map((it,i)=>React.createElement('div',{key:i,style:{marginBottom:it.note?6:2}},
+      React.createElement('div',{className:'time-row'},
+        React.createElement('span',{className:'time-label'},it.category||''),
+        it.time&&React.createElement('span',{className:'time-value'},it.time)),
+      it.note&&React.createElement('div',{style:{fontSize:'0.8rem',color:'#888',fontStyle:'italic',marginTop:1}},it.note))));
+}
 function formatDisplayDate(ds) { return new Date(ds+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function getSundayOfWeek(ds) { const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()-d.getDay()); return d.toISOString().split('T')[0]; }
 
@@ -656,12 +668,13 @@ function HomePage({navigate}) {
           loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
           schedule?React.createElement('div',null,
             schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
-            schedule.davening?.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
-            schedule.davening?.earlyMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.earlyMincha)),
-            schedule.davening?.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
-            schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
-            schedule.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
-            showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))
+            schedule.holidaySchedule?holidayScheduleRows(schedule.holidaySchedule):[
+            schedule.davening?.shacharis&&React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
+            schedule.davening?.earlyMincha&&React.createElement('div',{className:'time-row',key:'em'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.earlyMincha)),
+            schedule.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
+            schedule.davening?.minchaMaariv&&React.createElement('div',{className:'time-row',key:'mm'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.minchaMaariv)),
+            schedule.davening?.maariv&&React.createElement('div',{className:'time-row',key:'ma'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},schedule.davening.maariv)),
+            showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'time-row',key:'cl'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},schedule.zmanim.candleLighting))]
           ):React.createElement('p',{style:{color:'#888'}},'Unable to load.')),
         React.createElement(HeroSlideshow)),
       // Column 2: This Shabbos - full schedule
@@ -783,13 +796,16 @@ function SchedulePage({navigate}) {
               day.parsha&&React.createElement('span',{className:'parsha-badge'},day.parsha),
               day.holidays?.length>0&&day.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
             React.createElement('div',{className:'day-card-body'},
-              React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},day.davening?.shacharis||'--')),
-              day.davening?.earlyMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},day.davening.earlyMincha)),
-              day.davening?.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},day.davening.mincha)),
-              day.davening?.minchaMaariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},day.davening.minchaMaariv)),
-              day.davening?.maariv&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},day.davening.maariv)),
-              (new Date(day.date+'T12:00:00').getDay()===5||day.dayType==='yomTov')&&day.zmanim?.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.candleLighting)),
-              new Date(day.date+'T12:00:00').getDay()===6&&day.zmanim?.tzeis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Havdalah'),React.createElement('span',{className:'time-value'},day.zmanim.tzeis)),
+              // A Jewish-holiday schedule (Tisha B'Av, etc.) replaces the normal
+              // davening rows for that day.
+              day.holidaySchedule?holidayScheduleRows(day.holidaySchedule):[
+              React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},day.davening?.shacharis||'--')),
+              day.davening?.earlyMincha&&React.createElement('div',{className:'time-row',key:'em'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},day.davening.earlyMincha)),
+              day.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},day.davening.mincha)),
+              day.davening?.minchaMaariv&&React.createElement('div',{className:'time-row',key:'mm'},React.createElement('span',{className:'time-label'},'Mincha / Maariv'),React.createElement('span',{className:'time-value'},day.davening.minchaMaariv)),
+              day.davening?.maariv&&React.createElement('div',{className:'time-row',key:'ma'},React.createElement('span',{className:'time-label'},'Maariv'),React.createElement('span',{className:'time-value'},day.davening.maariv)),
+              (new Date(day.date+'T12:00:00').getDay()===5||day.dayType==='yomTov')&&day.zmanim?.candleLighting&&React.createElement('div',{className:'time-row',key:'cl'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},day.zmanim.candleLighting)),
+              new Date(day.date+'T12:00:00').getDay()===6&&day.zmanim?.tzeis&&React.createElement('div',{className:'time-row',key:'hv'},React.createElement('span',{className:'time-label'},'Havdalah'),React.createElement('span',{className:'time-value'},day.zmanim.tzeis))],
               React.createElement('div',{style:{marginTop:8,paddingTop:8,borderTop:'1px solid #f0ece3'}},
                 React.createElement('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'0.85rem',color:'#888'}},
                   React.createElement('span',null,'Sunrise: '+(day.zmanim?.sunrise||'--')),
@@ -1230,10 +1246,11 @@ function AdminPanel() {
         React.createElement('button',{className:'btn btn-sm btn-primary',onClick:openWelcomeDisplay,title:'Open the entrance display in a new tab'},'📺 Open Welcome Display'),
         React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out'))),
     React.createElement('div',{className:'admin-tabs'},
-      ['rules','overrides','shiurim','emails','autoemails','donations','members','tags','pledges','reasons','settings','highholidays','seating','welcomesponsors','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
-        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='tags'?'Member Tags':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='welcomesponsors'?'Welcome Display':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
+      ['rules','overrides','holidays','shiurim','emails','autoemails','donations','members','tags','pledges','reasons','settings','highholidays','seating','welcomesponsors','analytics','images','admins'].map(t=>React.createElement('button',{key:t,className:'admin-tab'+(tab===t?' active':''),onClick:()=>setTab(t)},
+        t==='rules'?'Davening Rules':t==='overrides'?'Overrides':t==='holidays'?'Jewish Holidays':t==='shiurim'?'Shiurim':t==='emails'?'Email Center':t==='autoemails'?'Auto Emails':t==='donations'?'Donations':t==='members'?'Members':t==='tags'?'Member Tags':t==='pledges'?'Pledges/Billing':t==='reasons'?'Reasons':t==='settings'?'Settings':t==='highholidays'?'High Holidays':t==='seating'?'Seating':t==='welcomesponsors'?'Welcome Display':t==='analytics'?'Analytics':t==='images'?'Site Images':'Admins'))),
     tab==='rules'&&React.createElement(AdminRulesEditor),
     tab==='overrides'&&React.createElement(AdminOverrides),
+    tab==='holidays'&&React.createElement(AdminHolidays),
     tab==='shiurim'&&React.createElement(AdminShiurim),
     tab==='emails'&&React.createElement(AdminEmailCenter),
     tab==='autoemails'&&React.createElement(AdminAutoEmails),
@@ -1594,6 +1611,99 @@ function AdminOverrides() {
           React.createElement('td',null,Object.entries(o.times||{}).map(([k,v])=>k+': '+v).join(', ')||'None'),
           React.createElement('td',null,o.note||'-'),
           React.createElement('td',null,React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(o.date)},'Delete')))))))));
+}
+
+// ─── Admin Jewish Holidays ───────────────────────────────────────
+// Custom multi-part schedules for Jewish holidays (Tisha B'Av, etc.). Dates
+// come from the Jewish calendar automatically; the admin sets the times.
+const HOLIDAY_AUTO_OPTS=[['','— I\'ll type the time —'],['sunset','Auto: Shkia / Sunset'],['chatzos','Auto: Chatzos (midday)'],['tzeis','Auto: Tzeis / Nightfall'],['alos','Auto: Alos / Dawn'],['candleLighting','Auto: Candle Lighting'],['plag','Auto: Plag HaMincha'],['sunrise','Auto: Sunrise']];
+function AdminHolidays(){
+  const [holidays,setHolidays]=useState([]);
+  const [seeded,setSeeded]=useState(true);
+  const [loading,setLoading]=useState(true);
+  const [loadErr,setLoadErr]=useState('');
+  const [msg,setMsg]=useState('');
+  const [openKey,setOpenKey]=useState('');
+  const [previews,setPreviews]=useState({});
+  const [busy,setBusy]=useState('');
+  useEffect(()=>{load();},[]);
+  function load(){setLoading(true);setLoadErr('');apiFetch('/api/admin/holidays').then(d=>{setHolidays(d.holidays||[]);setSeeded(d.seeded!==false);setLoading(false);}).catch(e=>{setLoadErr(e.message||'Failed to load');setLoading(false);});}
+  function updateHoliday(key,updater){setHolidays(hs=>hs.map(h=>h.key===key?updater({...h}):h));}
+  function setField(key,field,val){updateHoliday(key,h=>({...h,[field]:val}));}
+  function updItem(key,si,ii,patch){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,items:s.items.map((it,j)=>j!==ii?it:{...it,...patch})})}));}
+  function addItem(key,si){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,items:[...(s.items||[]),{category:'',time:'',note:'',auto:''}]})}));}
+  function rmItem(key,si,ii){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,items:s.items.filter((_,j)=>j!==ii)})}));}
+  function setSecField(key,si,field,val){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,[field]:val})}));}
+  function addSection(key){updateHoliday(key,h=>({...h,sections:[...(h.sections||[]),{id:'sec'+Math.floor(Math.random()*1e6),label:'New day',match:[],items:[]}]}));}
+  function rmSection(key,si){if(!confirm('Remove this day/section?'))return;updateHoliday(key,h=>({...h,sections:h.sections.filter((_,i)=>i!==si)}));}
+  async function seedAll(){setBusy('seed');setMsg('');try{const r=await apiFetch('/api/admin/holidays/seed',{method:'POST'});setMsg('Set up '+(r.created||0)+' holidays.');load();}catch(e){setMsg('Error: '+e.message);}setBusy('');}
+  async function saveHoliday(h){setBusy(h.key);setMsg('');try{await apiFetch('/api/admin/holidays/'+h.key,{method:'PUT',body:JSON.stringify({name:h.name,intro:h.intro,enabled:!!h.enabled,emailEnabled:!!h.emailEnabled,order:Number(h.order)||0,sections:(h.sections||[]).map(s=>({id:s.id,label:s.label,match:s.match,items:s.items}))})});setMsg('Saved “'+h.name+'”.');setSeeded(true);}catch(e){setMsg('Error: '+e.message);}setBusy('');}
+  async function previewHoliday(key){setBusy('prev'+key);setMsg('');try{const r=await apiFetch('/api/admin/holidays/'+key+'/preview');setPreviews(p=>({...p,[key]:r.occurrences||[]}));if(!(r.occurrences||[]).length)setMsg('No upcoming date found in the next ~13 months (check the calendar names).');}catch(e){setMsg('Error: '+e.message);}setBusy('');}
+  async function delHoliday(h){if(!confirm('Delete “'+h.name+'”? This removes its custom schedule.'))return;try{await apiFetch('/api/admin/holidays/'+h.key,{method:'DELETE'});setMsg('Deleted “'+h.name+'”.');load();}catch(e){setMsg('Error: '+e.message);}}
+  async function addHoliday(){const name=prompt('Holiday name (for example: Yom HaAtzmaut):');if(!name)return;const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);if(!key){setMsg('Please use a name with letters.');return;}try{await apiFetch('/api/admin/holidays',{method:'POST',body:JSON.stringify({key,name})});setMsg('Added “'+name+'”. Open it to add the calendar names + times.');await new Promise(r=>setTimeout(r,300));load();setOpenKey(key);}catch(e){setMsg('Error: '+e.message);}}
+
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading holidays...');
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:24}},React.createElement('p',{className:'message message-error'},'Could not load holidays: '+loadErr),React.createElement('button',{className:'btn btn-outline',onClick:load},'Retry'));
+
+  function editor(h){
+    return React.createElement('div',{style:{padding:'12px 14px',borderTop:'1px solid #e0dcd4'}},
+      React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end',marginBottom:10}},
+        React.createElement('div',{className:'form-group',style:{flex:'1 1 200px',margin:0}},React.createElement('label',{className:'form-label'},'Name'),React.createElement('input',{className:'form-input',value:h.name||'',onChange:e=>setField(h.key,'name',e.target.value)})),
+        React.createElement('div',{className:'form-group',style:{width:90,margin:0}},React.createElement('label',{className:'form-label'},'Order'),React.createElement('input',{className:'form-input',type:'number',value:h.order||0,onChange:e=>setField(h.key,'order',e.target.value)})),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:!!h.enabled,onChange:e=>setField(h.key,'enabled',e.target.checked)}),'Show on site & weekly email'),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:!!h.emailEnabled,onChange:e=>setField(h.key,'emailEnabled',e.target.checked)}),'Offer holiday email')),
+      React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Intro note (optional, shown above the schedule)'),React.createElement('input',{className:'form-input',value:h.intro||'',onChange:e=>setField(h.key,'intro',e.target.value)})),
+      (h.sections||[]).map((s,si)=>React.createElement('div',{key:si,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:10,marginBottom:10,background:'#faf8f3'}},
+        React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end',marginBottom:8}},
+          React.createElement('div',{className:'form-group',style:{flex:'1 1 160px',margin:0}},React.createElement('label',{className:'form-label'},'Day label'),React.createElement('input',{className:'form-input',value:s.label||'',onChange:e=>setSecField(h.key,si,'label',e.target.value)})),
+          React.createElement('div',{className:'form-group',style:{flex:'2 1 240px',margin:0}},React.createElement('label',{className:'form-label'},'Calendar names that trigger this day (comma-separated)'),React.createElement('input',{className:'form-input',value:(s.match||[]).join(', '),onChange:e=>setSecField(h.key,si,'match',e.target.value.split(',').map(x=>x.trim()).filter(Boolean)),placeholder:"e.g. Erev Tish'a B'Av"})),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>rmSection(h.key,si),title:'Remove this day'},'✕')),
+        React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:'0.88rem'}},
+          React.createElement('thead',null,React.createElement('tr',null,
+            React.createElement('th',{style:{textAlign:'left',padding:'2px 4px'}},'Item'),
+            React.createElement('th',{style:{textAlign:'left',padding:'2px 4px',width:110}},'Time'),
+            React.createElement('th',{style:{textAlign:'left',padding:'2px 4px',width:170}},'or Auto-calculate'),
+            React.createElement('th',{style:{textAlign:'left',padding:'2px 4px'}},'Note'),
+            React.createElement('th',{style:{width:28}}))),
+          React.createElement('tbody',null,(s.items||[]).map((it,ii)=>React.createElement('tr',{key:ii},
+            React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('input',{className:'form-input',style:{margin:0},value:it.category||'',onChange:e=>updItem(h.key,si,ii,{category:e.target.value}),placeholder:'e.g. Mincha'})),
+            React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('input',{className:'form-input',style:{margin:0},value:it.time||'',onChange:e=>updItem(h.key,si,ii,{time:e.target.value}),placeholder:it.auto?'(auto)':'6:00 PM'})),
+            React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('select',{className:'form-input',style:{margin:0},value:it.auto||'',onChange:e=>updItem(h.key,si,ii,{auto:e.target.value})},HOLIDAY_AUTO_OPTS.map(([v,l])=>React.createElement('option',{key:v,value:v},l)))),
+            React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('input',{className:'form-input',style:{margin:0},value:it.note||'',onChange:e=>updItem(h.key,si,ii,{note:e.target.value}),placeholder:'optional'})),
+            React.createElement('td',{style:{padding:'2px 4px',textAlign:'center'}},React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();rmItem(h.key,si,ii);},style:{color:'#c0392b'}},'✕'))))),
+        ),
+        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:6},onClick:()=>addItem(h.key,si)},'+ Add item')),
+      ),
+      React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>addSection(h.key)},'+ Add a day (e.g. Erev / Day 2)'),
+      React.createElement('div',{style:{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}},
+        React.createElement('button',{className:'btn btn-primary',onClick:()=>saveHoliday(h),disabled:busy===h.key},busy===h.key?'Saving...':'Save'),
+        React.createElement('button',{className:'btn btn-outline',onClick:()=>previewHoliday(h.key),disabled:busy==='prev'+h.key},busy==='prev'+h.key?'Checking...':'Preview upcoming dates'),
+        React.createElement('button',{className:'btn btn-danger',style:{marginLeft:'auto'},onClick:()=>delHoliday(h)},'Delete')),
+      previews[h.key]&&previews[h.key].length>0&&React.createElement('div',{style:{marginTop:12,background:'#fff',border:'1px solid #e0dcd4',borderRadius:6,padding:12}},
+        React.createElement('div',{style:{fontWeight:700,marginBottom:6}},'Next occurrence (from the Jewish calendar):'),
+        previews[h.key].map((occ,i)=>React.createElement('div',{key:i,style:{marginBottom:8}},
+          React.createElement('div',{style:{fontWeight:600,color:'#1a2744'}},(occ.sectionLabel||h.name)+' — '+new Date(occ.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})),
+          occ.items.map((it,j)=>React.createElement('div',{key:j,style:{fontSize:'0.85rem',color:'#555',paddingLeft:10}},it.category+(it.time?': '+it.time:'')+(it.note?' — '+it.note:'')))))));
+  }
+
+  return React.createElement('div',null,
+    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    React.createElement('div',{className:'card'},
+      React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
+        React.createElement('div',null,
+          React.createElement('div',{className:'card-header',style:{marginBottom:2,paddingBottom:0,borderBottom:'none'}},'Jewish Holiday Schedules'),
+          React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:0}},'Dates come from the Jewish calendar automatically each year. Set the times below; fast/Chatzos times can auto-calculate. A holiday only appears on the site once you turn on “Show on site”.')),
+        React.createElement('div',{style:{display:'flex',gap:8}},
+          !seeded&&React.createElement('button',{className:'btn btn-outline btn-sm',onClick:seedAll,disabled:busy==='seed'},busy==='seed'?'Setting up...':'Set up all holidays'),
+          React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addHoliday},'+ Add holiday'))),
+      !seeded&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c',marginTop:8}},'Showing built-in defaults. Saving any holiday (or “Set up all holidays”) makes them editable and permanent.')),
+    React.createElement('div',{style:{marginTop:12,display:'flex',flexDirection:'column',gap:8}},
+      holidays.map(h=>React.createElement('div',{key:h.key,className:'card',style:{padding:0,overflow:'hidden'}},
+        React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',cursor:'pointer'},onClick:()=>setOpenKey(openKey===h.key?'':h.key)},
+          React.createElement('span',{style:{fontWeight:700,color:'#1a2744',flex:1}},h.name),
+          h.enabled?React.createElement('span',{style:{fontSize:'0.72rem',background:'rgba(39,174,96,0.15)',color:'#27ae60',padding:'2px 8px',borderRadius:10,fontWeight:700}},'On site'):React.createElement('span',{style:{fontSize:'0.72rem',background:'#eee',color:'#888',padding:'2px 8px',borderRadius:10,fontWeight:700}},'Off'),
+          React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},openKey===h.key?'▾':'▸')),
+        openKey===h.key&&editor(h)))));
 }
 
 // ─── Admin Shiurim ───────────────────────────────────────────────
@@ -2779,6 +2889,13 @@ function AdminEmailCenter() {
   const [spSubject,setSpSubject]=useState('Sponsorship Opportunities - Congregation Ohr Chaim');
   const [spTargetGroup,setSpTargetGroup]=useState('all');
   const [spPreviewHtml,setSpPreviewHtml]=useState('');
+  // Holiday-schedule email
+  const [holidayList,setHolidayList]=useState([]);
+  const [holKey,setHolKey]=useState('');
+  const [holSubject,setHolSubject]=useState('');
+  const [holCustomText,setHolCustomText]=useState('');
+  const [holTargetGroup,setHolTargetGroup]=useState('all');
+  const [holPreviewHtml,setHolPreviewHtml]=useState('');
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
   // Custom per-member selection (shared between Compose and Weekly)
@@ -2792,6 +2909,7 @@ function AdminEmailCenter() {
     apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});
     loadJobs();
     apiFetch('/api/shiurim',{cache:'no-store'}).then(list=>{setWeeklyShiurim(list||[]);const sel={};(list||[]).forEach(s=>{sel[s.id]=true;});setWeeklyShiurSel(sel);}).catch(()=>{});
+    apiFetch('/api/admin/holidays').then(d=>{const hs=(d.holidays||[]).filter(h=>h.emailEnabled);setHolidayList(hs);if(hs[0]){setHolKey(hs[0].key);setHolSubject(hs[0].name+' Schedule - Congregation Ohr Chaim');}}).catch(()=>{});
   },[]);
   // Auto-refresh the jobs panel while any send is still in progress, and refresh
   // the email log alongside it so delivery results appear without a manual reload.
@@ -2913,6 +3031,26 @@ function AdminEmailCenter() {
     setSending(false);
   }
 
+  async function previewHolidayEmail(){setMsg('');setHolPreviewHtml('');
+    if(!holKey){setMsg('Pick a holiday first.');return;}
+    try{const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,customText:holCustomText,preview:true})});setHolPreviewHtml(res.html||'');if(!(res.occurrences||[]).length)setMsg('Heads up: no upcoming date for this holiday was found in the Jewish calendar, so the email would have no times.');}catch(err){setMsg('Error: '+err.message);}
+  }
+  async function sendHolidayEmail(){setMsg('');
+    if(!holKey){setMsg('Pick a holiday first.');return;}
+    const targetEmails=getTargetEmails(holTargetGroup);
+    if(!targetEmails.length){setMsg('No recipients in the selected group.');return;}
+    const hol=holidayList.find(h=>h.key===holKey);
+    if(!confirm('Send the '+(hol?hol.name:'holiday')+' schedule email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
+    setSending(true);
+    try{
+      const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,recipients:targetEmails,subject:holSubject,customText:holCustomText})});
+      const q=res.queued||targetEmails.length;
+      setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
+      loadJobs();setTimeout(loadJobs,3000);
+    }catch(err){setMsg('Error: '+err.message);}
+    setSending(false);
+  }
+
   async function saveTemplate(e){
     e.preventDefault();setMsg('');
     try{await apiFetch('/api/admin/email/templates',{method:'POST',body:JSON.stringify(tplForm)});setMsg('Template saved!');setTplForm({name:'',subject:'',html:''});
@@ -2980,8 +3118,8 @@ function AdminEmailCenter() {
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      ['compose','weekly','sponsorship','templates','sending','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='sending')loadJobs();}},
-        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='templates'?'Templates':t==='sending'?('Sending'+(activeJobs.length?' ('+activeJobs.length+')':'')):'Email Log'))),
+      ['compose','weekly','sponsorship','holiday','templates','sending','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='sending')loadJobs();}},
+        t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='holiday'?'Holiday Schedule':t==='templates'?'Templates':t==='sending'?('Sending'+(activeJobs.length?' ('+activeJobs.length+')':'')):'Email Log'))),
     // Always surface an in-progress send banner, even off the Sending tab.
     activeJobs.length>0&&subTab!=='sending'&&React.createElement('div',{className:'message message-success',style:{cursor:'pointer'},onClick:()=>setSubTab('sending')},
       activeJobs.length+' send'+(activeJobs.length>1?'s':'')+' in progress — click to view progress.'),
@@ -3130,6 +3268,38 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSpPreviewHtml('')},'Close')),
         React.createElement('iframe',{title:'Sponsorship email preview',sandbox:'',srcDoc:spPreviewHtml||'',style:{width:'100%',height:500,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
+
+    // ── Holiday schedule email ──
+    subTab==='holiday'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Holiday Schedule Email'),
+        holidayList.length===0?React.createElement('p',{style:{color:'#888'}},'No holidays are set up for email yet. Go to the “Jewish Holidays” tab, fill in a holiday\'s times, and turn on “Offer holiday email”.'):
+        React.createElement('div',null,
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))',gap:12}},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Holiday'),
+              React.createElement('select',{className:'form-input',value:holKey,onChange:e=>{const k=e.target.value;setHolKey(k);setHolPreviewHtml('');const h=holidayList.find(x=>x.key===k);if(h)setHolSubject(h.name+' Schedule - Congregation Ohr Chaim');}},
+                holidayList.map(h=>React.createElement('option',{key:h.key,value:h.key},h.name)))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Send To'),
+              React.createElement('select',{className:'form-input',value:holTargetGroup,onChange:e=>setHolTargetGroup(e.target.value)},
+                React.createElement('option',{value:'all'},'All ('+registeredCount+')'),
+                React.createElement('option',{value:'allPlusPending'},'All + pending invites ('+recipients.length+')'),
+                React.createElement('option',{value:'members'},'Members'),
+                React.createElement('option',{value:'admins'},'Admins'),
+                React.createElement('option',{value:'custom'},'Pick specific members...'))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
+              React.createElement('input',{className:'form-input',value:holSubject,onChange:e=>setHolSubject(e.target.value)}))),
+          holTargetGroup==='custom'&&MemberPicker(),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom message (optional, appears above the schedule)'),
+            React.createElement('textarea',{className:'form-input',rows:4,value:holCustomText,onChange:e=>setHolCustomText(e.target.value),placeholder:'Add an announcement here... Paragraphs and links work.'})),
+          React.createElement('p',{style:{fontSize:'0.82rem',color:'#666'}},'The schedule times are pulled automatically from what you set on the “Jewish Holidays” tab, for this holiday\'s next occurrence in the Jewish calendar.'),
+          React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
+            React.createElement('button',{className:'btn btn-outline',onClick:previewHolidayEmail},'Generate Preview'),
+            React.createElement('button',{className:'btn btn-primary',onClick:sendHolidayEmail,disabled:sending},sending?'Sending...':'Send Holiday Email')))),
+      holPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setHolPreviewHtml('')},'Close')),
+        React.createElement('iframe',{title:'Holiday email preview',sandbox:'',srcDoc:holPreviewHtml||'',style:{width:'100%',height:560,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
 
     // ── Templates ──
     subTab==='templates'&&React.createElement('div',null,
