@@ -150,6 +150,28 @@ function renderImageToJpeg(file,opts){
     img.src=url;
   });
 }
+// Validate + rasterize attached flyers (PDF/JPEG/PNG) for an email. Returns
+// {next, warnings} on success or {error} — up to 5 files, 15MB each, and the
+// combined base64 payload must stay under ~20MB (the backend's 25MB JSON limit).
+async function processFlyerFiles(files,existingPdfs){
+  const okTypes=['application/pdf','image/jpeg','image/png'];
+  if(existingPdfs.length+files.length>5) return {error:'Up to 5 flyers per email — you have '+existingPdfs.length+' attached and picked '+files.length+' more.'};
+  for(const f of files){
+    if(!okTypes.includes(f.type)) return {error:'"'+f.name+'" is not a PDF or JPEG/PNG image.'};
+    if(f.size>15*1024*1024) return {error:'"'+f.name+'" is too large (max 15MB per file).'};
+  }
+  const added=[];const warnings=[];
+  for(const f of files){
+    const images=f.type==='application/pdf'?await renderPdfToImages(f):[await renderImageToJpeg(f)];
+    if(!images.length) return {error:'Could not read "'+f.name+'".'};
+    if(images.truncated) warnings.push('"'+f.name+'" has '+images.totalPages+' pages; only the first '+images.length+' were attached.');
+    added.push({name:f.name,images});
+  }
+  const next=[...existingPdfs,...added];
+  const bytes=next.reduce((s,p)=>s+p.images.reduce((a,b)=>a+b.length,0),0);
+  if(bytes>20*1024*1024) return {error:'Those flyers total ~'+Math.round(bytes/1048576)+'MB, which is too large to email reliably. Remove one, or use fewer/lower-resolution pages.'};
+  return {next,warnings};
+}
 async function apiFetch(path, options={}) {
   const token = await firebase.auth().currentUser?.getIdToken();
   const headers = {'Content-Type':'application/json',...options.headers};
@@ -2899,6 +2921,8 @@ function AdminEmailCenter() {
   const [holCustomText,setHolCustomText]=useState('');
   const [holTargetGroup,setHolTargetGroup]=useState('all');
   const [holPreviewHtml,setHolPreviewHtml]=useState('');
+  const [holPdfs,setHolPdfs]=useState([]); // up to 5 flyers {name, images:[base64]}
+  const [holPdfBusy,setHolPdfBusy]=useState(false);
   // Template form
   const [tplForm,setTplForm]=useState({name:'',subject:'',html:''});
   // Custom per-member selection (shared between Compose and Weekly)
@@ -3036,7 +3060,7 @@ function AdminEmailCenter() {
 
   async function previewHolidayEmail(){setMsg('');setHolPreviewHtml('');
     if(!holKey){setMsg('Pick a holiday first.');return;}
-    try{const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,customText:holCustomText,preview:true})});setHolPreviewHtml(res.html||'');if(!(res.occurrences||[]).length)setMsg('Heads up: no upcoming date for this holiday was found in the Jewish calendar, so the email would have no times.');}catch(err){setMsg('Error: '+err.message);}
+    try{const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,customText:holCustomText,pdfImages:holPdfs.length?holPdfs.flatMap(p=>p.images):null,preview:true})});setHolPreviewHtml(res.html||'');if(!(res.occurrences||[]).length)setMsg('Heads up: no upcoming date for this holiday was found in the Jewish calendar, so the email would have no times.');}catch(err){setMsg('Error: '+err.message);}
   }
   async function sendHolidayEmail(){setMsg('');
     if(!holKey){setMsg('Pick a holiday first.');return;}
@@ -3046,7 +3070,7 @@ function AdminEmailCenter() {
     if(!confirm('Send the '+(hol?hol.name:'holiday')+' schedule email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
     setSending(true);
     try{
-      const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,recipients:targetEmails,subject:holSubject,customText:holCustomText})});
+      const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,recipients:targetEmails,subject:holSubject,customText:holCustomText,pdfImages:holPdfs.length?holPdfs.flatMap(p=>p.images):null})});
       const q=res.queued||targetEmails.length;
       setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
       loadJobs();setTimeout(loadJobs,3000);
@@ -3295,6 +3319,21 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom message (optional, appears above the schedule)'),
             React.createElement('textarea',{className:'form-input',rows:4,value:holCustomText,onChange:e=>setHolCustomText(e.target.value),placeholder:'Add an announcement here... Paragraphs and links work.'})),
           React.createElement('p',{style:{fontSize:'0.82rem',color:'#666'}},'The schedule times are pulled automatically from what you set on the “Jewish Holidays” tab, for this holiday\'s next occurrence in the Jewish calendar.'),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',marginTop:6,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+            holPdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:holPdfBusy?'wait':'pointer',margin:0,opacity:holPdfBusy?0.6:1}},holPdfBusy?'Rendering…':(holPdfs.length?'Add another flyer':'Attach flyer (PDF or JPEG)'),
+              React.createElement('input',{type:'file',accept:'application/pdf,image/jpeg,image/png',multiple:true,disabled:holPdfBusy,style:{display:'none'},onChange:async e=>{
+                const files=Array.from(e.target.files||[]);e.target.value='';
+                if(!files.length)return;
+                setHolPdfBusy(true);setMsg('Rendering flyer'+(files.length>1?'s':'')+'…');
+                const r=await processFlyerFiles(files,holPdfs);
+                if(r.error){setMsg(r.error);setHolPdfBusy(false);return;}
+                setHolPdfs(r.next);setHolPreviewHtml('');
+                setMsg((r.warnings.length?r.warnings.join(' ')+' ':'')+'Flyer'+(r.next.length>1?'s':'')+' ready ('+r.next.length+' of 5) — shown at the bottom of the email.');
+                setHolPdfBusy(false);
+              }})),
+            holPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+              holPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
+                React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setHolPdfs(prev=>prev.filter((_,j)=>j!==i));setHolPreviewHtml('');},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
           React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
             React.createElement('button',{className:'btn btn-outline',onClick:previewHolidayEmail},'Generate Preview'),
             React.createElement('button',{className:'btn btn-primary',onClick:sendHolidayEmail,disabled:sending},sending?'Sending...':'Send Holiday Email')))),
