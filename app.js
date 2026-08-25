@@ -2084,6 +2084,18 @@ function AccountPage() {
   useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
 
   async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(err.message);}}
+  async function handleGoogle(){setError('');
+    try{
+      const provider=new firebase.auth.GoogleAuthProvider();
+      await firebase.auth().signInWithPopup(provider);
+      // onAuthStateChanged picks up the sign-in; the backend auto-creates/links
+      // the member record by email on the first profile fetch.
+    }catch(err){
+      if(err.code==='auth/account-exists-with-different-credential') setError('This email already has an account here. Please sign in with your email and password below.');
+      else if(err.code==='auth/popup-closed-by-user'||err.code==='auth/cancelled-popup-request'){/* user dismissed */}
+      else setError(err.message||'Google sign-in failed.');
+    }
+  }
   async function handleForgotPassword(){
     const email=(loginForm.email||prompt('Enter the email on your account:')||'').trim();
     if(!email)return;
@@ -2108,6 +2120,11 @@ function AccountPage() {
     React.createElement('div',{className:'auth-title'},authMode==='prefill'?'Complete Your Account':'My Account'),
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
     error&&React.createElement('div',{className:'message message-error'},error),
+    authMode!=='prefill'&&React.createElement('div',null,
+      React.createElement('button',{type:'button',className:'btn btn-block',onClick:handleGoogle,style:{background:'#fff',border:'1px solid #d4cfc4',color:'#1a2744',display:'flex',alignItems:'center',justifyContent:'center',gap:10,fontWeight:600}},
+        React.createElement('img',{src:'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',alt:'',width:18,height:18,style:{display:'block'}}),
+        'Continue with Google'),
+      React.createElement('div',{style:{textAlign:'center',color:'#aaa',fontSize:'0.85rem',margin:'12px 0'}},'— or —')),
     authMode==='login'?React.createElement('form',{onSubmit:handleLogin},
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:loginForm.email,onChange:e=>setLoginForm(p=>({...p,email:e.target.value})),required:true})),
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Password'),React.createElement('input',{className:'form-input',type:'password',value:loginForm.password,onChange:e=>setLoginForm(p=>({...p,password:e.target.value})),required:true})),
