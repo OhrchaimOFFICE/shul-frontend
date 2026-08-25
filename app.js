@@ -1437,6 +1437,11 @@ function AdminSeating() {
 
   const assignedCount=Object.keys(data.assignments).length;
   const totalSeats=data.layout.seats.length;
+  // How many seats each reservation already has assigned (so the picker can show
+  // "reserved 3, assigned 1"). Seats are only assignable to people who reserved.
+  const reservations=data.reservations||[];
+  const assignedByRes={};
+  Object.values(data.assignments||{}).forEach(a=>{if(a&&a.reservationId)assignedByRes[a.reservationId]=(assignedByRes[a.reservationId]||0)+1;});
 
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
@@ -1496,19 +1501,19 @@ function AdminSeating() {
           }},'MECHITZAH'))),
     selected&&React.createElement('div',{className:'card',style:{marginTop:16,border:'2px solid #c49a3c'}},
       React.createElement('div',{className:'card-header'},'Seat '+selected.number+' ('+selected.section+')'),
-      React.createElement('div',{className:'form-group'},
-        React.createElement('label',{className:'form-label'},'Holder Name'),
-        React.createElement('input',{className:'form-input',value:form.holder,onChange:e=>setForm(p=>({...p,holder:e.target.value})),placeholder:'e.g. Kahn family'})),
-      React.createElement('div',{className:'form-group'},
-        React.createElement('label',{className:'form-label'},'Link to High-Holiday Reservation (optional)'),
-        React.createElement('select',{className:'form-input',value:form.reservationId,onChange:e=>{
-          const r=data.reservations.find(x=>x.id===e.target.value);
-          setForm(p=>({reservationId:e.target.value,holder:r?r.displayName:p.holder}));
-        }},
-          React.createElement('option',{value:''},'(none)'),
-          data.reservations.map(r=>React.createElement('option',{key:r.id,value:r.id},r.displayName+', '+r.numSeats+' seats')))),
+      reservations.length===0
+        ?React.createElement('p',{style:{color:'#888'}},'No High Holiday reservations yet. Seats can only be assigned to people who have reserved.')
+        :React.createElement('div',{className:'form-group'},
+          React.createElement('label',{className:'form-label'},'Assign this seat to a reservation'),
+          React.createElement('select',{className:'form-input',value:form.reservationId,onChange:e=>{
+            const r=reservations.find(x=>x.id===e.target.value);
+            setForm({reservationId:e.target.value,holder:r?r.displayName:''});
+          }},
+            React.createElement('option',{value:''},'— choose a reservation —'),
+            reservations.map(r=>React.createElement('option',{key:r.id,value:r.id},
+              r.displayName+' — reserved '+r.numSeats+', assigned '+(assignedByRes[r.id]||0))))),
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
-        React.createElement('button',{className:'btn btn-primary',onClick:save},'Save'),
+        React.createElement('button',{className:'btn btn-primary',onClick:save,disabled:!form.reservationId},'Save'),
         data.assignments[selected.number]&&React.createElement('button',{className:'btn btn-danger',onClick:clearSeat},'Clear'),
         React.createElement('button',{className:'btn btn-outline',onClick:()=>setSelected(null)},'Cancel')))));
 }
