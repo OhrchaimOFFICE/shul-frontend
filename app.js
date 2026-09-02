@@ -3687,6 +3687,8 @@ function AdminHighHolidays() {
   const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
   const [reservations,setReservations]=useState([]);
   const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
+  const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',paymentMethod:'check',amount:'',notes:''});
+  const [adding,setAdding]=useState(false);
 
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
@@ -3696,6 +3698,19 @@ function AdminHighHolidays() {
 
   async function saveSettings(){setMsg('');
     try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+  async function addReservation(e){e.preventDefault();if(adding)return;setMsg('');
+    if(!addForm.firstName||!addForm.lastName||!addForm.numSeats){setMsg('First name, last name and seats are required.');return;}
+    setAdding(true);
+    try{
+      await apiFetch('/api/admin/high-holidays/reservations',{method:'POST',body:JSON.stringify(addForm)});
+      setMsg('Reservation added.');
+      setAddForm({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',paymentMethod:'check',amount:'',notes:''});
+      await load();
+    }catch(e){setMsg('Error: '+e.message);}
+    setAdding(false);}
+  async function delReservation(r){
+    if(!confirm('Delete '+(r.displayName||'this')+' reservation ('+r.numSeats+' seat'+(r.numSeats>1?'s':'')+')? Any assigned seats will be freed.'))return;
+    try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg('Error: '+e.message);}}
 
   const totalReserved=reservations.reduce((s,r)=>s+(r.numSeats||0),0);
   const totalRevenue=reservations.reduce((s,r)=>s+(r.totalAmount||0),0);
@@ -3721,15 +3736,38 @@ function AdminHighHolidays() {
           React.createElement('div',{key:l,style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},
             React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.2rem',fontWeight:700}},v))))),
 
-    subTab==='reservations'&&React.createElement('div',{className:'card'},
-      React.createElement('div',{className:'card-header'},'Reservations ('+reservations.length+')'),
-      reservations.length===0?React.createElement('p',{style:{color:'#888'}},'None yet.'):
-      React.createElement('div',{className:'table-container'},React.createElement('table',null,
-        React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Assigned'].map(h=>React.createElement('th',{key:h},h)))),
-        React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
-          React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
-          React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
-          React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'))))))),
+    subTab==='reservations'&&React.createElement('div',null,
+      // Manually add a reservation (walk-in, phone, check in hand, comp, etc.).
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Add a Reservation'),
+        React.createElement('form',{onSubmit:addReservation},
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:12}},
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:addForm.firstName,onChange:e=>setAddForm(p=>({...p,firstName:e.target.value})),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:addForm.lastName,onChange:e=>setAddForm(p=>({...p,lastName:e.target.value})),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:addForm.email,onChange:e=>setAddForm(p=>({...p,email:e.target.value}))})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:addForm.phone,onChange:e=>setAddForm(p=>({...p,phone:e.target.value}))})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',value:addForm.numSeats,onChange:e=>setAddForm(p=>({...p,numSeats:e.target.value})),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment'),
+              React.createElement('select',{className:'form-input',value:addForm.paymentMethod,onChange:e=>setAddForm(p=>({...p,paymentMethod:e.target.value}))},
+                React.createElement('option',{value:'check'},'Check (received)'),
+                React.createElement('option',{value:'cash'},'Cash (received)'),
+                React.createElement('option',{value:'paid'},'Paid (other)'),
+                React.createElement('option',{value:'comp'},'Comp / no charge'),
+                React.createElement('option',{value:'pending'},'Pending (owes)'))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:addForm.amount,onChange:e=>setAddForm(p=>({...p,amount:e.target.value})),placeholder:'auto ('+((settings.seatPrice||0)*parseInt(addForm.numSeats||1))+')'}))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:addForm.notes,onChange:e=>setAddForm(p=>({...p,notes:e.target.value})),placeholder:'e.g. paid by check #1234'})),
+          React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Leave Amount blank to use the seat price × seats. Marking anything other than "Pending" records the payment as revenue. Assign their exact seats afterward on the Seating Map tab.'),
+          React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:adding},adding?'Adding...':'Add Reservation'))),
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{className:'card-header'},'Reservations ('+reservations.length+')'),
+        reservations.length===0?React.createElement('p',{style:{color:'#888'}},'None yet.'):
+        React.createElement('div',{className:'table-container'},React.createElement('table',null,
+          React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Assigned',''].map((h,i)=>React.createElement('th',{key:i},h)))),
+          React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
+            React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
+            React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
+            React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'),
+            React.createElement('td',null,React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delReservation(r)},'Delete'))))))))),
 
     // The real physical seat map — assign each reservation to specific seats here.
     subTab==='seatingmap'&&React.createElement(AdminSeating));
