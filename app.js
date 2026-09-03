@@ -2827,20 +2827,25 @@ function AdminPledges() {
   const [pledgeReasons,setPledgeReasons]=useState([]);
   const [sf,setSf]=useState({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
   const [sponsorships,setSponsorships]=useState([]);
-  const [editSp,setEditSp]=useState(null); // {id, firstName, lastName, email, phone, dedication, amount}
-  useEffect(()=>{load();loadSponsorships();apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
+  const [pricing,setPricing]=useState({kiddushPrice:0,seudasShlishisPrice:0});
+  const [editSp,setEditSp]=useState(null); // {id, type, firstName, lastName, email, phone, dedication, amount}
+  useEffect(()=>{load();loadSponsorships();apiFetch('/api/admin/sponsorship-settings').then(setPricing).catch(()=>{});apiFetch('/api/admin/pledge-reasons').then(setPledgeReasons).catch(()=>setPledgeReasons(['Membership Dues','Building Fund','Torah Fund','Kiddush Fund','General Pledge','Other']));},[]);
   async function load(){setLoading(true);try{setPledges(await apiFetch('/api/admin/pledges'));}catch(e){}setLoading(false);}
   async function loadSponsorships(){try{setSponsorships(await apiFetch('/api/admin/sponsorships'));}catch(e){}}
-  function startEditSp(s){setEditSp({id:s.id,source:s.source,firstName:s.firstName||'',lastName:s.lastName||'',email:s.email||'',phone:s.phone||'',dedication:s.dedication||'',amount:s.amount!=null?String(s.amount):''});}
+  function priceFor(type){return type==='kiddush'?(pricing.kiddushPrice||0):(pricing.seudasShlishisPrice||0);}
+  function startEditSp(s){setEditSp({id:s.id,source:s.source,type:s.type||'kiddush',firstName:s.firstName||'',lastName:s.lastName||'',email:s.email||'',phone:s.phone||'',dedication:s.dedication||'',amount:s.amount!=null?String(s.amount):''});}
+  // Switching type updates the amount to that type's price when the current
+  // amount still matches the old type's price (so a hand-set amount is kept).
+  function changeSpType(newType){setEditSp(p=>{const cur=parseFloat(p.amount);const wasOldPrice=Number.isFinite(cur)&&cur===priceFor(p.type);return {...p,type:newType,amount:wasOldPrice?String(priceFor(newType)):p.amount};});}
   async function saveEditSp(){setMsg('');try{
     const amount=editSp.amount===''?undefined:parseFloat(editSp.amount);
     if(editSp.source==='pledge'){
       // Backed by a bill (no sponsorship doc) — edit the pledge fields directly.
-      const body={memberName:((editSp.firstName||'')+' '+(editSp.lastName||'')).trim(),memberEmail:editSp.email,memberPhone:editSp.phone,notes:editSp.dedication?('Dedication: '+editSp.dedication):''};
+      const body={memberName:((editSp.firstName||'')+' '+(editSp.lastName||'')).trim(),memberEmail:editSp.email,memberPhone:editSp.phone,notes:editSp.dedication?('Dedication: '+editSp.dedication):'',reason:editSp.type==='kiddush'?'Kiddush Sponsorship':'Seudas Shlishis'};
       if(amount!==undefined)body.amount=amount;
       await apiFetch('/api/admin/pledges/'+editSp.id,{method:'PUT',body:JSON.stringify(body)});
     } else {
-      await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify({firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount})});
+      await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify({type:editSp.type,firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount})});
     }
     setMsg('Sponsorship updated.');setEditSp(null);loadSponsorships();load();
   }catch(err){setMsg('Error: '+err.message);}}
@@ -2893,6 +2898,10 @@ function AdminPledges() {
       editSp&&React.createElement('div',{style:{background:'#faf8f3',border:'1px solid #e0dcd4',borderRadius:8,padding:14,marginBottom:14}},
         React.createElement('div',{style:{fontWeight:700,color:'#1a2744',marginBottom:8}},'Edit sponsorship details'),
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:10}},
+          React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Type'),
+            React.createElement('select',{className:'form-input',value:editSp.type,onChange:e=>changeSpType(e.target.value)},
+              React.createElement('option',{value:'kiddush'},'Kiddush'),
+              React.createElement('option',{value:'seudasShlishis'},'Seudas Shlishis'))),
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'First Name'),React.createElement('input',{className:'form-input',value:editSp.firstName,onChange:e=>setEditSp(p=>({...p,firstName:e.target.value}))})),
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Last Name'),React.createElement('input',{className:'form-input',value:editSp.lastName,onChange:e=>setEditSp(p=>({...p,lastName:e.target.value}))})),
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:editSp.email,onChange:e=>setEditSp(p=>({...p,email:e.target.value}))})),
@@ -2902,7 +2911,7 @@ function AdminPledges() {
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:10}},
           React.createElement('button',{className:'btn btn-primary btn-sm',onClick:saveEditSp},'Save Changes'),
           React.createElement('button',{className:'btn btn-outline btn-sm',onClick:()=>setEditSp(null)},'Cancel')),
-        React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.8rem',color:'#888'}},'Changes also update the linked unpaid bill. Date and type are fixed — to change those, delete and re-add.')),
+        React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.8rem',color:'#888'}},'Changes also update the linked unpaid bill. Switching type updates the amount to that type’s price (if it was still the old price). The date is fixed — to change it, delete and re-add.')),
       sponsorships.length===0?React.createElement('p',{style:{color:'#888'}},'No sponsorships yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Type','Sponsor','Dedication','Amount','Status','Actions'].map(h=>React.createElement('th',{key:h},h)))),
