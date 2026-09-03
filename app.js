@@ -2979,6 +2979,8 @@ function AdminEmailCenter() {
   const [weeklyTargetGroup,setWeeklyTargetGroup]=useState('all');
   const [weeklyShiurim,setWeeklyShiurim]=useState([]);
   const [weeklyShiurSel,setWeeklyShiurSel]=useState({}); // {shiurId: bool}
+  const [composePdfs,setComposePdfs]=useState([]); // attached flyers for the compose blast
+  const [composePdfBusy,setComposePdfBusy]=useState(false);
   const [weeklyPdfs,setWeeklyPdfs]=useState([]); // up to 5 of {name, images:[base64]}
   const [weeklyPdfBusy,setWeeklyPdfBusy]=useState(false);
   // Sponsorship email
@@ -3079,8 +3081,9 @@ function AdminEmailCenter() {
     if(!confirm('Send this email to '+targetEmails.length+' recipient'+(targetEmails.length>1?'s':'')+'?'))return;
     setSending(true);
     try{
-      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html,personalize:composeForm.personalize})});
+      const res=await apiFetch('/api/admin/email/send',{method:'POST',body:JSON.stringify({recipients:targetEmails,subject:composeForm.subject,html:composeForm.html,personalize:composeForm.personalize,pdfImages:composePdfs.length?composePdfs.flatMap(p=>p.images):null})});
       setMsg('Queued for '+(res.queued||targetEmails.length)+' recipient'+((res.queued||targetEmails.length)===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
+      setComposePdfs([]);
       loadJobs();setTimeout(loadJobs,3000);
     }catch(err){setMsg('Error: '+err.message);}
     setSending(false);
@@ -3251,13 +3254,29 @@ function AdminEmailCenter() {
         React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,margin:'8px 0',fontSize:'0.9rem'}},
           React.createElement('input',{type:'checkbox',checked:!!composeForm.personalize,onChange:e=>setComposeForm(p=>({...p,personalize:e.target.checked}))}),
           React.createElement('span',null,'Personalize with each member’s name — put ',React.createElement('code',null,'[Member Name]'),' in the body and it becomes each recipient’s name (“Member” if none on file).')),
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',margin:'10px 0',padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+          composePdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:composePdfBusy?'wait':'pointer',margin:0,opacity:composePdfBusy?0.6:1}},composePdfBusy?'Rendering…':(composePdfs.length?'Add another attachment':'Attach flyer (PDF or JPEG)'),
+            React.createElement('input',{type:'file',accept:'application/pdf,image/jpeg,image/png',multiple:true,disabled:composePdfBusy,style:{display:'none'},onChange:async e=>{
+              const files=Array.from(e.target.files||[]);e.target.value='';
+              if(!files.length)return;
+              setComposePdfBusy(true);setMsg('Rendering attachment'+(files.length>1?'s':'')+'…');
+              const r=await processFlyerFiles(files,composePdfs);
+              if(r.error){setMsg(r.error);setComposePdfBusy(false);return;}
+              setComposePdfs(r.next);
+              setMsg((r.warnings.length?r.warnings.join(' ')+' ':'')+'Attachment'+(r.next.length>1?'s':'')+' ready ('+r.next.length+' of 5) — shown at the bottom of the email.');
+              setComposePdfBusy(false);
+            }})),
+          composePdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+            composePdfs.map((p,i)=>React.createElement('span',{key:i},'📎 '+p.name+' ('+p.images.length+'p) ',
+              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setComposePdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'#c0392b',marginLeft:4}},'remove')))),
+          React.createElement('span',{style:{fontSize:'0.78rem',color:'#888',flexBasis:'100%'}},'JPEG/PNG/PDF attachments display reliably in the email. (“Upload Image” inserts a picture into the body, which some email apps hide.)')),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('compose')},'Upload Image'),
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{className:'card-header'},'Email Preview'),
-        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:emailTextToHtml(composeForm.html)||'',style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
+        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:(emailTextToHtml(composeForm.html)||'')+(composePdfs.length?'<div style="margin-top:16px;">'+composePdfs.flatMap(p=>p.images).map(b=>'<img src="data:image/jpeg;base64,'+b+'" style="max-width:100%;display:block;margin:0 auto 12px;">').join('')+'</div>':''),style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
 
     // ── Weekly schedule with date range + custom text + preview ──
     subTab==='weekly'&&React.createElement('div',null,
