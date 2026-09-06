@@ -3775,6 +3775,7 @@ function AdminHighHolidays() {
   const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',paymentMethod:'check',amount:'',notes:''});
   const [adding,setAdding]=useState(false);
+  const [editRes,setEditRes]=useState(null); // {id, firstName, lastName, email, phone, numSeats, paymentMethod, amount, notes}
 
   useEffect(()=>{load();},[]);
   async function load(){setLoading(true);
@@ -3794,6 +3795,13 @@ function AdminHighHolidays() {
       await load();
     }catch(e){setMsg('Error: '+e.message);}
     setAdding(false);}
+  function startEditRes(r){setEditRes({id:r.id,firstName:r.firstName||'',lastName:r.lastName||'',email:r.email||'',phone:r.phone||'',numSeats:String(r.numSeats||1),paymentMethod:r.paymentMethod||'pending',amount:r.totalAmount!=null?String(r.totalAmount):'',notes:r.notes||''});}
+  async function saveEditRes(){setMsg('');
+    if(!editRes.firstName||!editRes.lastName||!editRes.numSeats){setMsg('First name, last name and seats are required.');return;}
+    try{
+      await apiFetch('/api/admin/high-holidays/reservations/'+editRes.id,{method:'PUT',body:JSON.stringify({firstName:editRes.firstName,lastName:editRes.lastName,email:editRes.email,phone:editRes.phone,numSeats:editRes.numSeats,paymentMethod:editRes.paymentMethod,amount:editRes.amount,notes:editRes.notes})});
+      setMsg('Reservation updated.');setEditRes(null);await load();
+    }catch(e){setMsg('Error: '+e.message);}}
   async function delReservation(r){
     if(!confirm('Delete '+(r.displayName||'this')+' reservation ('+r.numSeats+' seat'+(r.numSeats>1?'s':'')+')? Any assigned seats will be freed.'))return;
     try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg('Error: '+e.message);}}
@@ -3844,6 +3852,28 @@ function AdminHighHolidays() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:addForm.notes,onChange:e=>setAddForm(p=>({...p,notes:e.target.value})),placeholder:'e.g. paid by check #1234'})),
           React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Leave Amount blank to use the seat price × seats. Marking anything other than "Pending" records the payment as revenue. Assign their exact seats afterward on the Seating Map tab.'),
           React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:adding},adding?'Adding...':'Add Reservation'))),
+      editRes&&React.createElement('div',{className:'card',style:{border:'2px solid #c49a3c'}},
+        React.createElement('div',{className:'card-header'},'Edit Reservation'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:12}},
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name'),React.createElement('input',{className:'form-input',value:editRes.firstName,onChange:e=>setEditRes(p=>({...p,firstName:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name'),React.createElement('input',{className:'form-input',value:editRes.lastName,onChange:e=>setEditRes(p=>({...p,lastName:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:editRes.email,onChange:e=>setEditRes(p=>({...p,email:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:editRes.phone,onChange:e=>setEditRes(p=>({...p,phone:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats'),React.createElement('input',{className:'form-input',type:'number',min:'1',value:editRes.numSeats,onChange:e=>setEditRes(p=>({...p,numSeats:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment'),
+            React.createElement('select',{className:'form-input',value:editRes.paymentMethod,onChange:e=>setEditRes(p=>({...p,paymentMethod:e.target.value}))},
+              React.createElement('option',{value:'stripe'},'Card (Stripe)'),
+              React.createElement('option',{value:'check'},'Check (received)'),
+              React.createElement('option',{value:'cash'},'Cash (received)'),
+              React.createElement('option',{value:'paid'},'Paid (other)'),
+              React.createElement('option',{value:'comp'},'Comp / no charge'),
+              React.createElement('option',{value:'pending'},'Pending (owes)'))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:editRes.amount,onChange:e=>setEditRes(p=>({...p,amount:e.target.value}))}))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:editRes.notes,onChange:e=>setEditRes(p=>({...p,notes:e.target.value}))})),
+        React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Renaming updates the name shown on any seats already assigned to this reservation.'),
+        React.createElement('div',{style:{display:'flex',gap:8}},
+          React.createElement('button',{className:'btn btn-primary',onClick:saveEditRes},'Save Changes'),
+          React.createElement('button',{className:'btn btn-outline',onClick:()=>setEditRes(null)},'Cancel'))),
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Reservations ('+reservations.length+')'),
         reservations.length===0?React.createElement('p',{style:{color:'#888'}},'None yet.'):
@@ -3853,7 +3883,9 @@ function AdminHighHolidays() {
             React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
             React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
             React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'),
-            React.createElement('td',null,React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delReservation(r)},'Delete'))))))))),
+            React.createElement('td',null,
+              React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditRes(r)},'Edit'),
+              React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delReservation(r)},'Delete'))))))))),
 
     // The real physical seat map — assign each reservation to specific seats here.
     subTab==='seatingmap'&&React.createElement(AdminSeating));
