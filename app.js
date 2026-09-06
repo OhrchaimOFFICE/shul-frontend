@@ -1428,9 +1428,9 @@ function AdminSeating() {
       await load();
     }catch(e){setMsg('Error: '+e.message);}
   }
-  // Open a print-ready view (Ladies + Men on SEPARATE A4 pages). The browser's
-  // print dialog also offers "Save as PDF".
-  function printSeating(){
+  // Open a print-ready view for a chosen section ('ladies' | 'mens' | 'both'),
+  // each on its own A4 page. The browser's print dialog also offers "Save as PDF".
+  function printSeating(which){
     const seats=data.layout.seats||[];
     const section=(title,secName)=>{
       const ss=seats.filter(s=>s.section===secName);
@@ -1452,8 +1452,8 @@ function AdminSeating() {
       '.pn{color:#1a2744;font-weight:800;font-size:10px;text-align:center;padding:1px 0}'+
       '.ph{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;text-align:center;padding:1px;word-break:break-word;line-height:1.05}'+
       '</style></head><body>'+
-      section('Ladies Section — High Holiday Seating','ladies')+
-      section("Men's Section — High Holiday Seating",'mens')+
+      ((which==='ladies'||which==='both')?section('Ladies Section — High Holiday Seating','ladies'):'')+
+      ((which==='mens'||which==='both')?section("Men's Section — High Holiday Seating",'mens'):'')+
       '</body></html>';
     const w=window.open('','_blank');
     if(!w){setMsg('Please allow pop-ups to print/export the seating chart.');return;}
@@ -1501,7 +1501,9 @@ function AdminSeating() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Seating Chart ('+assignedCount+'/'+totalSeats+' assigned)'),
         React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:printSeating},'Print / Save as PDF'),
+          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printSeating('ladies')},'Print Ladies'),
+          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printSeating('mens')},"Print Men's"),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>printSeating('both')},'Print Both'),
           React.createElement('button',{className:'btn btn-sm btn-outline',disabled:seeding,onClick:seedHolders},seeding?'Seeding...':'Seed Holders from Excel'),
           React.createElement('button',{className:'btn btn-sm btn-danger',onClick:clearAll},'Clear All'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
