@@ -1353,6 +1353,11 @@ function AdminMemberTags() {
               React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(t.id)},'Delete')))))))));
 }
 
+// Seat labels show only the LAST name of the assigned party, sized to fit the box.
+function seatLastName(holder){const p=String(holder||'').trim().split(/\s+/);return p[p.length-1]||'';}
+function seatNameFont(name){const n=(name||'').length;if(n<=6)return '0.72rem';if(n<=8)return '0.62rem';if(n<=10)return '0.54rem';if(n<=13)return '0.46rem';return '0.4rem';}
+function escHtml(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
 function AdminSeating() {
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -1423,6 +1428,38 @@ function AdminSeating() {
       await load();
     }catch(e){setMsg('Error: '+e.message);}
   }
+  // Open a print-ready view (Ladies + Men on SEPARATE A4 pages). The browser's
+  // print dialog also offers "Save as PDF".
+  function printSeating(){
+    const seats=data.layout.seats||[];
+    const section=(title,secName)=>{
+      const ss=seats.filter(s=>s.section===secName);
+      if(!ss.length) return '';
+      const minR=Math.min(...ss.map(s=>s.row)),maxR=Math.max(...ss.map(s=>s.row));
+      const minC=Math.min(...ss.map(s=>s.col)),maxC=Math.max(...ss.map(s=>s.col));
+      const nCols=maxC-minC+1;
+      const cells=ss.map(s=>{const a=data.assignments[s.number];const last=a&&a.holder?seatLastName(a.holder):'';
+        return '<div class="ps" style="grid-column:'+(s.col-minC+1)+';grid-row:'+(s.row-minR+1)+'"><div class="pn" style="background:'+(s.color||'#FFF176')+'">'+s.number+'</div><div class="ph">'+escHtml(last)+'</div></div>';}).join('');
+      return '<div class="page"><h2>'+escHtml(title)+'</h2><p class="leg">Seat colors mark separate tables (each color change is a new table).</p><div class="pg" style="grid-template-columns:repeat('+nCols+',1fr)">'+cells+'</div></div>';
+    };
+    const html='<!doctype html><html><head><meta charset="utf-8"><title>High Holiday Seating</title><style>'+
+      '@page{size:A4 landscape;margin:8mm}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744}'+
+      '.page{page-break-after:always}.page:last-child{page-break-after:auto}'+
+      'h2{text-align:center;margin:0 0 2mm;font-size:18px}'+
+      '.leg{text-align:center;margin:0 0 4mm;font-size:10px;color:#555}'+
+      '.pg{display:grid;gap:2px;width:100%}'+
+      '.ps{border:1px solid #8a6f2b;border-radius:2px;overflow:hidden;display:flex;flex-direction:column;min-height:12mm}'+
+      '.pn{color:#1a2744;font-weight:800;font-size:10px;text-align:center;padding:1px 0}'+
+      '.ph{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;text-align:center;padding:1px;word-break:break-word;line-height:1.05}'+
+      '</style></head><body>'+
+      section('Ladies Section — High Holiday Seating','ladies')+
+      section("Men's Section — High Holiday Seating",'mens')+
+      '</body></html>';
+    const w=window.open('','_blank');
+    if(!w){setMsg('Please allow pop-ups to print/export the seating chart.');return;}
+    w.document.write(html);w.document.close();w.focus();
+    setTimeout(()=>{try{w.print();}catch(e){}},500);
+  }
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
   // Load failed (not still loading) → show the error + retry instead of an
@@ -1434,6 +1471,21 @@ function AdminSeating() {
   const maxCol=Math.max(...data.layout.seats.map(s=>s.col))+1;
   const maxRow=Math.max(...data.layout.seats.map(s=>s.row))+1;
   const mehitzah=data.layout.mehitzahRow;
+  // Section frames sized to actually contain their seats (num box at row+2,
+  // holder box at row+3), so no seat spills outside its frame.
+  function clusterStyle(pred){
+    const ss=data.layout.seats.filter(pred);
+    if(!ss.length) return null;
+    const minR=Math.min(...ss.map(s=>s.row)),maxR=Math.max(...ss.map(s=>s.row));
+    const minC=Math.min(...ss.map(s=>s.col)),maxC=Math.max(...ss.map(s=>s.col));
+    return {frame:{gridColumn:(minC+1)+' / '+(maxC+2),gridRow:(minR+2)+' / '+(maxR+4)},
+            label:{gridColumn:(minC+1)+' / '+(maxC+2),gridRow:(minR+1)+' / '+(minR+2)}};
+  }
+  const clLadies=clusterStyle(s=>s.section==='ladies'&&s.col<=15);
+  const clSocial=clusterStyle(s=>s.section==='ladies'&&s.col>=16);
+  const clPews=clusterStyle(s=>s.section==='mens'&&s.col<=3);
+  const clMensCtr=clusterStyle(s=>s.section==='mens'&&s.col>=4&&s.col<=15);
+  const clMensRight=clusterStyle(s=>s.section==='mens'&&s.col>=16);
 
   const assignedCount=Object.keys(data.assignments).length;
   const totalSeats=data.layout.seats.length;
@@ -1449,10 +1501,11 @@ function AdminSeating() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Seating Chart ('+assignedCount+'/'+totalSeats+' assigned)'),
         React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:printSeating},'Print / Save as PDF'),
           React.createElement('button',{className:'btn btn-sm btn-outline',disabled:seeding,onClick:seedHolders},seeding?'Seeding...':'Seed Holders from Excel'),
           React.createElement('button',{className:'btn btn-sm btn-danger',onClick:clearAll},'Clear All'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
-      React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign a holder. Green = unassigned, gold = assigned. The horizontal bar is the mechitzah.'),
+      React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign it to a reservation. The seat colors (orange / yellow / green) mark separate tables, matching the seating plan — each color change is a new table. An assigned seat has a bold navy outline and shows the last name. The horizontal bar is the mechitzah.'),
       React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8,border:'3px solid #1a2744'}},
         React.createElement('div',{className:'seating-chart',style:{
           display:'grid',
@@ -1461,38 +1514,41 @@ function AdminSeating() {
           gap:1,
           width:'fit-content'
         }},
-          // Section background panels (behind seats for grouping)
-          React.createElement('div',{className:'section-frame ladies',style:{gridColumn:'6 / 16',gridRow:'1 / 11'}}),
-          React.createElement('div',{className:'section-frame social',style:{gridColumn:'18 / 27',gridRow:'9 / 13'}}),
-          React.createElement('div',{className:'section-frame mens-left',style:{gridColumn:'1 / 5',gridRow:'20 / 31'}}),
-          React.createElement('div',{className:'section-frame mens-center',style:{gridColumn:'5 / 18',gridRow:'20 / 31'}}),
-          React.createElement('div',{className:'section-frame mens-right',style:{gridColumn:'18 / 27',gridRow:'26 / 30'}}),
+          // Section background panels (sized from the seats they contain)
+          clLadies&&React.createElement('div',{className:'section-frame ladies',style:clLadies.frame}),
+          clSocial&&React.createElement('div',{className:'section-frame social',style:clSocial.frame}),
+          clPews&&React.createElement('div',{className:'section-frame mens-left',style:clPews.frame}),
+          clMensCtr&&React.createElement('div',{className:'section-frame mens-center',style:clMensCtr.frame}),
+          clMensRight&&React.createElement('div',{className:'section-frame mens-right',style:clMensRight.frame}),
           // Section labels
-          React.createElement('div',{className:'section-label',style:{gridColumn:'6 / 16',gridRow:'1 / 2'}},'Ladies Section'),
-          React.createElement('div',{className:'section-label',style:{gridColumn:'18 / 27',gridRow:'9 / 10'}},'Social Hall (Ladies)'),
-          React.createElement('div',{className:'section-label',style:{gridColumn:'1 / 5',gridRow:'20 / 21'}},'Men Pews'),
-          React.createElement('div',{className:'section-label',style:{gridColumn:'5 / 18',gridRow:'20 / 21'}},'Men Section'),
-          React.createElement('div',{className:'section-label',style:{gridColumn:'18 / 27',gridRow:'26 / 27'}},'Men (Right)'),
+          clLadies&&React.createElement('div',{className:'section-label',style:clLadies.label},'Ladies Section'),
+          clSocial&&React.createElement('div',{className:'section-label',style:clSocial.label},'Social Hall (Ladies)'),
+          clPews&&React.createElement('div',{className:'section-label',style:clPews.label},'Men Pews'),
+          clMensCtr&&React.createElement('div',{className:'section-label',style:clMensCtr.label},'Men Section'),
+          clMensRight&&React.createElement('div',{className:'section-label',style:clMensRight.label},'Men (Right)'),
           // Seats
           data.layout.seats.flatMap(seat=>{
             const a=data.assignments[seat.number];
             const holder=a&&a.holder?a.holder:'';
             const isAssigned=!!holder;
-            const cls=(isAssigned?'assigned ':'')+seat.section;
+            const tableColor=seat.color||'#FFF176';
+            // Number box carries the table color (from the sheet) so adjacent
+            // tables read as distinct. An assigned seat gets a bold navy outline.
             const num=React.createElement('button',{
               key:'n'+seat.number,
-              className:'seat-num-box '+cls,
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+2)},
+              className:'seat-num-box',
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+2),background:tableColor,color:'#1a2744',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b'},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },seat.number);
+            const lastName=holder?seatLastName(holder):'';
             const name=React.createElement('button',{
               key:'h'+seat.number,
-              className:'seat-holder-box '+cls+(holder?'':' empty'),
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3)},
+              className:'seat-holder-box'+(holder?'':' empty'),
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3),fontSize:seatNameFont(lastName),background:isAssigned?'#fff':'rgba(255,255,255,0.55)',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b',borderTop:'none'},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
-            },holder||'');
+            },lastName);
             return [num,name];
           }),
           React.createElement('div',{className:'mehitzah-bar',style:{
