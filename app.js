@@ -1549,7 +1549,8 @@ function AdminSeating() {
   }
   const clLadies=clusterStyle(s=>s.section==='ladies'&&s.col<=15);
   const clSocial=clusterStyle(s=>s.section==='ladies'&&s.col>=16);
-  const clPews=clusterStyle(s=>s.section==='mens'&&s.col<=3);
+  const clPews=clusterStyle(s=>s.section==='mens'&&s.col<=3&&s.row<=31);
+  const clFront=clusterStyle(s=>s.section==='mens'&&s.col<=3&&s.row>=32); // seats along the front/bottom wall
   const clMensCtr=clusterStyle(s=>s.section==='mens'&&s.col>=4&&s.col<=15);
   const clMensRight=clusterStyle(s=>s.section==='mens'&&s.col>=16);
 
@@ -1586,6 +1587,7 @@ function AdminSeating() {
           clLadies&&React.createElement('div',{className:'section-frame ladies',style:clLadies.frame}),
           clSocial&&React.createElement('div',{className:'section-frame social',style:clSocial.frame}),
           clPews&&React.createElement('div',{className:'section-frame mens-left',style:clPews.frame}),
+          clFront&&React.createElement('div',{className:'section-frame mens-left',style:clFront.frame}),
           clMensCtr&&React.createElement('div',{className:'section-frame mens-center',style:clMensCtr.frame}),
           clMensRight&&React.createElement('div',{className:'section-frame mens-right',style:clMensRight.frame}),
           // Section labels
@@ -1619,6 +1621,7 @@ function AdminSeating() {
             },lastName);
             return [num,name];
           }),
+          React.createElement('div',{className:'landmark-box',style:{gridColumn:'9 / 13',gridRow:'26 / 34'}},'BIMA'),
           React.createElement('div',{className:'mehitzah-bar',style:{
             gridColumn:'1 / -1',
             gridRow:(mehitzah+2)
