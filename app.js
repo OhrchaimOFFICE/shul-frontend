@@ -3783,7 +3783,7 @@ function MishebeirachPage(){
   if(!token) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none'}},'Mi Shebeirach'),
     React.createElement('p',{style:{color:'#555'}},'This link is missing its code. Please open the exact link from your email, or contact the office at office@ohrchaim.org.'));
-  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:1040,margin:'0 auto'}},
     React.createElement('div',{style:{textAlign:'center',marginBottom:8}},
       React.createElement('img',{src:logo,alt:'Congregation Ohr Chaim',style:{height:84,width:'auto'}})),
     React.createElement(MishebeirachEditor,{token:token}));

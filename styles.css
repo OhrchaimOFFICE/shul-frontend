@@ -306,6 +306,6 @@ tr:hover { background: var(--cream); }
 .ms-row .form-input { width: 100%; }
 .ms-remove { width: 100%; }
 @media (min-width: 660px) {
-  .ms-row { grid-template-columns: 1fr 1fr 170px 112px; align-items: end; gap: 10px; }
+  .ms-row { grid-template-columns: minmax(220px, 1.6fr) minmax(200px, 1.4fr) 165px 116px; align-items: end; gap: 12px; }
   .ms-list .ms-row:not(:first-child) .ms-lbl { display: none; }
 }
