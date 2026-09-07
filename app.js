@@ -1359,6 +1359,7 @@ function seatNameFont(name){const n=(name||'').length;if(n<=6)return '0.72rem';i
 function escHtml(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
 function AdminSeating() {
+  const siteImages=useSiteImages();
   const [data,setData]=useState(null);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
@@ -1450,33 +1451,59 @@ function AdminSeating() {
   // each on its own A4 page. The browser's print dialog also offers "Save as PDF".
   function printSeating(which){
     const seats=data.layout.seats||[];
-    const section=(title,secName)=>{
+    const custom=siteImages&&(siteImages.topLogo||siteImages.fullscreenLogo);
+    // The print window is about:blank, so a relative path won't resolve — only
+    // use the admin logo if it's absolute (http) or a data URI; else the bundled one.
+    const logoUrl=(custom&&/^(https?:|data:)/.test(custom))?custom:(window.location.origin+'/logo.png');
+    const section=(sub,secName)=>{
       const ss=seats.filter(s=>s.section===secName);
       if(!ss.length) return '';
       const minR=Math.min(...ss.map(s=>s.row)),maxR=Math.max(...ss.map(s=>s.row));
       const minC=Math.min(...ss.map(s=>s.col)),maxC=Math.max(...ss.map(s=>s.col));
       const nCols=maxC-minC+1;
+      const assigned=ss.filter(s=>{const a=data.assignments[s.number];return a&&a.holder;}).length;
       const cells=ss.map(s=>{const a=data.assignments[s.number];const last=a&&a.holder?seatLastName(a.holder):'';
-        return '<div class="ps" style="grid-column:'+(s.col-minC+1)+';grid-row:'+(s.row-minR+1)+'"><div class="pn" style="background:'+(s.color||'#FFF176')+'">'+s.number+'</div><div class="ph">'+escHtml(last)+'</div></div>';}).join('');
-      return '<div class="page"><h2>'+escHtml(title)+'</h2><p class="leg">Seat colors mark separate tables (each color change is a new table).</p><div class="pg" style="grid-template-columns:repeat('+nCols+',1fr)">'+cells+'</div></div>';
+        return '<div class="ps'+(last?' on':'')+'" style="grid-column:'+(s.col-minC+1)+';grid-row:'+(s.row-minR+1)+'"><div class="pn" style="background:'+(s.color||'#FFF176')+'">'+s.number+'</div><div class="ph"><span>'+escHtml(last)+'</span></div></div>';}).join('');
+      const header='<div class="brand">'+
+          '<img src="'+escHtml(logoUrl)+'" alt="" onerror="this.style.display=\'none\'">'+
+          '<div class="bt"><div class="nm">Congregation Ohr Chaim</div>'+
+            '<div class="sub">High Holiday Seating &middot; '+escHtml(sub)+'</div></div>'+
+          '<div class="meta">317 W 47th Street<br>Miami Beach, FL<br><b>'+assigned+' of '+ss.length+' assigned</b></div>'+
+        '</div>';
+      return '<div class="page">'+header+
+        '<p class="leg">Seat colors mark separate tables — each color change is a new table.</p>'+
+        '<div class="pg" style="grid-template-columns:repeat('+nCols+',1fr)">'+cells+'</div></div>';
     };
-    const html='<!doctype html><html><head><meta charset="utf-8"><title>High Holiday Seating</title><style>'+
-      '@page{size:A4 landscape;margin:8mm}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744}'+
-      '.page{page-break-after:always}.page:last-child{page-break-after:auto}'+
-      'h2{text-align:center;margin:0 0 2mm;font-size:18px}'+
-      '.leg{text-align:center;margin:0 0 4mm;font-size:10px;color:#555}'+
+    const body=
+      ((which==='ladies'||which==='both')?section('Ladies Section','ladies'):'')+
+      ((which==='mens'||which==='both')?section("Men's Section",'mens'):'');
+    const html='<!doctype html><html><head><meta charset="utf-8"><title>Ohr Chaim — High Holiday Seating</title><style>'+
+      '@page{size:A4 landscape;margin:12mm}'+
+      '*{box-sizing:border-box}'+
+      'body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+      '.page{page-break-after:always;padding:2mm}.page:last-child{page-break-after:auto}'+
+      '.brand{display:flex;align-items:center;gap:5mm;border-bottom:3px solid #c49a3c;padding-bottom:3mm;margin-bottom:4mm}'+
+      '.brand img{height:18mm;width:auto}'+
+      '.brand .bt{flex:1}'+
+      '.brand .nm{font-size:22px;font-weight:800;color:#1a2744;letter-spacing:.3px;line-height:1.1}'+
+      '.brand .sub{font-size:11px;font-weight:700;color:#8a6f2b;text-transform:uppercase;letter-spacing:3px;margin-top:2px}'+
+      '.brand .meta{font-size:9px;color:#555;text-align:right;line-height:1.5}'+
+      '.brand .meta b{color:#1a2744;font-size:10px}'+
+      '.leg{margin:0 0 4mm;font-size:9.5px;color:#777}'+
       '.pg{display:grid;gap:2px;width:100%}'+
-      '.ps{border:1px solid #8a6f2b;border-radius:2px;overflow:hidden;display:flex;flex-direction:column;min-height:12mm}'+
-      '.pn{color:#1a2744;font-weight:800;font-size:10px;text-align:center;padding:1px 0}'+
-      '.ph{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;text-align:center;padding:1px;word-break:break-word;line-height:1.05}'+
-      '</style></head><body>'+
-      ((which==='ladies'||which==='both')?section('Ladies Section — High Holiday Seating','ladies'):'')+
-      ((which==='mens'||which==='both')?section("Men's Section — High Holiday Seating",'mens'):'')+
+      '.ps{border:1px solid #8a6f2b;border-radius:3px;overflow:hidden;display:flex;flex-direction:column;min-height:13mm;background:#fff}'+
+      '.ps.on{border:1.6px solid #1a2744}'+
+      '.pn{color:#1a2744;font-weight:800;font-size:10px;text-align:center;padding:1px 0;border-bottom:1px solid rgba(138,111,43,.4)}'+
+      '.ph{flex:1;display:flex;align-items:center;justify-content:center;padding:1px 2px;overflow:hidden}'+
+      '.ph span{white-space:nowrap;font-size:10px;font-weight:700;color:#1a2744;line-height:1;display:inline-block}'+
+      '.ps.on .ph{background:#f7f0dc}'+
+      '</style></head><body>'+body+
+      '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=10;el.style.fontSize=fs+"px";var g=0;while(el.scrollWidth>box.clientWidth-2&&fs>4&&g<30){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);})();<\/script>'+
       '</body></html>';
     const w=window.open('','_blank');
     if(!w){setMsg('Please allow pop-ups to print/export the seating chart.');return;}
     w.document.write(html);w.document.close();w.focus();
-    setTimeout(()=>{try{w.print();}catch(e){}},500);
+    setTimeout(()=>{try{w.print();}catch(e){}},700);
   }
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading seating chart...');
