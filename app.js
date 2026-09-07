@@ -1565,7 +1565,7 @@ function AdminSeating() {
             const name=React.createElement('button',{
               key:'h'+seat.number,
               className:'seat-holder-box'+(holder?'':' empty'),
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3),background:isAssigned?'#fff':'rgba(255,255,255,0.55)',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b',borderTop:'none'},
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3),background:isAssigned?'#fff':'#f7f3e8',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b',borderTop:'none'},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },lastName);
