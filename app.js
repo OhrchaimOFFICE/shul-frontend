@@ -3679,7 +3679,7 @@ function AdminAnalytics() {
 // ─── High Holiday Seats Page (Public) ────────────────────────────
 function HighHolidaySeatsPage() {
   const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');const [done,setDone]=useState(false);
-  const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',notes:''});
+  const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});
   const [payMethod,setPayMethod]=useState('card'); // 'card' | 'check'
   const [submitting,setSubmitting]=useState(false);
   const cardMountRef=useRef(null);const stripeRef=useRef(null);const cardElementRef=useRef(null);const paidPiRef=useRef(null);
@@ -3699,7 +3699,8 @@ function HighHolidaySeatsPage() {
 
   async function handleReserve(e){
     e.preventDefault();setMsg('');
-    const nSeats=parseInt(form.numSeats||1);
+    const nSeats=(parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0);
+    if(nSeats<1){setMsg('Please choose at least one seat.');return;}
     const total=(data.settings.seatPrice||0)*nSeats;
     setSubmitting(true);
     try{
@@ -3728,12 +3729,12 @@ function HighHolidaySeatsPage() {
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation '+(payMethod==='check'?'Received!':'Confirmed!')),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+form.numSeats+' seat(s) have been reserved.'+(payMethod==='check'?' Please mail your check to the office to complete payment. The office will assign your specific seats.':' The office will assign your specific seats.')),
-    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',notes:''});}},'Back'));
+    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0))+' seat(s) have been reserved.'+(payMethod==='check'?' Please mail your check to the office to complete payment. The office will assign your specific seats.':' The office will assign your specific seats.')),
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});}},'Back'));
   if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'High Holiday Seats'),
     React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Seat reservations are not currently open.'));
-  const total=(data.settings.seatPrice||0)*parseInt(form.numSeats||1);
+  const total=(data.settings.seatPrice||0)*((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0));
   return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Reserve High Holiday Seats'),
@@ -3751,8 +3752,9 @@ function HighHolidaySeatsPage() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:form.lastName,onChange:e=>upd('lastName',e.target.value),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email *'),React.createElement('input',{className:'form-input',type:'email',value:form.email,onChange:e=>upd('email',e.target.value),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:form.phone,onChange:e=>upd('phone',e.target.value)})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',max:data.availableCount,value:form.numSeats,onChange:e=>upd('numSeats',e.target.value),required:true})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>upd('notes',e.target.value)}))),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Men's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:form.mensSeats,onChange:e=>upd('mensSeats',e.target.value)})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Women's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:form.womensSeats,onChange:e=>upd('womensSeats',e.target.value)})),
+          React.createElement('div',{className:'form-group',style:{gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:form.notes,onChange:e=>upd('notes',e.target.value)}))),
         React.createElement('div',{style:{background:'#faf8f3',padding:12,borderRadius:8,margin:'12px 0',textAlign:'center'}},
           React.createElement('span',{style:{fontSize:'1.1rem',fontWeight:700}},'Total: $'+total.toFixed(2))),
         total>0&&React.createElement('div',{style:{margin:'12px 0'}},
@@ -3773,8 +3775,9 @@ function AdminHighHolidays() {
   const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
   const [reservations,setReservations]=useState([]);
   const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
-  const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',paymentMethod:'check',amount:'',notes:''});
+  const [addForm,setAddForm]=useState({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',paymentMethod:'check',amount:'',notes:''});
   const [adding,setAdding]=useState(false);
+  const addSeatTotal=(parseInt(addForm.mensSeats||0)||0)+(parseInt(addForm.womensSeats||0)||0);
   const [editRes,setEditRes]=useState(null); // {id, firstName, lastName, email, phone, numSeats, paymentMethod, amount, notes}
 
   useEffect(()=>{load();},[]);
@@ -3786,20 +3789,21 @@ function AdminHighHolidays() {
   async function saveSettings(){setMsg('');
     try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}}
   async function addReservation(e){e.preventDefault();if(adding)return;setMsg('');
-    if(!addForm.firstName||!addForm.lastName||!addForm.numSeats){setMsg('First name, last name and seats are required.');return;}
+    if(!addForm.firstName||!addForm.lastName||addSeatTotal<1){setMsg('First name, last name, and at least one seat are required.');return;}
     setAdding(true);
     try{
       await apiFetch('/api/admin/high-holidays/reservations',{method:'POST',body:JSON.stringify(addForm)});
       setMsg('Reservation added.');
-      setAddForm({firstName:'',lastName:'',email:'',phone:'',numSeats:'1',paymentMethod:'check',amount:'',notes:''});
+      setAddForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',paymentMethod:'check',amount:'',notes:''});
       await load();
     }catch(e){setMsg('Error: '+e.message);}
     setAdding(false);}
-  function startEditRes(r){setEditRes({id:r.id,firstName:r.firstName||'',lastName:r.lastName||'',email:r.email||'',phone:r.phone||'',numSeats:String(r.numSeats||1),paymentMethod:r.paymentMethod||'pending',amount:r.totalAmount!=null?String(r.totalAmount):'',notes:r.notes||''});}
+  function startEditRes(r){setEditRes({id:r.id,firstName:r.firstName||'',lastName:r.lastName||'',email:r.email||'',phone:r.phone||'',mensSeats:String(r.mensSeats!=null?r.mensSeats:(r.numSeats||0)),womensSeats:String(r.womensSeats!=null?r.womensSeats:0),paymentMethod:r.paymentMethod||'pending',amount:r.totalAmount!=null?String(r.totalAmount):'',notes:r.notes||''});}
   async function saveEditRes(){setMsg('');
-    if(!editRes.firstName||!editRes.lastName||!editRes.numSeats){setMsg('First name, last name and seats are required.');return;}
+    const tot=(parseInt(editRes.mensSeats||0)||0)+(parseInt(editRes.womensSeats||0)||0);
+    if(!editRes.firstName||!editRes.lastName||tot<1){setMsg('First name, last name, and at least one seat are required.');return;}
     try{
-      await apiFetch('/api/admin/high-holidays/reservations/'+editRes.id,{method:'PUT',body:JSON.stringify({firstName:editRes.firstName,lastName:editRes.lastName,email:editRes.email,phone:editRes.phone,numSeats:editRes.numSeats,paymentMethod:editRes.paymentMethod,amount:editRes.amount,notes:editRes.notes})});
+      await apiFetch('/api/admin/high-holidays/reservations/'+editRes.id,{method:'PUT',body:JSON.stringify({firstName:editRes.firstName,lastName:editRes.lastName,email:editRes.email,phone:editRes.phone,mensSeats:editRes.mensSeats,womensSeats:editRes.womensSeats,paymentMethod:editRes.paymentMethod,amount:editRes.amount,notes:editRes.notes})});
       setMsg('Reservation updated.');setEditRes(null);await load();
     }catch(e){setMsg('Error: '+e.message);}}
   async function delReservation(r){
@@ -3807,6 +3811,8 @@ function AdminHighHolidays() {
     try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg('Error: '+e.message);}}
 
   const totalReserved=reservations.reduce((s,r)=>s+(r.numSeats||0),0);
+  const totalMen=reservations.reduce((s,r)=>s+(r.mensSeats||0),0);
+  const totalWomen=reservations.reduce((s,r)=>s+(r.womensSeats||0),0);
   const totalRevenue=reservations.reduce((s,r)=>s+(r.totalAmount||0),0);
 
   return React.createElement('div',null,
@@ -3825,8 +3831,8 @@ function AdminHighHolidays() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))}),React.createElement('p',{style:{fontSize:'0.78rem',color:'#888',margin:'4px 0 0'}},'How many seats can be reserved in total (used for the “available” count).'))),
       React.createElement('button',{className:'btn btn-primary',onClick:saveSettings,style:{marginTop:8}},'Save'),
       React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',marginTop:10}},'Set “Open” and a price to go live. People reserve seats (paying by card or mailing a check); assign their exact seats under the “Seating Map” tab.'),
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginTop:16}},
-        [['Reserved',totalReserved+'/'+(settings.totalSeats||0)],['Bookings',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:12,marginTop:16}},
+        [['Reserved',totalReserved+'/'+(settings.totalSeats||0)],["Men's / Women's",totalMen+' / '+totalWomen],['Bookings',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
           React.createElement('div',{key:l,style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},
             React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.2rem',fontWeight:700}},v))))),
 
@@ -3840,7 +3846,8 @@ function AdminHighHolidays() {
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name *'),React.createElement('input',{className:'form-input',value:addForm.lastName,onChange:e=>setAddForm(p=>({...p,lastName:e.target.value})),required:true})),
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:addForm.email,onChange:e=>setAddForm(p=>({...p,email:e.target.value}))})),
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:addForm.phone,onChange:e=>setAddForm(p=>({...p,phone:e.target.value}))})),
-            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats *'),React.createElement('input',{className:'form-input',type:'number',min:'1',value:addForm.numSeats,onChange:e=>setAddForm(p=>({...p,numSeats:e.target.value})),required:true})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Men's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:addForm.mensSeats,onChange:e=>setAddForm(p=>({...p,mensSeats:e.target.value}))})),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Women's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:addForm.womensSeats,onChange:e=>setAddForm(p=>({...p,womensSeats:e.target.value}))})),
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment'),
               React.createElement('select',{className:'form-input',value:addForm.paymentMethod,onChange:e=>setAddForm(p=>({...p,paymentMethod:e.target.value}))},
                 React.createElement('option',{value:'check'},'Check (received)'),
@@ -3848,7 +3855,7 @@ function AdminHighHolidays() {
                 React.createElement('option',{value:'paid'},'Paid (other)'),
                 React.createElement('option',{value:'comp'},'Comp / no charge'),
                 React.createElement('option',{value:'pending'},'Pending (owes)'))),
-            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:addForm.amount,onChange:e=>setAddForm(p=>({...p,amount:e.target.value})),placeholder:'auto ('+((settings.seatPrice||0)*parseInt(addForm.numSeats||1))+')'}))),
+            React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:addForm.amount,onChange:e=>setAddForm(p=>({...p,amount:e.target.value})),placeholder:'auto ('+((settings.seatPrice||0)*addSeatTotal)+')'}))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:addForm.notes,onChange:e=>setAddForm(p=>({...p,notes:e.target.value})),placeholder:'e.g. paid by check #1234'})),
           React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Leave Amount blank to use the seat price × seats. Marking anything other than "Pending" records the payment as revenue. Assign their exact seats afterward on the Seating Map tab.'),
           React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:adding},adding?'Adding...':'Add Reservation'))),
@@ -3859,7 +3866,8 @@ function AdminHighHolidays() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Last Name'),React.createElement('input',{className:'form-input',value:editRes.lastName,onChange:e=>setEditRes(p=>({...p,lastName:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:editRes.email,onChange:e=>setEditRes(p=>({...p,email:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:editRes.phone,onChange:e=>setEditRes(p=>({...p,phone:e.target.value}))})),
-          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Seats'),React.createElement('input',{className:'form-input',type:'number',min:'1',value:editRes.numSeats,onChange:e=>setEditRes(p=>({...p,numSeats:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Men's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:editRes.mensSeats,onChange:e=>setEditRes(p=>({...p,mensSeats:e.target.value}))})),
+          React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},"Women's Seats"),React.createElement('input',{className:'form-input',type:'number',min:'0',value:editRes.womensSeats,onChange:e=>setEditRes(p=>({...p,womensSeats:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment'),
             React.createElement('select',{className:'form-input',value:editRes.paymentMethod,onChange:e=>setEditRes(p=>({...p,paymentMethod:e.target.value}))},
               React.createElement('option',{value:'stripe'},'Card (Stripe)'),
@@ -3881,7 +3889,7 @@ function AdminHighHolidays() {
           React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Assigned',''].map((h,i)=>React.createElement('th',{key:i},h)))),
           React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
             React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
-            React.createElement('td',null,r.numSeats),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
+            React.createElement('td',null,r.numSeats,(r.mensSeats!=null||r.womensSeats!=null)&&React.createElement('span',{style:{color:'#888',fontSize:'0.82rem'}},' ('+(r.mensSeats||0)+'M / '+(r.womensSeats||0)+'W)')),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
             React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'),
             React.createElement('td',null,
               React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditRes(r)},'Edit'),
