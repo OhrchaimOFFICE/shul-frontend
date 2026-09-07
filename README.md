@@ -1,72 +1,368 @@
 # shul-frontend
 
-The Congregation Ohr Chaim website — `ohrchaim.org`.
+The Congregation Ohr Chaim website — `ohrchaim.org` — and the source of the
+**Ohr Chaim iOS app** (a Capacitor wrapper around the same web app).
 
-Single-page React app written **without a build step**. The site is `index.html` + `app.js` (~3,600 lines, all components in one file) + `styles.css`. React 18 + ReactDOM are loaded from unpkg as UMD scripts, so every component is built with `React.createElement(...)` rather than JSX.
+Ohr Chaim is an Orthodox synagogue at 317 W 47th Street, Miami Beach, FL. The
+site gives the community daily davening times, halachic zmanim, the Hebrew
+calendar, weekly shiurim, and lets people donate, sponsor a Kiddush / Seudas
+Shlishis, reserve High Holiday seats, and manage membership and yahrzeit
+reminders. Behind `#admin` is the office's back-office: davening rules, email
+center, donations, members, billing, High Holiday seating, and more.
 
-The companion repo is [`shul-backend`](https://github.com/OhrchaimOFFICE/shul-backend) — the Express API running as a Firebase Cloud Function.
+Single-page React app written **without a build step**. The site is
+`index.html` + `app.js` (~4,800 lines, every component in one file) +
+`hebrew.js` + `styles.css`. React 18 + ReactDOM are loaded from unpkg as UMD
+scripts, so every component is built with `React.createElement(...)` — no JSX.
 
-> **Migrated off Netlify → Firebase Hosting (June 2026).** Production is currently deployed from the **`firebase-migration` branch** (not `main`). See "Deploy" below.
+The companion repo is [`shul-backend`](https://github.com/OhrchaimOFFICE/shul-backend)
+— the Express API running as a 2nd-gen Firebase Cloud Function (`api`,
+`us-central1`) in the same Firebase project.
+
+> **Branch note.** Production is deployed from the **`firebase-migration`
+> branch**, which is ~38 commits ahead of `main`. `main` is frozen at the
+> pre-Firebase (Netlify) state from June 2026 and should not be deployed.
 
 ## Stack
 
-- **Frontend:** vanilla HTML + CSS + JavaScript, no bundler, no JSX
-- **UI:** React 18.3.1 + ReactDOM 18.3.1 from unpkg (UMD, version-pinned with Subresource Integrity hashes)
-- **Routing:** hash-based (`#home`, `#account`, `#admin`, …) — no `react-router`
-- **Styling:** `styles.css` + heavy inline styles in `app.js`
+- **Frontend:** vanilla HTML + CSS + JavaScript, no bundler, no JSX, no
+  framework CLI
+- **UI:** React 18.3.1 + ReactDOM 18.3.1 from unpkg (UMD, version-pinned with
+  Subresource Integrity hashes)
+- **Routing:** hash-based (`#home`, `#account`, `#admin`, …) — no
+  `react-router`. `App()` strips any `?key=value` query from the hash before
+  matching, so routes like `#signup?token=…` and `#pay?token=…` work.
+- **Styling:** `styles.css` + heavy inline styles in `app.js`; Google Fonts
+  (Playfair Display, Source Sans 3)
 - **Client-side libraries:**
-  - Firebase Auth + App compat v10.12.0 (gstatic CDN) — login only; the app never reads Firestore directly
-  - Stripe.js v3 (`js.stripe.com`)
-  - kosher-zmanim widget from `myzmanim.com` (iframe `srcdoc`)
-  - **pdf.js** vendored at `/vendor/` — loaded on demand to rasterize an uploaded weekly-email PDF flyer into inline images
-- **Backend calls:** `BACKEND_URL = ""` → all `/api/**` calls are **same-origin**, served by the Cloud Function via a Firebase Hosting rewrite (no CORS). Override with `window.__BACKEND_URL__` for local dev against a remote backend.
-- **Local persistence:** `localStorage` stale-while-revalidate cache on a few public read endpoints
+  - Firebase App + Auth compat v10.12.0 (gstatic CDN) — login only; the app
+    never reads Firestore directly
+  - Stripe.js v3 (`js.stripe.com`) — Stripe Elements card field for one-time
+    payments; Stripe Checkout (redirect) for membership subscriptions
+  - kosher-zmanim widget from `myzmanim.com` (rendered in a sandboxed iframe
+    via `srcdoc`) on the Zmanim panel; the backend also computes zmanim itself
+    (`/api/zmanim/today`)
+  - **pdf.js** vendored at `/vendor/` — loaded on demand to rasterize an
+    uploaded PDF flyer into inline images for the email center
+  - `hebrew.js` — dictionary + phonetic English→Hebrew name transliteration
+    (`window.toHebrew`) for Mi Shebeirach cards
+- **Backend calls:** `BACKEND_URL = ""` → all `/api/**` calls are
+  **same-origin**, served by the Cloud Function via a Firebase Hosting rewrite
+  (no CORS). Override with `window.__BACKEND_URL__` (set before `app.js`
+  loads) for local dev or the native app.
+- **Local persistence:** `apiFetchSWR()` — a stale-while-revalidate cache on a
+  few public read endpoints. `/api/zmanim/today` is persisted to
+  `localStorage`; `/api/slides` and `/api/site-images` are deliberately *not*
+  persisted (base64 payloads blow the storage quota).
+- **Time zone:** "today" is always computed in `America/New_York`, not the
+  viewer's zone, so a member abroad sees the shul's day.
 
 ## Files
 
 ```
-index.html        Page shell, meta tags, Firebase config injection
-app.js            Entire React app (~3,600 lines)
-styles.css        Global stylesheet
-vendor/           pdf.js (pdf.min.js + pdf.worker.min.js), same-origin
+index.html            Page shell, meta/OG tags, CDN script tags, Firebase config injection
+app.js                Entire React app (~4,800 lines)
+hebrew.js             English→Hebrew name transliteration (window.toHebrew)
+styles.css            Global stylesheet (incl. seat-map + Bima landmark styles)
+vendor/               pdf.js (pdf.min.js + pdf.worker.min.js), same-origin
 logo.png, email-banner.png
-firebase.json     Firebase Hosting config (rewrites + headers/CSP)
-.firebaserc       Firebase project (ohr-chaim-site)
-_headers          Legacy Netlify headers — unused on Firebase (kept for reference)
+firebase.json         Firebase Hosting config (ignore list, rewrites, headers/CSP, caching)
+.firebaserc           Firebase project (ohr-chaim-site)
+Seating Plan for Web.xlsx   Source spreadsheet for the High Holiday seat layout
+                            (the backend's seatLayout.js is generated from it)
+
+# Native iOS app (Capacitor)
+package.json          Capacitor deps + build/sync scripts (no web deps)
+capacitor.config.json appId com.manneeducation.ohrchaim, webDir www/
+build.mjs             Assembles www/ for Capacitor (copies runtime assets, injects native bits)
+native.js             Capacitor integration layer (push, local reminders, status bar, splash)
+assets/               icon.png, splash.png, splash-dark.png, icon-alt-hebrew.png (capacitor-assets sources)
+ios/                  Xcode project (App/App/public, Pods, build output are gitignored)
+www/                  Generated by build.mjs — gitignored
+
+# Docs / legacy
+APP_STORE.md          App Store submission pack (reviewer notes, privacy label, IAP rationale)
+MIGRATION.md          Notes from the Netlify → Firebase Hosting migration
+_headers              Legacy Netlify headers — unused on Firebase (kept for reference)
 ```
+
+`firebase.json`'s `ignore` list keeps everything except the runtime assets out
+of the Hosting upload (docs, spreadsheet, `package*.json`, `build.mjs`,
+`native.js`, `www/`, `ios/`, dotfiles, `.claude/`).
+
+## Pages (hash routes)
+
+| Route | Component | Notes |
+|---|---|---|
+| `#home` | `HomePage` | Hero slideshow, today / this-Shabbos day-cards (incl. Early Candle Lighting on Fridays, Havdalah, holiday schedules), zmanim ticker |
+| `#schedule` | `SchedulePage` | Weekly davening schedule (`/api/schedule/week`) |
+| `#calendar` | `CalendarPage` | Month view with Hebrew dates / candle times (`/api/calendar/:year/:month`) |
+| `#zmanim` | `ZmanimPage` | Backend zmanim + myzmanim widget |
+| `#shiurim` | `ShiurimPage` | Weekly shiurim list |
+| `#donate` | `DonatePage` / `DonateExternal` | Stripe Elements donation. In the native app this page just links out to the website |
+| `#sponsorship` | `SponsorshipPage` | Book a Kiddush or Seudas Shlishis (`/api/sponsorships/book`) |
+| `#highholidays` | `HighHolidaySeatsPage` | Reserve High Holiday seats — see below |
+| `#mishebeirach?token=…` | `MishebeirachPage` | Token-linked Mi Shebeirach name card — see below |
+| `#account`, `#signup?token=…` | `AccountPage` | Login / register / invite-prefill, profile, membership, bills, yahrzeits |
+| `#pay?token=…` | `PayBillPage` / `PayBillExternal` | Pay a single bill from an emailed link (native: links out to website) |
+| `#admin` | `AdminPanel` | Admin back-office (admin role required) |
+| `#welcome` | `WelcomePage` | Full-screen entrance/kiosk display (admin-gated, renders without site chrome) |
+| `#contact`, `#privacy`, `#terms` | — | Contact form (`/api/contact`), Privacy Policy, Terms |
+
+## Auth and roles
+
+- Firebase Authentication with **email/password** and **"Continue with
+  Google"** (`signInWithPopup`). Password reset via `sendPasswordResetEmail`.
+  Members can delete their own account (`DELETE /api/auth/account`).
+- **Invite flow:** admins create prefilled accounts and send signup invites;
+  the member opens `#signup?token=…`, the form is prefilled from
+  `/api/auth/prefill/:token`, and `/api/auth/claim-prefill` sets the password.
+- ID tokens are sent to the backend as `Authorization: Bearer <token>` by
+  `apiFetch()`. The **backend** owns the role check (`users/{uid}.role ===
+  'admin'`); the frontend simply probes `GET /api/admin/davening-rules` and
+  treats a 200 as "is admin" (used by `AdminPanel` and `WelcomePage`).
+- Admin accounts are managed from the Admins tab (`/api/admin/make-admin`,
+  `/api/admin/remove-admin`).
+- Authorized domains include `ohrchaim.org`, `www.ohrchaim.org`,
+  `ohr-chaim-site.web.app`, `ohr-chaim-site.firebaseapp.com`, `localhost`.
+
+## Member features (`#account`)
+
+Profile edit; **membership subscription** via Stripe Checkout with Standard or
+**Fair Share** tiers (Fair Share only shown when the admin has set a Fair Share
+price), monthly/annual interval, cancel auto-renew; **Outstanding Bills** (each
+paid as a single charge); **yahrzeits** (reminder email 10 days before).
+
+## High Holiday seats, seat map, and Mi Shebeirach
+
+**Public reservation page** (`#highholidays`): shown only while the admin has
+the season set to *Open*. The form takes separate **Men's** and **Women's**
+seat counts; the total is priced at `settings.seatPrice`. Payment is by
+**card** (Stripe Elements → `/api/donations/create-payment` → then
+`/api/high-holidays/reserve` with the verified PaymentIntent; a failed save
+after a successful charge tells the user to click Reserve again without being
+re-charged) or by **check** (reservation recorded as pending). On success the
+page offers to add Mi Shebeirach names right away.
+
+**Admin → High Holiday Seating** has four sub-tabs:
+
+- **Settings** — Open/Closed, seat price, capacity.
+- **Reservations** — list with Men's/Women's breakdown totals; **manually
+  add**, **edit** (opens in a modal), and **delete** reservations (deleting
+  frees any assigned seats). The **Assigned** column reflects the real seat
+  map: it shows a green `✓ have/need` when every seat is placed, an amber
+  `have/need` while partial, and `—` when none are assigned (the count comes
+  from the `seatAssignments` collection via `assignedCount` on each
+  reservation). Edit flows across the admin (reservations, sponsorships,
+  member tags, shiurim, welcome cards, templates, seat assignment) open in a
+  shared `Modal` rather than filling a form inline.
+- **Seating Map** (`AdminSeating`) — a CSS-grid rendering of the physical
+  shul layout served by `/api/admin/seating/chart` (the backend's
+  `seatLayout.js`, generated from `Seating Plan for Web.xlsx`). Seats are
+  grouped into framed, labeled sections: *Ladies Section*, *Social Hall
+  (Ladies)*, *Men Pews*, a separate **front-wall bench frame for seats
+  123–124**, *Men Section*, and *Men (Right)*, plus a **BIMA landmark box**
+  and a mehitzah bar. Each seat's number box carries its **table color** from
+  the spreadsheet so adjacent tables read as distinct. Click a seat to assign
+  it — the picker lists **High Holiday reservations only**. Buttons: **Seed
+  Holders from Excel** (fills empty seats from the sheet's holder names,
+  never overwrites), **Clear All** (double-confirm), and **Print Ladies /
+  Print Men's / Print Both**, which opens an A4-landscape print window with a
+  branded header and per-section "N of M assigned" count. Names are
+  measure-and-fit to their boxes (a `useLayoutEffect` shrinks each label until
+  it fits) both on screen and in the print view. Printing requires pop-ups.
+- **Mi Shebeirach** — every reservation gets a private token; **Email
+  Invites** sends each reservation a link to `#mishebeirach?token=…`. The
+  editor (`MishebeirachEditor`) converts each English name to Hebrew as you
+  type via `hebrew.js` (always editable — the dictionary/phonetic fallback is
+  ~95% right), with a "Who is this?" category per name. The admin tab lists
+  all cards and prints them **grouped by category** for the gabbai.
+
+## Admin features
+
+Tabs in `AdminPanel`: **Davening Rules**, **Overrides** (per-date schedule
+overrides), **Jewish Holidays** (holiday schedules shown on the home/schedule
+cards and in a holiday email; seedable), **Shiurim** (add/edit/delete), **Email
+Center**, **Auto Emails** (membership-dues reminders, pledge reminders, annual
+tax-receipt auto-send), **Donations** (manual entry, apply-to-bill, Stripe
+import, match/dedupe, receipts, analytics), **Members** (roster upload,
+add-single, bulk edit, per-member **Mark Paid** modal (cash/check/other),
+exempt, reset password, purge; **membership-year reset**), **Member Tags**,
+**Pledges/Billing** (pledges + sponsorships with inline edit/delete; a
+sponsorship's Type can be switched Kiddush ⇄ Seudas Shlishis), **Reasons**
+(donation/pledge reasons), **Settings** (sponsorship pricing, membership dues
+incl. Fair Share), **High Holiday Seating** (above), **Welcome Display**
+(sponsor cards for the kiosk), **Analytics**, **Site Images** (logo/hero
+uploads + homepage slides), **Admins**.
+
+Since mid-2026 all admin edit flows open in a **modal** rather than an inline
+form.
+
+**Email Center** sub-tabs: *Compose* (blast to a chosen audience — members,
+tags, or **"All + pending invites"** which includes not-yet-registered
+prefilled accounts; toolbar with Insert Link / Donate Button; **attach up to 5
+flyers as PDF, JPEG, or PNG** — PDFs are rasterized client-side with pdf.js
+and shown in the live preview), *Weekly Schedule* (per-shiur checkboxes,
+flyers, server-rendered preview), *Sponsorship Email* (Kiddush / Seudas /
+Other checkboxes + preview), *Holiday* (holiday schedule email + flyers),
+*Templates*, *Sending* (background send-job progress with cancel/retry), and
+*Log*. Sends are queued server-side and drained by a scheduled function; the
+old "resume" send option was removed. All email previews render in a sandboxed
+`<iframe>` (no `allow-scripts`).
+
+**Welcome Display** (`#welcome`): admin-gated full-viewport board with a live
+clock, today's schedule and zmanim, today's shiurim, and rotating sponsor
+cards; auto-refreshes every 5 minutes; has a browser fullscreen toggle. The
+"Open Welcome Display" button in the admin header opens it in a new tab (in the
+native app it navigates in place).
 
 ## Hosting (Firebase)
 
-- **Host:** Firebase Hosting, project `ohr-chaim-site` (site `ohr-chaim-site` → `ohr-chaim-site.web.app`)
-- **Public domains:** `ohrchaim.org` (apex) and `www.ohrchaim.org` (301-redirects to apex), both with Firebase-managed SSL
-- **DNS / registrar:** GoDaddy. Apex `A` → `199.36.158.100` (Firebase) + `TXT hosting-site=ohr-chaim-site`; `www` CNAME → `ohr-chaim-site.web.app`. (Rollback: apex `A` → `75.2.60.5` returns to Netlify.) Email records (MX/SPF/DKIM/DMARC) are untouched.
-- **Rewrites** (`firebase.json`): `/api/**` → the `api` Cloud Function (us-central1); everything else → `/index.html` (SPA fallback; safe because routing is hash-based).
-- **Headers/CSP** live in `firebase.json` `headers` (see below), not `_headers`.
+- **Host:** Firebase Hosting, project `ohr-chaim-site` (site `ohr-chaim-site`
+  → `ohr-chaim-site.web.app`)
+- **Public domains:** `ohrchaim.org` (apex) and `www.ohrchaim.org`
+  (301-redirects to apex), both with Firebase-managed SSL
+- **DNS / registrar:** GoDaddy. Apex `A` → `199.36.158.100` (Firebase) +
+  `TXT hosting-site=ohr-chaim-site`; `www` CNAME → `ohr-chaim-site.web.app`.
+  (Rollback: apex `A` → `75.2.60.5` returns to Netlify.) Email records
+  (MX/SPF/DKIM/DMARC) are untouched.
+- **Rewrites** (`firebase.json`): `/api/**` → the `api` Cloud Function
+  (us-central1); everything else → `/index.html` (SPA fallback; safe because
+  routing is hash-based).
+- **Caching:** images/`vendor/` immutable for a year; `styles.css` 1 day;
+  `app.js` 5 minutes must-revalidate; `index.html` no-cache.
+- **Headers/CSP** live in `firebase.json` `headers`, not `_headers`.
 
 ## Security headers
 
-`firebase.json` sets a Content-Security-Policy plus `Strict-Transport-Security`, `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, and `Permissions-Policy`. CSP `script-src` is limited to self + the CDNs used (unpkg, gstatic/Firebase, Stripe, myzmanim); `worker-src 'self' blob:` covers the pdf.js worker; `connect-src 'self' …` covers the now same-origin API. `'unsafe-inline'` is allowed for scripts only because the inline Firebase config can't use nonces on static hosting. Admin email previews render in a sandboxed `<iframe>` (no `allow-scripts`), so untrusted template HTML can't execute. **If you add a new third-party origin (script, API, or frame), update the CSP in `firebase.json`.**
+`firebase.json` sets a Content-Security-Policy plus
+`Strict-Transport-Security`, `X-Frame-Options: SAMEORIGIN`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy`, and
+`Permissions-Policy`. CSP `script-src` is limited to self + the CDNs used
+(unpkg, gstatic/Firebase, Stripe, myzmanim, `apis.google.com` for Google
+sign-in); `frame-src` allows Stripe, myzmanim, `ohr-chaim-site.firebaseapp.com`
+and `accounts.google.com` (auth popups); `worker-src 'self' blob:` covers the
+pdf.js worker; `connect-src 'self' …` covers the same-origin API, Firebase, and
+Stripe. `'unsafe-inline'` is allowed for scripts only because the inline
+Firebase config can't use nonces on static hosting. **If you add a new
+third-party origin (script, API, or frame), update the CSP in `firebase.json`.**
 
-## Public config
+## Public config / environment
 
-Intended to be public: Firebase web config in `index.html` (`window.__firebaseConfig__`) and the Stripe publishable key (`pk_live_…`) in `app.js`. Secret keys live only in the backend (Secret Manager).
+There are **no `.env` files and no build-time environment variables** for the
+frontend. Everything it needs is public and lives in source:
 
-## Auth
+- `window.__firebaseConfig__` in `index.html` (Firebase web config —
+  intended to be public)
+- `STRIPE_PUBLISHABLE_KEY` (`pk_live_…`) in `app.js`
+- `window.__BACKEND_URL__` (optional global) — absolute API origin; empty on
+  the website, injected as `https://ohrchaim.org` by `build.mjs` for the
+  native app
 
-- Firebase Authentication, email/password only
-- ID tokens sent to the backend as `Authorization: Bearer <token>`; admin = `users/{uid}.role === 'admin'`
-- Authorized domains include `ohrchaim.org`, `www.ohrchaim.org`, `ohr-chaim-site.web.app`, `ohr-chaim-site.firebaseapp.com`, `localhost`
+Secret keys live only in the backend's Secret Manager (`STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`, `GMAIL_*`, `APNS_AUTH_KEY` — see `shul-backend`).
 
-## Admin features (high level)
+## Local development
 
-Behind `#admin` (admin role required): davening rules & overrides, **shiurim** (add/edit/delete), the **Email Center** (compose/blast, weekly schedule email with per-shiur toggles + PDF flyer + "resume" send), **donations** (manual entry, apply-to-bill, Stripe import, tax receipts, analytics), **members** (roster import, tags/tiers, per-member "Mark dues paid", exempt, reset password), **pledges/billing + sponsorships** (add/edit/delete, invoices), high-holiday seating, welcome-display slides/sponsors, and site images.
+No install or build is needed for the website. Two options:
 
-## Deploy
+1. **Static server against production API** — serve this folder with any
+   static server and inject the backend origin before `app.js` loads, e.g. add
+   `<script>window.__BACKEND_URL__ = "https://ohrchaim.org";</script>` to a
+   local copy of `index.html`. (Don't commit that line.) Cross-origin calls
+   then depend on the backend's CORS allow-list (`FRONTEND_URLS`).
+2. **Firebase emulator** — `firebase emulators:start --only hosting` serves
+   the site with the `/api/**` rewrite, but the rewrite only resolves if the
+   backend's functions emulator (`npm run serve` in `shul-backend`) is running
+   too.
+
+Sanity-check syntax before committing (there is no linter/test suite):
 
 ```bash
-firebase login            # office@ohrchaim.org (owner of ohr-chaim-site)
+node --check app.js
+node --check hebrew.js
+```
+
+## Deploy (web)
+
+```bash
+git checkout firebase-migration      # production branch
+firebase login                       # office@ohrchaim.org (owner of ohr-chaim-site)
 firebase use ohr-chaim-site
 firebase deploy --only hosting
 ```
 
-Deploys from the working tree (currently the `firebase-migration` branch). Deploy the backend (`shul-backend`) too if the API changed. To add/manage a custom domain, use Firebase Console → Hosting.
+Deploys from the working tree. Deploy the backend (`shul-backend`,
+`firebase deploy --only functions`) first if the API changed. To add/manage a
+custom domain, use Firebase Console → Hosting.
+
+## iOS app (Capacitor)
+
+The App Store build is the same web app wrapped with Capacitor 8. See
+`APP_STORE.md` for the reviewer notes, privacy label, and the reasoning for why
+donations/dues/seats are not in-app purchases.
+
+- **Bundle id:** `com.manneeducation.ohrchaim`; display name "Ohr Chaim";
+  iOS 15.0+; `MARKETING_VERSION` 1.0, build number currently **4**
+  (`ios/App/App.xcodeproj/project.pbxproj`).
+- **Plugins:** `@capacitor/app`, `browser`, `haptics`, `local-notifications`,
+  `push-notifications`, `share`, `splash-screen`, `status-bar`.
+- **What `native.js` does** (loaded only in the app; a no-op on the web):
+  sets a light status bar over the navy header, hides the splash after paint,
+  registers for **push** and POSTs the APNs token to `/api/push/register`
+  (tapping a push deep-links via `data.url` → hash), and schedules **on-device
+  local reminders** from `GET /api/native/reminders` (candle lighting /
+  havdalah, ids 1000–1999, re-synced on every foreground). It also exposes
+  `window.__nativeShare__` and `window.__haptic__` — these helpers exist but
+  `app.js` does not call them yet.
+- **Native-specific UI in `app.js`:** `IS_NATIVE` is true under Capacitor.
+  Stripe Checkout and the Donate / Pay-bill pages open the **website** in the
+  in-app browser (`openExternal`) instead of running Stripe inside the
+  WebView; shareable links use `SITE_URL = https://ohrchaim.org`.
+- **Push delivery:** the backend sends via APNs directly (`apns.js`,
+  `APNS_AUTH_KEY`), not FCM. `App.entitlements` has `aps-environment =
+  development`; Xcode switches it to `production` for archive builds.
+
+### Build steps
+
+```bash
+npm install                     # Capacitor CLI + plugins (first time)
+npm run build                   # node build.mjs → www/
+npm run sync                    # build + npx cap sync ios
+npm run ios                     # build + sync + open Xcode
+npx capacitor-assets generate --ios   # (re)generate icon + splash from assets/
+```
+
+Then archive/upload from Xcode. `www/`, `ios/App/App/public/`, `Pods/`, and
+build output are gitignored; commit only source.
+
+## Operational gotchas
+
+- **`build.mjs` does not copy `hebrew.js`.** `index.html` loads
+  `hebrew.js` (added Sept 2026) but the `FILES` list in `build.mjs` is still
+  `app.js, styles.css, logo.png, email-banner.png, native.js`. Until it is
+  added, an app build will 404 on `hebrew.js` and the Mi Shebeirach
+  English→Hebrew auto-fill will silently do nothing in the iOS app (the site
+  guards on `window.toHebrew`). Add `'hebrew.js'` to `FILES` before the next
+  `npm run build`.
+- **`www/` on disk may be stale.** It is a build artifact from the last
+  `npm run build`, not tracked by git. Always rebuild before `cap sync`.
+- **Deploy from `firebase-migration`, not `main`.** `main` still contains the
+  Netlify-era code (`BACKEND_URL` pointing at Render, `_headers`).
+- **CSP is a hard allow-list.** New CDNs, auth providers, or iframes need a
+  `firebase.json` change or they fail silently.
+- **`emailTextToHtml()` in `app.js` is a client copy of the backend's
+  function** so the Compose preview matches what is sent — keep the two in
+  sync.
+- **Seat layout lives in the backend** (`shul-backend/seatLayout.js`,
+  generated from `Seating Plan for Web.xlsx`). Changing the physical layout
+  means regenerating that file; the frontend only decides framing/labels by
+  `section`/`row`/`col` (e.g. the front-wall bench is `mens`, `col<=3`,
+  `row>=32`).
+- **Printing (seating chart, Mi Shebeirach) uses `window.open`** — browsers
+  that block pop-ups will show a "Please allow pop-ups" message instead.
+- **`app.js` is cached for 5 minutes** by Hosting; users may see the previous
+  build briefly after a deploy.
+- **Backend timeouts:** bulk email/push sends run inside the `api` function
+  (300 s timeout) but Hosting caps the browser-facing wait at 60 s; the
+  Sending tab's job list is how progress is tracked past that.

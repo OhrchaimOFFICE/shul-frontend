@@ -4015,7 +4015,7 @@ function AdminHighHolidays() {
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      ['settings','reservations','seatingmap','mishebeirach'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='mishebeirach')loadCards();}},
+      ['settings','reservations','seatingmap','mishebeirach'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='mishebeirach')loadCards();if(t==='reservations')load();}},
         t==='settings'?'Settings':t==='reservations'?'Reservations ('+reservations.length+')':t==='seatingmap'?'Seating Map':'Mi Shebeirach'))),
 
     subTab==='settings'&&React.createElement('div',{className:'card'},
@@ -4086,7 +4086,13 @@ function AdminHighHolidays() {
           React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
             React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
             React.createElement('td',null,r.numSeats,(r.mensSeats!=null||r.womensSeats!=null)&&React.createElement('span',{style:{color:'#888',fontSize:'0.82rem'}},' ('+(r.mensSeats||0)+'M / '+(r.womensSeats||0)+'W)')),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
-            React.createElement('td',null,r.paymentMethod),React.createElement('td',null,(r.seatAssignments||[]).join(', ')||'-'),
+            React.createElement('td',null,r.paymentMethod),
+            React.createElement('td',null,(()=>{
+              const need=r.numSeats||0,have=r.assignedCount||0;
+              if(have<=0) return React.createElement('span',{style:{color:'#b9b9b9'}},'—');
+              if(need>0&&have>=need) return React.createElement('span',{style:{color:'#27ae60',fontWeight:700,whiteSpace:'nowrap'}},'✓ '+have+'/'+need);
+              return React.createElement('span',{style:{color:'#c08a2c',fontWeight:600,whiteSpace:'nowrap'}},have+'/'+need);
+            })()),
             React.createElement('td',null,
               React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditRes(r)},'Edit'),
               React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delReservation(r)},'Delete'))))))))),
