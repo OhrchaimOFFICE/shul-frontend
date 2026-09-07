@@ -20,7 +20,7 @@ function openExternal(url){
 }
 const STRIPE_PUBLISHABLE_KEY = "pk_live_51TNzTG0rialmjNgrf4IGmygXrLa91bSAJ0kPe616KM9UOwkfVd5Fez0Vsyf5BFDstKaoLCbv4prVqNE7FmwPRSvP00S6BSyVs3";
 if (window.__firebaseConfig__ && !firebase.apps.length) firebase.initializeApp(window.__firebaseConfig__);
-const { useState, useEffect, useCallback, useRef } = React;
+const { useState, useEffect, useCallback, useRef, useLayoutEffect } = React;
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 // "Today" per the shul's timezone (America/New_York), NOT the viewer's — so a
@@ -1365,6 +1365,24 @@ function AdminSeating() {
   const [selected,setSelected]=useState(null);
   const [form,setForm]=useState({holder:'',reservationId:''});
   const [seeding,setSeeding]=useState(false);
+  const chartRef=useRef(null);
+  // Perfectly fit each seat's name to its box by measuring: start at a comfortable
+  // size and shrink until the text no longer overflows (width or height). Runs
+  // after every render so it re-fits when assignments change.
+  useLayoutEffect(()=>{
+    const root=chartRef.current; if(!root) return;
+    root.querySelectorAll('.seat-holder-box').forEach(el=>{
+      const txt=(el.textContent||'').trim();
+      if(!txt){ el.style.fontSize=''; return; }
+      let fs=13; el.style.fontSize=fs+'px';
+      // Font width scales ~linearly, so scale to the tightest of width/height in one step.
+      const wRatio=el.clientWidth/(el.scrollWidth||1), hRatio=el.clientHeight/(el.scrollHeight||1);
+      const r=Math.min(wRatio,hRatio,1);
+      if(r<1){ fs=Math.max(4,fs*r-0.3); el.style.fontSize=fs+'px'; }
+      // One correction pass in case rounding left a hair of overflow.
+      if(el.scrollWidth>el.clientWidth+0.5||el.scrollHeight>el.clientHeight+0.5){ fs=Math.max(4,fs*Math.min(el.clientWidth/(el.scrollWidth||1),el.clientHeight/(el.scrollHeight||1))-0.3); el.style.fontSize=fs+'px'; }
+    });
+  });
 
   async function load(){
     setLoading(true);
@@ -1509,7 +1527,7 @@ function AdminSeating() {
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
       React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign it to a reservation. The seat colors (orange / yellow / green) mark separate tables, matching the seating plan — each color change is a new table. An assigned seat has a bold navy outline and shows the last name. The horizontal bar is the mechitzah.'),
       React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8,border:'3px solid #1a2744'}},
-        React.createElement('div',{className:'seating-chart',style:{
+        React.createElement('div',{className:'seating-chart',ref:chartRef,style:{
           display:'grid',
           gridTemplateColumns:'repeat('+maxCol+', 56px)',
           gridAutoRows:'22px',
@@ -1547,7 +1565,7 @@ function AdminSeating() {
             const name=React.createElement('button',{
               key:'h'+seat.number,
               className:'seat-holder-box'+(holder?'':' empty'),
-              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3),fontSize:seatNameFont(lastName),background:isAssigned?'#fff':'rgba(255,255,255,0.55)',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b',borderTop:'none'},
+              style:{gridColumn:(seat.col+1),gridRow:(seat.row+3),background:isAssigned?'#fff':'rgba(255,255,255,0.55)',border:isAssigned?'2px solid #1a2744':'1px solid #8a6f2b',borderTop:'none'},
               title:'Seat '+seat.number+(holder?', '+holder:''),
               onClick:()=>openAssign(seat)
             },lastName);
