@@ -3722,11 +3722,79 @@ function AdminAnalytics() {
 }
 
 // ─── High Holiday Seats Page (Public) ────────────────────────────
+// ─── Mi Shebeirach card ──────────────────────────────────────────
+// A family types names in English; we transliterate to Hebrew live (editable)
+// and they tag each with a relationship. Reachable by the reservation's token.
+function MishebeirachEditor({token,embedded}){
+  const [meta,setMeta]=useState(null); // {displayName, categories}
+  const [entries,setEntries]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [msg,setMsg]=useState('');
+  useEffect(()=>{let ok=true;
+    apiFetch('/api/high-holidays/mishebeirach/'+encodeURIComponent(token))
+      .then(d=>{if(!ok)return;
+        setMeta({displayName:d.displayName||'',categories:d.categories||[]});
+        const rows=(d.entries&&d.entries.length?d.entries:[{english:'',hebrew:'',category:''}]).map(e=>({english:e.english||'',hebrew:e.hebrew||'',category:e.category||'',hebrewEdited:!!(e.hebrew||'').trim()}));
+        setEntries(rows);setLoading(false);})
+      .catch(err=>{if(ok){setMsg(err.message||'Could not load this card.');setLoading(false);}});
+    return ()=>{ok=false;};},[token]);
+  function upd(i,k,v){setEntries(p=>p.map((e,idx)=>{if(idx!==i)return e;
+    const n={...e,[k]:v};
+    if(k==='english'&&!e.hebrewEdited){n.hebrew=(typeof window!=='undefined'&&window.toHebrew)?window.toHebrew(v):'';}
+    if(k==='hebrew'){n.hebrewEdited=true;}
+    return n;}));}
+  function addRow(){setEntries(p=>[...p,{english:'',hebrew:'',category:'',hebrewEdited:false}]);}
+  function removeRow(i){setEntries(p=>p.length>1?p.filter((_,idx)=>idx!==i):[{english:'',hebrew:'',category:'',hebrewEdited:false}]);}
+  async function save(){if(saving)return;setSaving(true);setMsg('');
+    const clean=entries.filter(e=>(e.english||'').trim()||(e.hebrew||'').trim()).map(e=>({english:(e.english||'').trim(),hebrew:(e.hebrew||'').trim(),category:e.category||'Other'}));
+    try{await apiFetch('/api/high-holidays/mishebeirach/'+encodeURIComponent(token),{method:'POST',body:JSON.stringify({entries:clean})});
+      setMsg('Saved! The gabbai will have your names. You can return to this same link any time to add or change them.');}
+    catch(err){setMsg('Error: '+err.message);}
+    setSaving(false);}
+  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  const cats=(meta&&meta.categories)||[];
+  const isErr=msg.startsWith('Error')||msg.startsWith('Could not')||msg.includes('not valid');
+  return React.createElement('div',{className:'card',style:embedded?{marginTop:16,border:'2px solid #c49a3c'}:{}},
+    React.createElement('div',{className:'card-header'},'Mi Shebeirach Names'+(meta&&meta.displayName?' — '+meta.displayName:'')),
+    React.createElement('p',{style:{color:'#555',marginTop:-4,marginBottom:14,fontSize:'0.92rem'}},'Type each name in English and it will appear in Hebrew — you can fix the Hebrew if needed. Choose who each person is; the gabbai’s printout is grouped by that. This is optional.'),
+    msg&&React.createElement('div',{className:'message '+(isErr?'message-error':'message-success')},msg),
+    React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+      entries.map((e,i)=>React.createElement('div',{key:i,style:{display:'grid',gridTemplateColumns:'1fr 1fr 150px 34px',gap:8,alignItems:'end',background:'#faf8f3',padding:'10px 12px',borderRadius:8,border:'1px solid #eee'}},
+        React.createElement('div',{className:'form-group',style:{margin:0}},i===0&&React.createElement('label',{className:'form-label'},'Name (English)'),
+          React.createElement('input',{className:'form-input',value:e.english,placeholder:'e.g. Moshe',onChange:ev=>upd(i,'english',ev.target.value)})),
+        React.createElement('div',{className:'form-group',style:{margin:0}},i===0&&React.createElement('label',{className:'form-label'},'Hebrew (editable)'),
+          React.createElement('input',{className:'form-input',dir:'rtl',lang:'he',style:{fontSize:'1.15rem',textAlign:'right'},value:e.hebrew,onChange:ev=>upd(i,'hebrew',ev.target.value)})),
+        React.createElement('div',{className:'form-group',style:{margin:0}},i===0&&React.createElement('label',{className:'form-label'},'Who is this?'),
+          React.createElement('select',{className:'form-input',value:e.category,onChange:ev=>upd(i,'category',ev.target.value)},
+            React.createElement('option',{value:''},'— choose —'),
+            cats.map(c=>React.createElement('option',{key:c,value:c},c)))),
+        React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',title:'Remove',style:{padding:'8px 0'},onClick:()=>removeRow(i)},'✕'))),
+    ),
+    React.createElement('div',{style:{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}},
+      React.createElement('button',{type:'button',className:'btn btn-outline',onClick:addRow},'+ Add another name'),
+      React.createElement('button',{type:'button',className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save Names')));
+}
+
+function MishebeirachPage(){
+  const siteImages=useSiteImages();
+  const token=(window.location.hash.split('token=')[1]||'').split('&')[0];
+  const logo=siteImages.topLogo||'logo.png';
+  if(!token) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
+    React.createElement('div',{className:'card-header',style:{borderBottom:'none'}},'Mi Shebeirach'),
+    React.createElement('p',{style:{color:'#555'}},'This link is missing its code. Please open the exact link from your email, or contact the office at office@ohrchaim.org.'));
+  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+    React.createElement('div',{style:{textAlign:'center',marginBottom:8}},
+      React.createElement('img',{src:logo,alt:'Congregation Ohr Chaim',style:{height:84,width:'auto'}})),
+    React.createElement(MishebeirachEditor,{token:token}));
+}
+
 function HighHolidaySeatsPage() {
   const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');const [done,setDone]=useState(false);
   const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});
   const [payMethod,setPayMethod]=useState('card'); // 'card' | 'check'
   const [submitting,setSubmitting]=useState(false);
+  const [msToken,setMsToken]=useState('');const [showMs,setShowMs]=useState(false);
   const cardMountRef=useRef(null);const stripeRef=useRef(null);const cardElementRef=useRef(null);const paidPiRef=useRef(null);
   useEffect(()=>{apiFetch('/api/high-holidays/seats').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
   function upd(k,v){setForm(p=>({...p,[k]:v}));}
@@ -3750,8 +3818,8 @@ function HighHolidaySeatsPage() {
     setSubmitting(true);
     try{
       if(payMethod==='check'||total<=0){
-        await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify({...form,paymentMethod:total>0?'check':'free'})});
-        setDone(true);setSubmitting(false);return;
+        const resp=await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify({...form,paymentMethod:total>0?'check':'free'})});
+        setMsToken(resp&&resp.msToken||'');setDone(true);setSubmitting(false);return;
       }
       // Card: pay first, then reserve with the verified PaymentIntent. Reuse a
       // succeeded PI on retry so a network blip can't double-charge.
@@ -3764,18 +3832,23 @@ function HighHolidaySeatsPage() {
         if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setSubmitting(false);return;}
         piId=result.paymentIntent.id;paidPiRef.current=piId;
       }
-      await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify({...form,paymentMethod:'stripe',paymentIntentId:piId})});
-      paidPiRef.current=null;setDone(true);
+      const resp=await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify({...form,paymentMethod:'stripe',paymentIntentId:piId})});
+      setMsToken(resp&&resp.msToken||'');paidPiRef.current=null;setDone(true);
     }catch(err){
       setMsg(paidPiRef.current?'Your card was charged, but saving the reservation hit a snag. Please click Reserve once more to finish — you will NOT be charged again.':('Error: '+err.message));
     }
     setSubmitting(false);
   }
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
-  if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
-    React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation '+(payMethod==='check'?'Received!':'Confirmed!')),
-    React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0))+' seat(s) have been reserved.'+(payMethod==='check'?' Please mail your check to the office to complete payment. The office will assign your specific seats.':' The office will assign your specific seats.')),
-    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});}},'Back'));
+  if(done) return React.createElement('div',{style:{maxWidth:640,margin:'0 auto'}},
+    React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
+      React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation '+(payMethod==='check'?'Received!':'Confirmed!')),
+      React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Your '+((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0))+' seat(s) have been reserved.'+(payMethod==='check'?' Please mail your check to the office to complete payment. The office will assign your specific seats.':' The office will assign your specific seats.')),
+      msToken&&!showMs&&React.createElement('div',{style:{marginTop:22,paddingTop:20,borderTop:'1px solid #eee'}},
+        React.createElement('p',{style:{color:'#555',margin:'0 0 12px'}},'Would you like the gabbai to have names for a Mi Shebeirach? You can add them now — it’s optional.'),
+        React.createElement('button',{className:'btn btn-outline',onClick:()=>setShowMs(true)},'Add Mi Shebeirach Names')),
+      !showMs&&React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setShowMs(false);setForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});}},'Done')),
+    showMs&&msToken&&React.createElement(MishebeirachEditor,{token:msToken,embedded:true}));
   if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'High Holiday Seats'),
     React.createElement('p',{style:{fontSize:'1.1rem',color:'#555'}},'Seat reservations are not currently open.'));
@@ -3816,6 +3889,7 @@ function HighHolidaySeatsPage() {
 
 // ─── Admin High Holidays ─────────────────────────────────────────
 function AdminHighHolidays() {
+  const siteImages=useSiteImages();
   const [subTab,setSubTab]=useState('settings');
   const [settings,setSettings]=useState({seatPrice:0,totalSeats:100,enabled:false,rows:10,seatsPerRow:10});
   const [reservations,setReservations]=useState([]);
@@ -3855,6 +3929,45 @@ function AdminHighHolidays() {
     if(!confirm('Delete '+(r.displayName||'this')+' reservation ('+r.numSeats+' seat'+(r.numSeats>1?'s':'')+')? Any assigned seats will be freed.'))return;
     try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg('Error: '+e.message);}}
 
+  // ── Mi Shebeirach cards ──
+  const [cards,setCards]=useState(null);const [msCats,setMsCats]=useState([]);const [invSending,setInvSending]=useState(false);
+  async function loadCards(){try{const d=await apiFetch('/api/admin/high-holidays/mishebeirach');setCards(d.cards||[]);setMsCats(d.categories||[]);}catch(e){setMsg('Error: '+e.message);}}
+  async function emailInvites(){
+    if(!confirm('Email every seat reservation a private link to add their Mi Shebeirach names? Each person gets one email.'))return;
+    setInvSending(true);setMsg('');
+    try{const r=await apiFetch('/api/admin/high-holidays/mishebeirach/email-invites',{method:'POST',body:JSON.stringify({siteUrl:window.location.origin})});
+      setMsg('Invites sent: '+r.sent+(r.skipped?(' · skipped '+r.skipped+' (no email or duplicate)'):''));}
+    catch(e){setMsg('Error: '+e.message);}
+    setInvSending(false);}
+  function printMishebeirach(list){
+    const order=msCats.length?msCats:['Other'];
+    const logo=(siteImages&&(siteImages.topLogo||siteImages.fullscreenLogo));
+    const logoUrl=(logo&&/^(https?:|data:)/.test(logo))?logo:(window.location.origin+'/logo.png');
+    const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const pages=list.map(card=>{
+      const byCat={};(card.entries||[]).forEach(e=>{const c=e.category||'Other';(byCat[c]=byCat[c]||[]).push(e);});
+      const groups=order.filter(c=>byCat[c]).map(c=>{
+        const rows=byCat[c].map(e=>'<div class="nm"><span class="he">'+esc(e.hebrew||'')+'</span>'+(e.english?'<span class="en">'+esc(e.english)+'</span>':'')+'</div>').join('');
+        return '<div class="grp"><div class="ct">'+esc(c)+(byCat[c].length>1?'s':'')+'</div><div class="nms">'+rows+'</div></div>';
+      }).join('');
+      return '<div class="page"><div class="brand"><img src="'+esc(logoUrl)+'" onerror="this.style.display=\'none\'">'
+        +'<div class="bt"><div class="nn">Congregation Ohr Chaim</div><div class="sub">Mi Shebeirach &middot; '+esc(card.displayName||'')+'</div></div></div>'
+        +(groups||'<p class="none">No names submitted.</p>')+'</div>';
+    }).join('');
+    const html='<!doctype html><html><head><meta charset="utf-8"><title>Mi Shebeirach</title><style>'
+      +'@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+      +'.page{page-break-after:always}.page:last-child{page-break-after:auto}'
+      +'.brand{display:flex;align-items:center;gap:14px;border-bottom:3px solid #c49a3c;padding-bottom:10px;margin-bottom:16px}'
+      +'.brand img{height:70px;width:auto}.brand .nn{font-size:24px;font-weight:800}.brand .sub{font-size:13px;font-weight:700;color:#8a6f2b;text-transform:uppercase;letter-spacing:2px;margin-top:3px}'
+      +'.grp{margin:0 0 16px;break-inside:avoid}.ct{background:#1a2744;color:#c49a3c;font-weight:700;padding:5px 12px;border-radius:5px;font-size:14px;letter-spacing:.5px}'
+      +'.nms{padding:6px 4px 0}.nm{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:6px 8px;border-bottom:1px solid #eee}'
+      +'.he{font-size:26px;font-weight:700;direction:rtl}.en{font-size:12px;color:#888}.none{color:#888}'
+      +'</style></head><body>'+pages+'</body></html>';
+    const w=window.open('','_blank');
+    if(!w){setMsg('Please allow pop-ups to print.');return;}
+    w.document.write(html);w.document.close();w.focus();setTimeout(()=>{try{w.print();}catch(e){}},500);
+  }
+
   const totalReserved=reservations.reduce((s,r)=>s+(r.numSeats||0),0);
   const totalMen=reservations.reduce((s,r)=>s+(r.mensSeats||0),0);
   const totalWomen=reservations.reduce((s,r)=>s+(r.womensSeats||0),0);
@@ -3863,8 +3976,8 @@ function AdminHighHolidays() {
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
-      ['settings','reservations','seatingmap'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>setSubTab(t)},
-        t==='settings'?'Settings':t==='reservations'?'Reservations ('+reservations.length+')':'Seating Map'))),
+      ['settings','reservations','seatingmap','mishebeirach'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='mishebeirach')loadCards();}},
+        t==='settings'?'Settings':t==='reservations'?'Reservations ('+reservations.length+')':t==='seatingmap'?'Seating Map':'Mi Shebeirach'))),
 
     subTab==='settings'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'High Holiday Settings'),
@@ -3941,7 +4054,25 @@ function AdminHighHolidays() {
               React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delReservation(r)},'Delete'))))))))),
 
     // The real physical seat map — assign each reservation to specific seats here.
-    subTab==='seatingmap'&&React.createElement(AdminSeating));
+    subTab==='seatingmap'&&React.createElement(AdminSeating),
+
+    subTab==='mishebeirach'&&React.createElement('div',null,
+      React.createElement('div',{className:'card'},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}},
+          React.createElement('div',{className:'card-header',style:{marginBottom:0,borderBottom:'none',paddingBottom:0}},'Mi Shebeirach Cards'),
+          React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
+            React.createElement('button',{className:'btn btn-sm btn-outline',onClick:loadCards},'Refresh'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',disabled:invSending,onClick:emailInvites},invSending?'Sending…':'Email everyone the link'),
+            cards&&cards.length>0&&React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printMishebeirach(cards)},'Print All'))),
+        React.createElement('p',{style:{color:'#555',fontSize:'0.9rem',margin:'10px 0 0'}},'Families submit their names through a private link (sent by email, or offered right after they reserve). Each printout is grouped by relationship for the gabbai. “Email everyone the link” sends every seat reservation an invitation to add their names.')),
+      cards===null?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading…')
+        :cards.length===0?React.createElement('div',{className:'card',style:{textAlign:'center',color:'#888',padding:30}},'No families have submitted names yet. Use “Email everyone the link” to invite them.')
+        :React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10}},
+          cards.map(c=>React.createElement('div',{key:c.reservationId,className:'card',style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10,padding:'14px 16px'}},
+            React.createElement('div',null,
+              React.createElement('div',{style:{fontWeight:700,color:'#1a2744'}},c.displayName||'(no name)'),
+              React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},(c.entries||[]).length+' name'+((c.entries||[]).length===1?'':'s')+(c.email?' · '+c.email:''))),
+            React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printMishebeirach([c])},'Print'))))));
 }
 
 // ─── Admin: Welcome Display Sponsorships ─────────────────────────
@@ -4583,6 +4714,7 @@ function App() {
       page==='donate'&&React.createElement(IS_NATIVE?DonateExternal:DonatePage),
       page==='sponsorship'&&React.createElement(SponsorshipPage),
       page==='highholidays'&&React.createElement(HighHolidaySeatsPage),
+      page==='mishebeirach'&&React.createElement(MishebeirachPage),
       page==='account'&&React.createElement(AccountPage),
       page==='signup'&&React.createElement(AccountPage),
       page==='admin'&&React.createElement(AdminPanel),
