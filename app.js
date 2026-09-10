@@ -1632,7 +1632,13 @@ function AdminSeating() {
       if(!ss.length) return '';
       const minR=Math.min(...ss.map(s=>s.row)),maxR=Math.max(...ss.map(s=>s.row));
       const minC=Math.min(...ss.map(s=>s.col)),maxC=Math.max(...ss.map(s=>s.col));
-      const nCols=maxC-minC+1;
+      const nCols=maxC-minC+1, nRows=maxR-minR+1;
+      // Columns and rows that hold no seats are spacers in the physical layout.
+      // Giving them a 1fr share (as before) handed ~20% of the page width to
+      // empty lanes and left the chart occupying half the sheet.
+      const usedC=new Set(ss.map(s=>s.col-minC)), usedR=new Set(ss.map(s=>s.row-minR));
+      const colTpl=Array.from({length:nCols},(_,i)=>usedC.has(i)?'1fr':'5mm').join(' ');
+      const rowTpl=Array.from({length:nRows},(_,i)=>usedR.has(i)?'1fr':'4mm').join(' ');
       const assigned=ss.filter(s=>{const a=data.assignments[s.number];return a&&a.holder;}).length;
       const cells=ss.map(s=>{const a=data.assignments[s.number];const last=a&&a.holder?seatLastName(a.holder):'';
         return '<div class="ps'+(last?' on':'')+'" style="grid-column:'+(s.col-minC+1)+';grid-row:'+(s.row-minR+1)+'"><div class="pn" style="background:'+(s.color||'#FFF176')+'">'+s.number+'</div><div class="ph"><span>'+escHtml(last)+'</span></div></div>';}).join('');
@@ -1644,7 +1650,7 @@ function AdminSeating() {
         '</div>';
       return '<div class="page">'+header+
         '<p class="leg">Seat colors mark separate tables — each color change is a new table.</p>'+
-        '<div class="pg" style="grid-template-columns:repeat('+nCols+',1fr)">'+cells+'</div></div>';
+        '<div class="pg" style="grid-template-columns:'+colTpl+';grid-template-rows:'+rowTpl+'">'+cells+'</div></div>';
     };
     const body=
       ((which==='ladies'||which==='both')?section('Ladies Section','ladies'):'')+
@@ -1653,7 +1659,7 @@ function AdminSeating() {
       '@page{size:A4 landscape;margin:12mm}'+
       '*{box-sizing:border-box}'+
       'body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-      '.page{page-break-after:always;padding:2mm}.page:last-child{page-break-after:auto}'+
+      '.page{page-break-after:always;padding:2mm;height:182mm;display:flex;flex-direction:column}.page:last-child{page-break-after:auto}'+
       '.brand{display:flex;align-items:center;gap:5mm;border-bottom:3px solid #c49a3c;padding-bottom:3mm;margin-bottom:4mm}'+
       '.brand img{height:18mm;width:auto}'+
       '.brand .bt{flex:1}'+
@@ -1662,15 +1668,15 @@ function AdminSeating() {
       '.brand .meta{font-size:9px;color:#555;text-align:right;line-height:1.5}'+
       '.brand .meta b{color:#1a2744;font-size:10px}'+
       '.leg{margin:0 0 4mm;font-size:9.5px;color:#777}'+
-      '.pg{display:grid;gap:2px;width:100%}'+
-      '.ps{border:1px solid #8a6f2b;border-radius:3px;overflow:hidden;display:flex;flex-direction:column;min-height:13mm;background:#fff}'+
+      '.pg{display:grid;gap:2px;width:100%;flex:1;min-height:0}'+
+      '.ps{border:1px solid #8a6f2b;border-radius:3px;overflow:hidden;display:flex;flex-direction:column;min-height:0;background:#fff}'+
       '.ps.on{border:1.6px solid #1a2744}'+
-      '.pn{color:#1a2744;font-weight:800;font-size:10px;text-align:center;padding:1px 0;border-bottom:1px solid rgba(138,111,43,.4)}'+
+      '.pn{color:#1a2744;font-weight:800;font-size:12px;text-align:center;padding:1px 0;border-bottom:1px solid rgba(138,111,43,.4)}'+
       '.ph{flex:1;display:flex;align-items:center;justify-content:center;padding:1px 2px;overflow:hidden}'+
       '.ph span{white-space:nowrap;font-size:10px;font-weight:700;color:#1a2744;line-height:1;display:inline-block}'+
       '.ps.on .ph{background:#f7f0dc}'+
       '</style></head><body>'+body+
-      '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=10;el.style.fontSize=fs+"px";var g=0;while(el.scrollWidth>box.clientWidth-2&&fs>4&&g<30){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);})();<\/script>'+
+      '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=15;el.style.fontSize=fs+"px";var g=0;while(el.scrollWidth>box.clientWidth-2&&fs>4&&g<30){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);})();<\/script>'+
       '</body></html>';
     const w=window.open('','_blank');
     if(!w){setMsg('Please allow pop-ups to print/export the seating chart.');return;}
