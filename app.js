@@ -458,6 +458,11 @@ function ScrollPanel({children}) {
 // ─── Zmanim Panel (MyZmanim + Davening + Shiurim + Fullscreen) ──
 function ZmanimPanel({onExpand}) {
   const iframeRef = useRef(null);
+  // The MyZmanim widget is ~628px tall but the iframe used to be pinned at
+  // 320px, so roughly half of it (including the later zmanim) was cut off.
+  // The frame reports its own height out; we size to it. Verified by source,
+  // not origin, because a sandboxed frame's origin is opaque ("null").
+  const [zmHeight,setZmHeight] = useState(320);
   const [schedule,setSchedule]=useState(null);
   const [shiurim,setShiurim]=useState([]);
   const [fullZmanim,setFullZmanim]=useState(null);
@@ -498,8 +503,8 @@ function ZmanimPanel({onExpand}) {
       midnight.setHours(24,0,5,0); // 12:00:05 AM next day
       const ms=midnight.getTime()-now.getTime();
       timer=setTimeout(()=>{loadData();if(iframeRef.current){
-        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;font-size:11px;}</style></head><body>'+
-        '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=11&fcolor=1a2744&hcolor=faf6ee&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>';
+        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;font-size:11px;overflow:hidden;}</style></head><body>'+
+        '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=11&fcolor=1a2744&hcolor=faf6ee&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script><scr'+'ipt>(function(){function s(){try{parent.postMessage({mzHeight:document.body.scrollHeight},"*");}catch(e){}}window.addEventListener("load",s);[300,900,2000,4000].forEach(function(t){setTimeout(s,t);});if(window.ResizeObserver){new ResizeObserver(s).observe(document.body);}})();<\/scr'+'ipt></body></html>';
         iframeRef.current.srcdoc=html;}scheduleRefresh();},ms);
     }
     scheduleRefresh();
@@ -507,9 +512,19 @@ function ZmanimPanel({onExpand}) {
   },[]);
 
   useEffect(()=>{
+    function onMsg(e){
+      if(!iframeRef.current || e.source!==iframeRef.current.contentWindow) return;
+      const h=e.data && e.data.mzHeight;
+      if(typeof h==='number' && h>80 && h<2000) setZmHeight(Math.ceil(h)+4);
+    }
+    window.addEventListener('message',onMsg);
+    return ()=>window.removeEventListener('message',onMsg);
+  },[]);
+
+  useEffect(()=>{
     if(!iframeRef.current) return;
-    const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;font-size:11px;}</style></head><body>'+
-      '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=11&fcolor=1a2744&hcolor=faf6ee&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script></body></html>';
+    const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;padding:4px;font-family:"Open Sans",sans-serif;font-size:11px;overflow:hidden;}</style></head><body>'+
+      '<script type="text/javascript" charset="UTF-8" src="https://www.myzmanim.com/widget.aspx?lang=en&mode=Standard&fsize=11&fcolor=1a2744&hcolor=faf6ee&bcolor=c49a3c&suf=s&key=36FtEjK2LSnQnGiOz2VBKgH53KnAY%2b3hrcR4Y6wUot92o8WG3B8YSbsll6LaSAYMQ1S2dIN6oyp87TiKzUQ%2f6a2g3uqknnDxxVJIYw2%2fTUbrQiUitklmn6Ld4hla%2bHNC"><\/script><scr'+'ipt>(function(){function s(){try{parent.postMessage({mzHeight:document.body.scrollHeight},"*");}catch(e){}}window.addEventListener("load",s);[300,900,2000,4000].forEach(function(t){setTimeout(s,t);});if(window.ResizeObserver){new ResizeObserver(s).observe(document.body);}})();<\/scr'+'ipt></body></html>';
     iframeRef.current.srcdoc=html;
   },[]);
 
@@ -707,7 +722,7 @@ function ZmanimPanel({onExpand}) {
     React.createElement('div',{className:'zmanim-panel-title'},
       React.createElement('img',{src:'logo.png',alt:'',className:'panel-tree-icon'}),
       "Today's Zmanim & Schedule"),
-    React.createElement('iframe',{ref:iframeRef,sandbox:'allow-scripts',style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
+    React.createElement('iframe',{ref:iframeRef,sandbox:'allow-scripts',style:{width:'100%',height:zmHeight,border:'none',borderRadius:'var(--radius-control)',display:'block'},title:'MyZmanim'}),
     // Davening times
     schedule&&React.createElement('div',{style:{marginTop:8,borderTop:'2px solid #c49a3c',paddingTop:8}},
       React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-sm)',marginBottom:4}},'Davening Times'),

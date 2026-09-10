@@ -41,7 +41,16 @@ The companion repo is [`shul-backend`](https://github.com/OhrchaimOFFICE/shul-ba
     payments; Stripe Checkout (redirect) for membership subscriptions
   - kosher-zmanim widget from `myzmanim.com` (rendered in a sandboxed iframe
     via `srcdoc`) on the Zmanim panel; the backend also computes zmanim itself
-    (`/api/zmanim/today`)
+    (`/api/zmanim/today`). **These are two independent calculations** and they
+    disagree by 1–3 minutes on alos, sunrise and tzeis, so the widget is not
+    interchangeable with our own numbers — see the backend README on the two
+    tzeis shitos before "simplifying" one of them away.
+    The iframe is `sandbox="allow-scripts"` **without** `allow-same-origin`, so
+    the third-party script cannot reach our origin. That also means the parent
+    cannot measure it, so the frame `postMessage`s its own `scrollHeight` out
+    and the parent sizes to it (the height was previously pinned at 320px,
+    which hid about half of a ~628px widget). Do not add `allow-same-origin`
+    to make measuring easier.
   - **pdf.js** vendored at `/vendor/` — loaded on demand to rasterize an
     uploaded PDF flyer into inline images for the email center
   - `hebrew.js` — dictionary + phonetic English→Hebrew name transliteration
