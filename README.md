@@ -63,7 +63,7 @@ The companion repo is [`shul-backend`](https://github.com/OhrchaimOFFICE/shul-ba
 index.html            Page shell, meta/OG tags, CDN script tags, Firebase config injection
 app.js                Entire React app (~4,800 lines)
 hebrew.js             English→Hebrew name transliteration (window.toHebrew)
-styles.css            Global stylesheet (incl. seat-map + Bima landmark styles)
+styles.css            Design tokens + global stylesheet (see "Design system")
 vendor/               pdf.js (pdf.min.js + pdf.worker.min.js), same-origin
 logo.png, email-banner.png
 firebase.json         Firebase Hosting config (ignore list, rewrites, headers/CSP, caching)
@@ -89,6 +89,88 @@ _headers              Legacy Netlify headers — unused on Firebase (kept for re
 `firebase.json`'s `ignore` list keeps everything except the runtime assets out
 of the Hosting upload (docs, spreadsheet, `package*.json`, `build.mjs`,
 `native.js`, `www/`, `ios/`, dotfiles, `.claude/`).
+
+## Design system
+
+The visual vocabulary lives in one `:root` block at the top of `styles.css`.
+The feel is **warm, welcoming, family** — the shul's navy/gold identity is
+unchanged; what was collapsed is the ad-hoc variation around it.
+
+**The rule:** nothing in the app should use a raw colour, font size, spacing
+value, radius or container width that is not defined as a token. `app.js`
+inline styles reference them the same way CSS does — `color:'var(--text-muted)'`.
+
+| Group | Tokens |
+| --- | --- |
+| Brand | `--navy` (+`-light`/`-dark`), `--gold` (+`-light`/`-dark`), `--gold-soft/-tint/-strong` |
+| Surfaces | `--bg`, `--surface`, `--surface-sunk`, `--border`, `--overlay` |
+| Text | `--text`, `--text-muted`, `--text-subtle` |
+| On navy | `--on-navy`, `--on-navy-muted/-subtle/-fill/-line` |
+| On the dark board | `--board-text`, `--board-fill`, `--board-line` |
+| Semantic | `--success`, `--warning`, `--error`, `--info`, `--yomtov` (+ `-bg` variants) |
+| Type | `--fs-xs/sm/base/lg/xl` (5 steps), `--lh-tight/-body`, `--fw-normal/semi/bold` |
+| Spacing | `--sp-1`…`--sp-8` (4/8/12/16/24/32/48/64) |
+| Radius | `--radius-control`, `--radius-card`, `--radius-pill` |
+| Containers | `--w-page`, `--w-wide`, `--w-prose`, `--w-form` |
+| Shadow | `--shadow`, `--shadow-lg` — two, deliberately |
+
+Older names (`--cream`, `--white`, `--text-dark`, `--radius`, …) are kept as
+aliases so existing rules keep working.
+
+**Declared exceptions**, each with a reason:
+`--fs-display` (the lobby/zmanim TV board) and `--icon-xl` (decorative emoji on
+confirmation screens) sit outside the 5-step type scale on purpose.
+
+### Do NOT tokenize these
+
+A CSS custom property only resolves inside this page. These regions build
+markup that is rendered somewhere else, so their colours must stay literal:
+
+- **`printSeating()` and `printMishebeirach()`** — they `document.write()` a
+  standalone document into a new window. That document cannot read this page's
+  variables; tokenizing it prints the seating chart and gabbai sheets blank.
+- **The client-side email HTML builders** (`emailTextToHtml`,
+  `makeDonateButtonSnippet`) — mail clients do not support custom properties.
+- **The seat map's functional colours** — they come from the seating
+  spreadsheet and encode which table a seat belongs to.
+- **The lobby TV board** (`WelcomePage`) — needs its own oversized scale.
+- **One member-tag badge** that appends an alpha suffix to a hex
+  (`(t.color||'#c49a3c')+'22'`); `var()` cannot be concatenated.
+
+### Shared UI behaviour
+
+- **Interactive states** are defined once, near the end of `styles.css`: a
+  gold `:focus-visible` ring on every focusable element (light on the navy
+  bar), `:active` press feedback, real `:disabled` styling, and a global
+  `prefers-reduced-motion` guard.
+- **`friendlyError(err, action)` / `isErrorMsg(msg)`** — turns raw exception
+  text into a plain sentence saying what happened and what to do, while
+  passing through messages the API already wrote for people. Banner styling
+  keys off `isErrorMsg`, **not** off the word "Error" appearing in the string.
+- **`BusyButton`** — any button that fires a request; disables itself and
+  shows a busy label so the action cannot be double-submitted.
+- **`Status(kind, label)`** + `.status-good/-bad/-warn/-info/-neutral` — one
+  badge for every status in the app.
+- **Skeletons** (`SkRows`, `SkCards`, `SkForm`, `SkCalendar`) — loading
+  placeholders shaped like the content, instead of a spinner in blank space.
+
+### Responsive rules worth knowing
+
+- The top bar is capped at `--w-page` (1200px) at **every** viewport, so the
+  nav must fit 1200px regardless of screen size — the compact nav is the
+  default, not a breakpoint override. Below 1150px the secondary "Sponsor
+  Kiddush" CTA hides; below 1000px the nav hands over to the menu button.
+- A nav CTA hides on its own page, and Donate keeps its gold fill only on
+  pages that have no primary action of their own (`PAGES_WITH_OWN_CTA`), so
+  one thing per screen reads as "the" action.
+- **The calendar becomes an agenda list under 600px.** A 7-column month grid
+  leaves ~51px per day at 375px, which breaks words mid-syllable and hid every
+  event past the third.
+- Every interactive element meets the 44px touch minimum.
+
+Contrast was measured, not eyeballed: all token pairings pass **WCAG AA** for
+normal text. If you change a colour token, re-check it — `--text-subtle`,
+`--gold-dark` and `--info` are each sitting just above the 4.5 threshold.
 
 ## Pages (hash routes)
 
