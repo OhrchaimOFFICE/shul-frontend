@@ -7,7 +7,7 @@
 :root {
   /* ── Brand (unchanged — this is the shul's identity) ── */
   --navy: #1a2744; --navy-light: #263a5e; --navy-dark: #121d30;
-  --gold: #c49a3c; --gold-light: #e8c66a; --gold-dark: #a07d2e;
+  --gold: #c49a3c; --gold-light: #e8c66a; --gold-dark: #8b6d28;
 
   /* Gold tints — replaces 15 one-off rgba(196,154,60,…) opacities */
   --gold-soft:   rgba(196,154,60,0.08);
@@ -24,12 +24,12 @@
         Replaces 12 cold greys (#222 #555 #666 #777 #888 #999 #aaa …) ── */
   --text: #2e2a24;            /* body */
   --text-muted: #6b6259;      /* secondary */
-  --text-subtle: #938a7e;     /* meta, captions */
+  --text-subtle: #777066;     /* meta, captions */
 
   /* Text sitting on the navy bar — replaces 11 white opacities */
   --on-navy: #ffffff;
   --on-navy-muted: rgba(255,255,255,0.72);
-  --on-navy-subtle: rgba(255,255,255,0.45);
+  --on-navy-subtle: rgba(255,255,255,0.55);
   --on-navy-fill: rgba(255,255,255,0.10);   /* secondary button on navy */
   --on-navy-line: rgba(255,255,255,0.18);
   --overlay: rgba(46,42,36,0.55);           /* modal scrim */
@@ -43,7 +43,7 @@
   --success: #2e7d5b; --success-bg: rgba(46,125,91,0.10);
   --warning: #b87333;
   --error:   #b23a2f; --error-bg:   rgba(178,58,47,0.10); --error-dark: #932e25;
-  --info:    #2980b9; --info-bg:    rgba(41,128,185,0.12);
+  --info:    #2677ac; --info-bg:    rgba(41,128,185,0.12);
   --yomtov:  #6b2f2f; --yomtov-light: #8b3a3a;  /* Yom Tov day-card header */
 
   /* ── Type: exactly 5 sizes + 1 declared exception ── */
@@ -100,7 +100,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .top-logo-text h2 { font-family: var(--font-display); font-size: var(--fs-lg); color: var(--gold); margin: 0; font-weight: var(--fw-semi); line-height: var(--lh-tight); }
 .top-logo-text span { font-size: var(--fs-xs); color: var(--on-navy-subtle); letter-spacing: 2px; text-transform: uppercase; }
 .top-nav { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
-.top-nav-item { font-size: var(--fs-base); color: var(--on-navy-muted); padding: 8px 12px; border-radius: var(--radius-control); text-decoration: none; cursor: pointer; transition: all 0.2s; font-weight: var(--fw-semi); border: none; background: none; font-family: var(--font-body); white-space: nowrap; }
+.top-nav-item { font-size: var(--fs-base); color: var(--on-navy-muted); padding: 8px 12px; border-radius: var(--radius-control); text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; font-weight: var(--fw-semi); border: none; background: none; font-family: var(--font-body); white-space: nowrap; }
 /* 9 nav items + 2 CTAs against a 1200px bar: tighten before the logo or the
    Donate button gets squeezed off the end. */
 @media (max-width: 1300px) {
@@ -133,9 +133,10 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Hero Banner ──────────────────────────────────────────────── */
 .hero-banner { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 50%, var(--navy) 100%); padding: 12px 24px; position: relative; overflow: hidden; }
-.hero-banner::after { content: ''; position: absolute; top: -60px; right: -40px; width: 160px; height: 160px; border-radius: 50%; border: 1px solid var(--gold-soft); }
-.hero-banner::before { content: ''; position: absolute; bottom: -80px; right: 60px; width: 220px; height: 220px; border-radius: 50%; border: 1px solid var(--gold-soft); }
-.hero-tree-bg { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); height: 130%; opacity: 0.12; pointer-events: none; z-index: 0; }
+.hero-tree-bg { position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
+  height: 130%; opacity: 0.12; pointer-events: none; z-index: 0;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 45%, transparent 75%);
+          mask-image: radial-gradient(ellipse at center, #000 45%, transparent 75%); }
 .hero-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1; }
 .hero-text h1 { font-family: var(--font-display); font-size: var(--fs-xl); color: var(--on-navy); margin: 0 0 4px; font-weight: var(--fw-bold); line-height: var(--lh-tight); }
 .hero-text h1 em { font-style: normal; color: var(--gold); }
@@ -215,7 +216,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Sponsor buttons ──────────────────────────────────────────── */
 .sponsor-row { display: flex; gap: 4px; }
-.sponsor-btn { flex: 1; padding: 4px 4px; border: 0.5px solid var(--success); background: var(--success-bg); border-radius: var(--radius-control); text-align: center; cursor: pointer; transition: all 0.2s; }
+.sponsor-btn { flex: 1; padding: 4px 4px; border: 0.5px solid var(--success); background: var(--success-bg); border-radius: var(--radius-control); text-align: center; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; }
 .sponsor-btn:hover { border-color: var(--green); background: var(--success-bg); }
 .sponsor-btn.taken { border-color: var(--error); background: var(--error-bg); }
 .sponsor-label { font-size: var(--fs-sm); color: var(--text-light); }
@@ -227,7 +228,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Quick Links ──────────────────────────────────────────────── */
 .quick-links { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; margin-top: 8px; }
-.quick-link { padding: 8px 8px; text-align: center; background: var(--cream-dark); border-radius: var(--radius); font-size: var(--fs-base); color: var(--navy); font-weight: var(--fw-semi); cursor: pointer; transition: all 0.2s; border: 0.5px solid transparent; }
+.quick-link { padding: 8px 8px; text-align: center; background: var(--cream-dark); border-radius: var(--radius); font-size: var(--fs-base); color: var(--navy); font-weight: var(--fw-semi); cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; border: 0.5px solid transparent; }
 .quick-link:hover { border-color: var(--gold); background: var(--gold-soft); }
 
 /* ─── Calendar (Dark, high contrast, large text) ────────────────── */
@@ -257,7 +258,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .form-input:focus { outline: none; border-color: var(--gold); }
 
 /* ─── Buttons ──────────────────────────────────────────────────── */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 24px; border: none; border-radius: var(--radius); font-size: var(--fs-base); font-weight: var(--fw-semi); font-family: var(--font-body); cursor: pointer; transition: all 0.2s; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 24px; border: none; border-radius: var(--radius); font-size: var(--fs-base); font-weight: var(--fw-semi); font-family: var(--font-body); cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; }
 .btn-primary { background: var(--gold); color: var(--navy); }
 .btn-primary:hover { background: var(--gold-light); }
 .btn-secondary { background: var(--navy); color: var(--on-navy); }
@@ -284,7 +285,7 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 
 /* ─── Admin Tabs ───────────────────────────────────────────────── */
 .admin-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; }
-.admin-tab { padding: 8px 16px; border: none; background: none; color: var(--text-medium); font-size: var(--fs-sm); font-weight: var(--fw-semi); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-family: var(--font-body); }
+.admin-tab { padding: 8px 16px; border: none; background: none; color: var(--text-medium); font-size: var(--fs-sm); font-weight: var(--fw-semi); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: background 0.2s, color 0.2s, border-color 0.2s; font-family: var(--font-body); }
 .admin-tab:hover { color: var(--navy); }
 .admin-tab.active { color: var(--navy); border-bottom-color: var(--gold); }
 
