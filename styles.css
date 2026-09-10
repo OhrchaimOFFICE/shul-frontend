@@ -550,3 +550,30 @@ input:disabled, select:disabled, textarea:disabled {
   -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 20px), transparent 100%);
           mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 20px), transparent 100%);
 }
+
+/* ─── Status badges ────────────────────────────────────────────────
+   One shape for every status in the app, so "Paid" looks like "Paid"
+   wherever it appears. Semantic colour only — never the brand accent. */
+.status { display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: 3px var(--sp-2); border-radius: var(--radius-pill);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold);
+  line-height: 1.5; white-space: nowrap; }
+.status-good    { background: var(--success-bg);   color: var(--success); }
+.status-bad     { background: var(--error-bg);     color: var(--error); }
+.status-warn    { background: var(--gold-tint);    color: var(--gold-dark); }
+.status-info    { background: var(--info-bg);      color: var(--info); }
+.status-neutral { background: var(--surface-sunk); color: var(--text-muted); }
+
+/* The nav Donate button defers to a page's own primary action: same affordance,
+   quieter voice, so only one thing on screen reads as "the" action. */
+.top-donate-btn.quiet { background: transparent; color: var(--gold);
+  border: 1.5px solid var(--gold); font-weight: var(--fw-semi); }
+.top-donate-btn.quiet:hover { background: var(--gold-tint); }
+
+/* Anything clickable that isn't a .btn still has to acknowledge the pointer. */
+.clickable { cursor: pointer; border: none; font-family: var(--font-body);
+  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease; }
+.clickable:hover { opacity: 0.85; }
+.badge.clickable:hover { background: var(--navy-light); }
+summary { cursor: pointer; }
+summary:hover { text-decoration: underline; }

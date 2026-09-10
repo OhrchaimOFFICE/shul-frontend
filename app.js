@@ -237,6 +237,36 @@ function SkForm(n,label){
     Array.from({length:n||4},(_,i)=>React.createElement('div',{key:i,className:'sk-stack',style:{marginTop:'var(--sp-3)'}},
       skBar('30%'), skBar('100%','2.2em'))));
 }
+// Pages that already carry their own primary action; the nav CTA defers to it.
+const PAGES_WITH_OWN_CTA=['home','sponsorship','highholidays','contact','pay','account','signup','mishebeirach'];
+
+// ─── Async button ────────────────────────────────────────────────
+// Any button that fires a request disables itself and says so while it runs,
+// so a second click cannot fire the same action twice. Several admin actions
+// (including "send tax receipts to all donors") had no guard at all.
+function BusyButton(props){
+  const {onClick,children,busyLabel,...rest}=props;
+  const [busy,setBusy]=useState(false);
+  const alive=useRef(true);
+  useEffect(()=>()=>{alive.current=false;},[]);
+  return React.createElement('button',{...rest,
+    disabled:busy||rest.disabled,
+    'aria-busy':busy?'true':undefined,
+    onClick:async e=>{
+      if(busy) return;
+      setBusy(true);
+      try{ await onClick(e); } finally { if(alive.current) setBusy(false); }
+    }},
+    busy?(busyLabel||'Working…'):children);
+}
+
+// ─── Status badge ────────────────────────────────────────────────
+// One badge for every status in the app. These were previously hand-built
+// inline in six places with three different radii and two font sizes.
+function Status(kind,label){
+  return React.createElement('span',{className:'status status-'+kind},label);
+}
+
 function SkCalendar(){
   return React.createElement('div',{className:'calendar-grid',role:'status','aria-label':'Loading calendar'},
     Array.from({length:7},(_,i)=>React.createElement('div',{className:'calendar-day-header',key:'h'+i},skBar('60%','0.8em'))),
@@ -821,7 +851,7 @@ function HomePage({navigate}) {
       return React.createElement('div',{className:'card',style:{marginTop:8,padding:'16px 16px',border:'1px solid rgba(196,154,60,0.35)'}},
         React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('span',null,'📖 Weekly Shiurim'),
-          React.createElement('span',{className:'badge',style:{cursor:'pointer'},onClick:()=>navigate('shiurim')},'See all')),
+          React.createElement('button',{className:'badge clickable',onClick:()=>navigate('shiurim')},'See all')),
         React.createElement('div',{style:{
           display:'grid',
           gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))',
@@ -1471,7 +1501,7 @@ function AdminMemberTags() {
         React.createElement('div',{className:'table-container'},React.createElement('table',null,
           React.createElement('thead',null,React.createElement('tr',null,['Tag','Annual Dues','Monthly (if paid that way)','Description','Actions'].map(h=>React.createElement('th',{key:h},h)))),
           React.createElement('tbody',null,tags.map(t=>React.createElement('tr',{key:t.id},
-            React.createElement('td',null,React.createElement('span',{style:{display:'inline-block',padding:'3px 10px',borderRadius:12,background:(t.color||'#c49a3c')+'22',color:t.color||'#c49a3c',fontWeight:700,fontSize:'0.85rem'}},t.name)),
+            React.createElement('td',null,React.createElement('span',{className:'status',style:{background:(t.color||'#c49a3c')+'22',color:t.color||'#c49a3c'}},t.name)),
             React.createElement('td',{style:{fontWeight:700}},'$'+Number(t.annualDues||0).toFixed(2)),
             React.createElement('td',null,'$'+(Number(t.annualDues||0)/12).toFixed(2)),
             React.createElement('td',{style:{color:'#555'}},t.description||'-'),
@@ -1963,7 +1993,7 @@ function AdminHolidays(){
       holidays.map(h=>React.createElement('div',{key:h.key,className:'card',style:{padding:0,overflow:'hidden'}},
         React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',cursor:'pointer'},onClick:()=>setOpenKey(openKey===h.key?'':h.key)},
           React.createElement('span',{style:{fontWeight:700,color:'#1a2744',flex:1}},h.name),
-          h.enabled?React.createElement('span',{style:{fontSize:'0.72rem',background:'rgba(39,174,96,0.15)',color:'#27ae60',padding:'2px 8px',borderRadius:10,fontWeight:700}},'On site'):React.createElement('span',{style:{fontSize:'0.72rem',background:'#eee',color:'#888',padding:'2px 8px',borderRadius:10,fontWeight:700}},'Off'),
+          h.enabled?Status('good','On site'):Status('neutral','Off'),
           React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},openKey===h.key?'▾':'▸')),
         openKey===h.key&&editor(h)))));
 }
@@ -2153,7 +2183,7 @@ function DonatePage() {
           React.createElement('div',{ref:cardMountRef,style:{padding:'12px 12px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
           React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginTop:4}},'Secured by Stripe. We never see or store your card number.')),
         React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading||!cardReady,style:{marginTop:8,fontSize:'var(--fs-lg)',padding:'12px 24px'}},
-          loading?'Processing...':'💝 Donate $'+(form.amount||'0')))));
+          loading?'Processing…':(parseFloat(form.amount)>0?'Donate $'+parseFloat(form.amount).toFixed(2):'Donate')))));
 }
 
 // ─── Native donation link-out (App Store Guideline 3.2.2(iv)) ─────
@@ -2604,9 +2634,9 @@ function AdminDonations() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
         React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg(friendlyError(e));}}},'Match to Members'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg(friendlyError(e));}}},'Remove Duplicates'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg(friendlyError(e));}}},'Send '+year+' Tax Receipts'),
+          React.createElement(BusyButton,{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg(friendlyError(e));}}},'Match to Members'),
+          React.createElement(BusyButton,{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg(friendlyError(e));}}},'Remove Duplicates'),
+          React.createElement(BusyButton,{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg(friendlyError(e));}}},'Send '+year+' Tax Receipts'),
           React.createElement('select',{className:'form-input',style:{width:100},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027,2028].map(y=>React.createElement('option',{key:y,value:y},y))))),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
@@ -2616,15 +2646,15 @@ function AdminDonations() {
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
           React.createElement('td',null,d.fiscalYear||'-'),
           React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'#27ae60',fontSize:'0.8rem'}},'Sent'):
-            d.email?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg(friendlyError(e));}}},'Send'):
+            d.email?React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg(friendlyError(e));}}},'Send'):
             React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')),
           React.createElement('td',null,
-            React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem',marginRight:4},onClick:async()=>{
+            React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem',marginRight:4},onClick:async()=>{
               const ny=prompt('Reassign to fiscal year:',String(d.fiscalYear||year));
               if(!ny)return;
               try{await apiFetch('/api/admin/donations/'+d.id,{method:'PUT',body:JSON.stringify({fiscalYear:parseInt(ny)})});setMsg('Year updated.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Edit Year'),
-            React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{
+            React.createElement(BusyButton,{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{
               if(!confirm('Delete this donation record? The Stripe charge is NOT refunded.'))return;
               try{await apiFetch('/api/admin/donations/'+d.id,{method:'DELETE'});setMsg('Donation deleted.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Delete')))))))));
@@ -2825,7 +2855,7 @@ function AdminMembers() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Pre-filled Signup Links ('+prefilled.length+')'),
         React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
-          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:async()=>{
+          React.createElement(BusyButton,{className:'btn btn-sm btn-danger',onClick:async()=>{
             const unclaimed=prefilled.filter(a=>!a.claimed).length;
             if(!unclaimed){setMsg('No unclaimed invites to clear.');return;}
             if(!confirm('Delete '+unclaimed+' unclaimed pre-filled signup links?\n\nThis cannot be undone. Old invite emails will stop working after deletion. Already-claimed members are NOT affected.'))return;
@@ -2836,7 +2866,7 @@ function AdminMembers() {
               load();
             }catch(e){setMsg(friendlyError(e));}
           }},'🗑 Clear Unclaimed'),
-          React.createElement('button',{className:'btn btn-sm btn-primary',onClick:async()=>{
+          React.createElement(BusyButton,{className:'btn btn-sm btn-primary',onClick:async()=>{
             const pending=prefilled.filter(a=>!a.claimed&&a.email);
             if(!pending.length){setMsg('No pending invites to send.');return;}
             if(!confirm('Send signup emails to '+pending.length+' pending members?'))return;
@@ -2885,7 +2915,7 @@ function AdminMembers() {
               React.createElement('td',null,m.phone||'-'),
               React.createElement('td',null,
                 m.exemptFromDues
-                  ?React.createElement('span',{style:{color:'#1a2744',fontWeight:700,background:'rgba(196,154,60,0.15)',padding:'2px 8px',borderRadius:10,fontSize:'0.8rem'}},'Exempt')
+                  ?Status('warn','Exempt')
                   :m.membershipPaid
                     ?React.createElement('span',{style:{color:'#27ae60',fontWeight:700}},'✓ Paid')
                     :React.createElement('span',{style:{color:'#b00020',fontWeight:600}},'Unpaid')),
@@ -2894,7 +2924,7 @@ function AdminMembers() {
                   React.createElement('option',{value:''},'(none)'),
                   tags.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name+' ($'+Number(t.annualDues||0).toFixed(0)+')')))),
               React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
-              React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:m.role==='admin'?'rgba(196,154,60,0.15)':'rgba(39,174,96,0.1)',color:m.role==='admin'?'#c49a3c':'#27ae60'}},m.role||'member')),
+              React.createElement('td',null,Status(m.role==='admin'?'warn':'good', m.role||'member')),
               React.createElement('td',{style:{whiteSpace:'nowrap'}},
                 !m.exemptFromDues&&!m.membershipPaid&&React.createElement('button',{className:'btn btn-sm btn-primary',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>openPayModal(m),title:'Record a manual dues payment (cash/check/other) and resolve membership'},'Mark Paid'),
                 React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>resetPassword(m),title:'Email a password-reset link to this member'},'Reset PW'),
@@ -3164,7 +3194,7 @@ function AdminPledges() {
           React.createElement('td',null,s.displayName||((s.firstName||'')+' '+(s.lastName||'')).trim()||'-'),
           React.createElement('td',{style:{fontSize:'0.85rem',color:'#555',maxWidth:220}},s.dedication||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(s.amount||0).toFixed(2)),
-          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:s.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:s.status==='paid'?'#27ae60':'#c0392b'}},s.status==='paid'?'Paid':'Unpaid')),
+          React.createElement('td',null,Status(s.status==='paid'?'good':'bad', s.status==='paid'?'Paid':'Unpaid')),
           React.createElement('td',null,
             React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditSp(s)},'Edit'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>delSp(s)},'Delete')))))))),
@@ -3191,7 +3221,7 @@ function AdminPledges() {
         React.createElement('tbody',null,pledges.map(p=>React.createElement('tr',{key:p.id},
           React.createElement('td',null,p.memberName||'-'),React.createElement('td',{style:{fontWeight:700}},'$'+(p.amount||0).toFixed(2)),
           React.createElement('td',null,p.reason||'-'),React.createElement('td',null,p.dueDate||'-'),
-          React.createElement('td',null,React.createElement('span',{style:{padding:'2px 8px',borderRadius:12,fontSize:'0.8rem',fontWeight:600,background:p.status==='paid'?'rgba(39,174,96,0.1)':'rgba(192,57,43,0.1)',color:p.status==='paid'?'#27ae60':'#c0392b'}},p.status==='paid'?'Paid':'Unpaid')),
+          React.createElement('td',null,Status(p.status==='paid'?'good':'bad', p.status==='paid'?'Paid':'Unpaid')),
           React.createElement('td',null,
             p.status!=='paid'&&p.payToken?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>copyPayLink(p),title:payLink(p)},'Copy'):React.createElement('span',{style:{color:'#bbb',fontSize:'0.8rem'}},'—')),
           React.createElement('td',null,
@@ -4848,8 +4878,14 @@ function App() {
             React.createElement('span',null,'Miami Beach, FL'))),
         React.createElement('div',{className:'top-nav'},
           navItems.map(item=>React.createElement('button',{key:item.id,className:'top-nav-item'+(page===item.id?' active':''),onClick:()=>navigate(item.id)},item.label)),
-          React.createElement('button',{className:'top-sponsor-btn',onClick:()=>navigate('sponsorship')},'Sponsor Kiddush'),
-          React.createElement('button',{className:'top-donate-btn',onClick:()=>navigate('donate')},'Donate')))),
+          page!=='sponsorship'&&React.createElement('button',{className:'top-sponsor-btn',onClick:()=>navigate('sponsorship')},'Sponsor Kiddush'),
+          // The nav CTA stays loud only on pages that have no primary action of
+          // their own. On a page where someone is mid-task (paying for seats,
+          // sending a message) a second gold button competes with the thing
+          // they actually came to do.
+          page!=='donate'&&React.createElement('button',{
+            className:'top-donate-btn'+(PAGES_WITH_OWN_CTA.indexOf(page)>=0?' quiet':''),
+            onClick:()=>navigate('donate')},'Donate')))),
     // Mobile menu toggle
     React.createElement('button',{className:'menu-toggle',onClick:()=>setMobileOpen(!mobileOpen)},mobileOpen?'✕':'☰'),
     React.createElement('div',{className:'mobile-nav'+(mobileOpen?' open':'')},
