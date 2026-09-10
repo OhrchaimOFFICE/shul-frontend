@@ -99,22 +99,21 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .top-logo-img { height: 52px; width: auto; background: var(--surface); border-radius: 50%; padding: 4px; }
 .top-logo-text h2 { font-family: var(--font-display); font-size: var(--fs-lg); color: var(--gold); margin: 0; font-weight: var(--fw-semi); line-height: var(--lh-tight); }
 .top-logo-text span { font-size: var(--fs-xs); color: var(--on-navy-subtle); letter-spacing: 2px; text-transform: uppercase; }
-.top-nav { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
-.top-nav-item { font-size: var(--fs-base); color: var(--on-navy-muted); padding: 8px 12px; border-radius: var(--radius-control); text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; font-weight: var(--fw-semi); border: none; background: none; font-family: var(--font-body); white-space: nowrap; }
-/* 9 nav items + 2 CTAs against a 1200px bar: tighten before the logo or the
-   Donate button gets squeezed off the end. */
-@media (max-width: 1300px) {
-  .top-nav-item { font-size: var(--fs-sm); padding: 8px 6px; }
-  .top-nav { gap: 0; }
-  .top-donate-btn { padding: 8px 16px; margin-left: 4px; }
-  .top-sponsor-btn { padding: 8px 12px; }
+.top-nav { display: flex; gap: 2px; align-items: center; flex-wrap: nowrap; }
+.top-nav-item { font-size: var(--fs-sm); color: var(--on-navy-muted); padding: 8px 7px; border-radius: var(--radius-control); text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s, border-color 0.2s; font-weight: var(--fw-semi); border: none; background: none; font-family: var(--font-body); white-space: nowrap; }
+/* 9 nav items + 2 CTAs have to fit a 1200px bar. Between the mobile menu
+   (900px) and about 1150px there is still not enough room, so the secondary
+   CTA steps aside — "Kiddush" in the nav already reaches that page. */
+@media (max-width: 1150px) {
+  .top-sponsor-btn { display: none; }
+  .top-nav-item { padding: 8px 5px; }
   .top-logo-img { height: 44px; }
 }
 .top-nav-item:hover { color: var(--on-navy); background: var(--gold-soft); }
 .top-nav-item.active { color: var(--on-navy); background: var(--gold-tint); }
-.top-donate-btn { background: var(--gold); color: var(--navy); border: none; padding: 8px 24px; border-radius: var(--radius-control); font-size: var(--fs-base); font-weight: var(--fw-bold); cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
+.top-donate-btn { background: var(--gold); color: var(--navy); border: none; padding: 8px 16px; border-radius: var(--radius-control); font-size: var(--fs-base); font-weight: var(--fw-bold); cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
 .top-donate-btn:hover { background: var(--gold-light); }
-.top-sponsor-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); padding: 8px 16px; border-radius: var(--radius-control); font-size: var(--fs-sm); font-weight: var(--fw-semi); cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
+.top-sponsor-btn { background: transparent; color: var(--gold); border: 1.5px solid var(--gold); padding: 8px 12px; border-radius: var(--radius-control); font-size: var(--fs-sm); font-weight: var(--fw-semi); cursor: pointer; letter-spacing: 0.3px; margin-left: 4px; font-family: var(--font-body); }
 .top-sponsor-btn:hover { background: var(--gold-tint); }
 
 /* ─── Ticker ───────────────────────────────────────────────────── */
@@ -577,3 +576,11 @@ input:disabled, select:disabled, textarea:disabled {
 .badge.clickable:hover { background: var(--navy-light); }
 summary { cursor: pointer; }
 summary:hover { text-decoration: underline; }
+
+/* Below ~1000px the 9 nav items plus a CTA cannot fit the bar without the
+   Donate button spilling off the end, so hand over to the menu there rather
+   than shaving padding until nothing is legible. */
+@media (max-width: 1000px) {
+  .top-nav { display: none; }
+  .menu-toggle { display: flex; }
+}
