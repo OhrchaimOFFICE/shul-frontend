@@ -614,6 +614,7 @@ function ZmanimPanel({onExpand}) {
     // Davening times
     schedule&&React.createElement('div',{style:{marginTop:8,borderTop:'2px solid #c49a3c',paddingTop:8}},
       React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'0.9rem',marginBottom:6}},'Davening Times'),
+      schedule.davening?.selichos&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Selichos'),React.createElement('span',{className:'zman-time'},schedule.davening.selichos)),
       schedule.davening?.shacharis&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Shacharis'),React.createElement('span',{className:'zman-time'},schedule.davening.shacharis)),
       schedule.davening?.earlyMincha&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Early Mincha'),React.createElement('span',{className:'zman-time'},schedule.davening.earlyMincha)),
       schedule.davening?.mincha&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Mincha'),React.createElement('span',{className:'zman-time'},schedule.davening.mincha)),
@@ -691,6 +692,7 @@ function HomePage({navigate}) {
           schedule?React.createElement('div',null,
             schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
             schedule.holidaySchedule?holidayScheduleRows(schedule.holidaySchedule):[
+            schedule.davening?.selichos&&React.createElement('div',{className:'time-row',key:'sl'},React.createElement('span',{className:'time-label'},'Selichos'),React.createElement('span',{className:'time-value'},schedule.davening.selichos)),
             schedule.davening?.shacharis&&React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
             schedule.davening?.earlyMincha&&React.createElement('div',{className:'time-row',key:'em'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.earlyMincha)),
             schedule.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},schedule.davening.mincha)),
@@ -823,6 +825,7 @@ function SchedulePage({navigate}) {
               // A Jewish-holiday schedule (Tisha B'Av, etc.) replaces the normal
               // davening rows for that day.
               day.holidaySchedule?holidayScheduleRows(day.holidaySchedule):[
+              day.davening?.selichos&&React.createElement('div',{className:'time-row',key:'sl'},React.createElement('span',{className:'time-label'},'Selichos'),React.createElement('span',{className:'time-value'},day.davening.selichos)),
               React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},day.davening?.shacharis||'--')),
               day.davening?.earlyMincha&&React.createElement('div',{className:'time-row',key:'em'},React.createElement('span',{className:'time-label'},'Early Mincha'),React.createElement('span',{className:'time-value'},day.davening.earlyMincha)),
               day.davening?.mincha&&React.createElement('div',{className:'time-row',key:'mi'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},day.davening.mincha)),
@@ -1716,6 +1719,7 @@ function AdminRulesEditor() {
     {key:'holidayShacharis',label:'Legal Holiday Shacharis',def:'8:15 AM',desc:'US legal holidays'},
     {key:'cholHamoedShacharis',label:'Chol HaMoed Shacharis',def:'8:15 AM',desc:'Intermediate days of Sukkos/Pesach'},
     {key:'selichosShacharis',label:'Selichos Days Shacharis',def:'6:45 AM',desc:'Days with Selichos (Ashkenaz)'},
+    {key:'selichosTime',label:'Selichos Time',def:'6:30 AM',desc:'Shown as its own line on the daily schedule for every Selichos day (auto-detected each year: Motzaei-Shabbos before Rosh Hashana through Erev Yom Kippur, per Ashkenazi custom)'},
     {key:'asereYemeiShacharis',label:'Aseres Yemei Teshuva Shacharis',def:'6:35 AM',desc:'Ten Days of Repentance'},
     {key:'roshChodeshShacharis',label:'Rosh Chodesh Shacharis',def:'6:45 AM',desc:'Rosh Chodesh morning (not on Shabbos)'},
     {key:'shabbosYomTovShacharis',label:'Shabbos & Yom Tov Shacharis',def:'9:00 AM',desc:'Shabbos and Yom Tov mornings'},
