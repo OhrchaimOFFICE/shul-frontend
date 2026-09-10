@@ -922,7 +922,7 @@ function CalendarPage() {
   function eventsFor(dayNum){
     const ds=year+'-'+String(month).padStart(2,'0')+'-'+String(dayNum).padStart(2,'0');
     const ev=[];
-    if(data?.holidays) for(const h of data.holidays){const hd=h.date?.substring(0,10);if(hd===ds){if(h.category==='candles')ev.push({type:'candle',title:'🕯 '+h.title?.split(': ')[1]});else if(h.category==='parashat')ev.push({type:'shiur',title:h.title});else ev.push({type:'holiday',title:h.title});}}
+    if(data?.holidays) for(const h of data.holidays){const hd=h.date?.substring(0,10);if(hd===ds){if(h.category==='candles')ev.push({type:'candle',title:'🕯 '+h.title?.split(': ')[1]});else if(h.category==='parashat')ev.push({type:'shiur',title:h.title});else ev.push({type:'holiday',title:String(h.title||'').replace(/\s+5\d{3}$/,'')});}}
     return ev;
   }
   return React.createElement('div',null,
@@ -943,7 +943,31 @@ function CalendarPage() {
           React.createElement('div',{className:'calendar-day-number'},dn),
           hd&&React.createElement('div',{className:'calendar-day-hebrew'},hd.hd+' '+hd.hm),
           ev.length>0&&React.createElement('div',{className:'calendar-day-events'},ev.slice(0,3).map((e,j)=>React.createElement('div',{className:'calendar-event '+e.type,key:j},e.title))));
-      })));
+      })),
+    // Phones get an agenda instead of the month grid: at 375px a 7-column grid
+    // leaves ~51px per day, which breaks words mid-syllable and hides anything
+    // past the third event. This lists every day that has something on it, in
+    // full. CSS swaps between the two — see .calendar-agenda.
+    !loading&&React.createElement('div',{className:'calendar-agenda'},
+      (()=>{
+        const rows=[];
+        for(let dn=1;dn<=daysInMonth;dn++){
+          const ds=year+'-'+String(month).padStart(2,'0')+'-'+String(dn).padStart(2,'0');
+          const d=new Date(ds+'T12:00:00');
+          const isToday=ds===todayStr;const ev=eventsFor(dn);const hd=data?.hebrewDates?.[ds];
+          if(!ev.length&&!isToday) continue;
+          rows.push(React.createElement('div',{className:'agenda-row'+(isToday?' today':''),key:'a'+dn},
+            React.createElement('div',{className:'agenda-when'},
+              React.createElement('div',{className:'agenda-dow'},['Sun','Mon','Tue','Wed','Thu','Fri','Shab'][d.getDay()]),
+              React.createElement('div',{className:'agenda-num'},dn)),
+            React.createElement('div',{className:'agenda-what'},
+              hd&&React.createElement('div',{className:'agenda-heb'},hd.hd+' '+hd.hm),
+              ev.map((e,j)=>React.createElement('div',{className:'calendar-event '+e.type,key:j},e.title)),
+              !ev.length&&React.createElement('div',{className:'agenda-none'},'Nothing scheduled today.'))));
+        }
+        return rows.length?rows:React.createElement('div',{className:'agenda-row'},
+          React.createElement('div',{className:'agenda-what'},'Nothing is scheduled this month yet.'));
+      })()));
 }
 
 // ─── Full Zmanim ─────────────────────────────────────────────────
@@ -965,7 +989,7 @@ function ZmanimPage() {
         React.createElement('h2',{style:{fontFamily:"'Playfair Display', serif",fontSize:'var(--fs-xl)',color:'var(--navy)',fontWeight:700,margin:0}},'Zmanim for '+formatDisplayDate(dateStr)),
         React.createElement('input',{type:'date',value:dateStr,onChange:e=>setDateStr(e.target.value),className:'form-input',style:{width:200,fontSize:'var(--fs-lg)'}})),
       data.hebrewDate?.hebrew&&React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--gold)',fontWeight:700,marginBottom:20,textAlign:'center',fontFamily:"'Playfair Display', serif"}},data.hebrewDate.hebrew),
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:40}},
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'var(--sp-5)'}},
         React.createElement('div',{style:{background:'var(--gold-soft)',borderRadius:8,padding:'8px 0',border:'0.5px solid rgba(196,154,60,0.15)'}},
           col1.map(([n,v])=>React.createElement('div',{style:rowStyle,key:n},
             React.createElement('span',{style:nameStyle},n),
@@ -4868,9 +4892,9 @@ function App() {
       footerLogoSrc&&React.createElement('img',{src:footerLogoSrc,alt:'Congregation Ohr Chaim',className:'footer-logo'}),
       React.createElement('div',{className:'footer-text'},'© '+today.getFullYear()+' Congregation Ohr Chaim • 317 W 47th Street, Miami Beach, FL'),
       React.createElement('div',{className:'footer-links',style:{marginTop:8,fontSize:'var(--fs-sm)'}},
-        React.createElement('a',{href:'#contact',style:{color:'var(--text-medium)',margin:'0 8px'}},'Contact'),
-        React.createElement('a',{href:'#privacy',style:{color:'var(--text-medium)',margin:'0 8px'}},'Privacy Policy'),
-        React.createElement('a',{href:'#terms',style:{color:'var(--text-medium)',margin:'0 8px'}},'Terms of Service'))));
+        React.createElement('a',{href:'#contact',className:'footer-link'},'Contact'),
+        React.createElement('a',{href:'#privacy',className:'footer-link'},'Privacy Policy'),
+        React.createElement('a',{href:'#terms',className:'footer-link'},'Terms of Service'))));
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
