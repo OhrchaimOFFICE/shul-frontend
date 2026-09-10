@@ -1191,14 +1191,14 @@ function AdminImages() {
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Site Images'),
-      React.createElement('p',{style:{color:'#555',marginBottom:16}},'Upload images for different sections of the website. Accepted formats: PNG, JPG. Max 5MB each.')),
+      React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:16}},'Upload images for different sections of the website. Accepted formats: PNG, JPG. Max 5MB each.')),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))',gap:16}},
       slots.map(s=>React.createElement('div',{className:'card',key:s.key},
-        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',fontSize:'1rem',marginBottom:4}},s.label),
-        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:10}},s.desc),
+        React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-base)',marginBottom:4}},s.label),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginBottom:8}},s.desc),
         images[s.key]?React.createElement('div',null,
-          React.createElement('img',{src:images[s.key],alt:s.label,style:{width:'100%',maxHeight:150,objectFit:'contain',borderRadius:8,marginBottom:8,background:'#f0ece3',padding:8}}),
-          React.createElement('div',{style:{display:'flex',gap:6}},
+          React.createElement('img',{src:images[s.key],alt:s.label,style:{width:'100%',maxHeight:150,objectFit:'contain',borderRadius:8,marginBottom:8,background:'var(--surface-sunk)',padding:8}}),
+          React.createElement('div',{style:{display:'flex',gap:4}},
             React.createElement('label',{className:'btn btn-sm btn-outline',style:{cursor:'pointer',flex:1}},'Replace',
               React.createElement('input',{type:'file',accept:'image/*',onChange:e=>uploadImage(s.key,e),style:{display:'none'}})),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeImage(s.key)},'Remove'))
@@ -1214,7 +1214,7 @@ function AdminSlideshow() {
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState('');
   const [busy,setBusy]=useState(false);
-  const [textForm,setTextForm]=useState({title:'',body:'',bgColor:'#1a2744'});
+  const [textForm,setTextForm]=useState({title:'',body:'',bgColor:'var(--navy)'});
 
   async function load(){
     try{
@@ -1254,7 +1254,7 @@ function AdminSlideshow() {
     try{
       await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({kind:'text',...textForm})});
       setMsg('Announcement slide added.');
-      setTextForm({title:'',body:'',bgColor:'#1a2744'});
+      setTextForm({title:'',body:'',bgColor:'var(--navy)'});
       await load();
     }catch(err){setMsg(friendlyError(err));}
     setBusy(false);
@@ -1274,21 +1274,21 @@ function AdminSlideshow() {
   return React.createElement('div',{style:{marginTop:24}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},`Homepage Slideshow (${slides.length}/${MAX_SLIDES})`),
-      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Slides rotate on the homepage every 5 seconds. Mix photos and text announcements (mazel tovs, shiva notices, events). Max '+MAX_SLIDES+' slides total.'),
+      React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Slides rotate on the homepage every 5 seconds. Mix photos and text announcements (mazel tovs, shiva notices, events). Max '+MAX_SLIDES+' slides total.'),
       msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)||msg.includes('Maximum')||msg.includes('too large')||msg.includes('required')?'message-error':'message-success')},msg),
-      loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12,marginBottom:12}},
+      loading?React.createElement('p',{style:{color:'var(--text-subtle)'}},'Loading...'):React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12,marginBottom:12}},
         slides.map(s=>React.createElement('div',{key:s.id,style:{position:'relative'}},
           s.kind==='text'
-            ?React.createElement('div',{style:{width:'100%',height:140,background:s.bgColor||'#1a2744',color:'#fff',borderRadius:8,padding:12,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',textAlign:'center',overflow:'hidden'}},
-              s.title&&React.createElement('div',{style:{fontWeight:800,fontSize:'1rem',marginBottom:4,color:'#c49a3c'}},s.title),
-              s.body&&React.createElement('div',{style:{fontSize:'0.8rem',lineHeight:1.3}},s.body.length>120?s.body.slice(0,120)+'...':s.body))
-            :React.createElement('img',{src:s.dataUrl,alt:'',style:{width:'100%',height:140,objectFit:'cover',borderRadius:8,background:'#f0ece3'}}),
+            ?React.createElement('div',{style:{width:'100%',height:140,background:s.bgColor||'var(--navy)',color:'var(--on-navy)',borderRadius:8,padding:12,display:'flex',flexDirection:'column',justifyContent:'center',alignItems:'center',textAlign:'center',overflow:'hidden'}},
+              s.title&&React.createElement('div',{style:{fontWeight:800,fontSize:'var(--fs-base)',marginBottom:4,color:'var(--gold)'}},s.title),
+              s.body&&React.createElement('div',{style:{fontSize:'var(--fs-sm)',lineHeight:1.3}},s.body.length>120?s.body.slice(0,120)+'...':s.body))
+            :React.createElement('img',{src:s.dataUrl,alt:'',style:{width:'100%',height:140,objectFit:'cover',borderRadius:8,background:'var(--surface-sunk)'}}),
           React.createElement('button',{className:'btn btn-sm btn-danger',disabled:busy,onClick:()=>onRemove(s.id),style:{position:'absolute',top:6,right:6}},'Remove')))),
       slides.length<MAX_SLIDES&&React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}},
         React.createElement('label',{className:'btn btn-primary',style:{cursor:busy?'not-allowed':'pointer',opacity:busy?0.6:1}},busy?'Uploading...':'Add Photo',
           React.createElement('input',{type:'file',accept:'image/*',disabled:busy,onChange:onUpload,style:{display:'none'}}))),
-      slides.length<MAX_SLIDES&&React.createElement('form',{onSubmit:onAddText,style:{border:'1px solid #e0dcd4',borderRadius:8,padding:12,background:'#faf8f3'}},
-        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',marginBottom:8}},'Add Text Announcement (Mazel Tov, Shiva, Event)'),
+      slides.length<MAX_SLIDES&&React.createElement('form',{onSubmit:onAddText,style:{border:'1px solid #e0dcd4',borderRadius:8,padding:12,background:'var(--bg)'}},
+        React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:8}},'Add Text Announcement (Mazel Tov, Shiva, Event)'),
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 140px',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Title'),React.createElement('input',{className:'form-input',placeholder:'e.g. Mazel Tov!',value:textForm.title,onChange:e=>setTextForm(p=>({...p,title:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Background'),React.createElement('input',{className:'form-input',type:'color',value:textForm.bgColor,onChange:e=>setTextForm(p=>({...p,bgColor:e.target.value}))}))),
@@ -1419,8 +1419,8 @@ function AdminPanel() {
     window.open(url, '_blank');
   }
   return React.createElement('div',null,
-    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20,flexWrap:'wrap',gap:8}},
-      React.createElement('p',{style:{color:'#888',fontSize:'0.9rem'}},'Logged in as: '+user.email),
+    React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
+      React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Logged in as: '+user.email),
       React.createElement('div',{style:{display:'flex',gap:8}},
         React.createElement('button',{className:'btn btn-sm btn-primary',onClick:openWelcomeDisplay,title:'Open the entrance display in a new tab'},'📺 Open Welcome Display'),
         React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>firebase.auth().signOut()},'Sign Out'))),
@@ -1449,7 +1449,7 @@ function AdminPanel() {
 function AdminMemberTags() {
   const [tags,setTags]=useState([]);
   const [msg,setMsg]=useState('');
-  const [form,setForm]=useState({name:'',annualDues:'',color:'#c49a3c',description:''});
+  const [form,setForm]=useState({name:'',annualDues:'',color:'var(--gold)',description:''});
   const [loading,setLoading]=useState(true);
   const [editingId,setEditingId]=useState(null);
   async function load(){setLoading(true);try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){setMsg(friendlyError(e));}setLoading(false);}
@@ -1467,17 +1467,17 @@ function AdminMemberTags() {
         await apiFetch('/api/admin/member-tags',{method:'POST',body:JSON.stringify({...form,annualDues:dues})});
         setMsg('Tag created.');
       }
-      setForm({name:'',annualDues:'',color:'#c49a3c',description:''});
+      setForm({name:'',annualDues:'',color:'var(--gold)',description:''});
       setEditingId(null);
       await load();
     }catch(err){setMsg(friendlyError(err));}
   }
-  function edit(t){setEditingId(t.id);setForm({name:t.name||'',annualDues:String(t.annualDues||0),color:t.color||'#c49a3c',description:t.description||''});}
+  function edit(t){setEditingId(t.id);setForm({name:t.name||'',annualDues:String(t.annualDues||0),color:t.color||'var(--gold)',description:t.description||''});}
   async function del(id){
     if(!confirm('Delete this tag? Any members currently tagged with it will have their tag cleared.'))return;
     try{const r=await apiFetch('/api/admin/member-tags/'+id,{method:'DELETE'});setMsg('Tag deleted. '+r.membersCleared+' member(s) cleared.');await load();}catch(e){setMsg(friendlyError(e));}
   }
-  const closeEdit=()=>{setEditingId(null);setForm({name:'',annualDues:'',color:'#c49a3c',description:''});};
+  const closeEdit=()=>{setEditingId(null);setForm({name:'',annualDues:'',color:'var(--gold)',description:''});};
   const tagForm=React.createElement('form',{onSubmit:save},
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 120px',gap:12}},
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Tag Name *'),React.createElement('input',{className:'form-input',placeholder:'e.g. Full Member',value:form.name,onChange:e=>setForm(p=>({...p,name:e.target.value})),required:true})),
@@ -1492,21 +1492,21 @@ function AdminMemberTags() {
     editingId&&React.createElement(Modal,{title:'Edit Member Tag',wide:true,onClose:closeEdit},tagForm),
     !editingId&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Create Member Tag'),
-      React.createElement('p',{style:{color:'#555',marginBottom:12}},'Tags let you charge different annual dues to different categories of members (e.g. Full, Associate, Young Adult, Honorary, Staff). When a member has a tag, their auto-pay subscription uses the tag\'s dues amount instead of the global annualDues.'),
+      React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Tags let you charge different annual dues to different categories of members (e.g. Full, Associate, Young Adult, Honorary, Staff). When a member has a tag, their auto-pay subscription uses the tag\'s dues amount instead of the global annualDues.'),
       tagForm),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'All Tags ('+tags.length+')'),
-      loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):
-        tags.length===0?React.createElement('p',{style:{color:'#888'}},'No tags yet. Create one above to start using tiered membership dues.'):
+      loading?React.createElement('p',{style:{color:'var(--text-subtle)'}},'Loading...'):
+        tags.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No tags yet. Create one above to start using tiered membership dues.'):
         React.createElement('div',{className:'table-container'},React.createElement('table',null,
           React.createElement('thead',null,React.createElement('tr',null,['Tag','Annual Dues','Monthly (if paid that way)','Description','Actions'].map(h=>React.createElement('th',{key:h},h)))),
           React.createElement('tbody',null,tags.map(t=>React.createElement('tr',{key:t.id},
             React.createElement('td',null,React.createElement('span',{className:'status',style:{background:(t.color||'#c49a3c')+'22',color:t.color||'#c49a3c'}},t.name)),
             React.createElement('td',{style:{fontWeight:700}},'$'+Number(t.annualDues||0).toFixed(2)),
             React.createElement('td',null,'$'+(Number(t.annualDues||0)/12).toFixed(2)),
-            React.createElement('td',{style:{color:'#555'}},t.description||'-'),
+            React.createElement('td',{style:{color:'var(--text-muted)'}},t.description||'-'),
             React.createElement('td',null,
-              React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:6},onClick:()=>edit(t)},'Edit'),
+              React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>edit(t)},'Edit'),
               React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(t.id)},'Delete')))))))));
 }
 
@@ -1710,13 +1710,13 @@ function AdminSeating() {
           React.createElement('button',{className:'btn btn-sm btn-outline',disabled:seeding,onClick:seedHolders},seeding?'Seeding...':'Seed Holders from Excel'),
           React.createElement('button',{className:'btn btn-sm btn-danger',onClick:clearAll},'Clear All'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:load},'Refresh'))),
-      React.createElement('p',{style:{color:'#555',margin:'10px 0 16px',fontSize:'0.9rem'}},'Click any seat to assign it to a reservation. The seat colors (orange / yellow / green) mark separate tables, matching the seating plan — each color change is a new table. An assigned seat has a bold navy outline and shows the last name. The horizontal bar is the mechitzah.'),
-      React.createElement('div',{style:{overflowX:'auto',padding:12,background:'#faf8f3',borderRadius:8,border:'3px solid #1a2744'}},
+      React.createElement('p',{style:{color:'var(--text-muted)',margin:'10px 0 16px',fontSize:'var(--fs-sm)'}},'Click any seat to assign it to a reservation. The seat colors (orange / yellow / green) mark separate tables, matching the seating plan — each color change is a new table. An assigned seat has a bold navy outline and shows the last name. The horizontal bar is the mechitzah.'),
+      React.createElement('div',{style:{overflowX:'auto',padding:12,background:'var(--bg)',borderRadius:8,border:'3px solid #1a2744'}},
         React.createElement('div',{className:'seating-chart',ref:chartRef,style:{
           display:'grid',
           gridTemplateColumns:'repeat('+maxCol+', 56px)',
           gridAutoRows:'22px',
-          gap:1,
+          gap:4,
           width:'fit-content'
         }},
           // Section background panels (sized from the seats they contain)
@@ -1814,16 +1814,16 @@ function AdminAutoEmails() {
   return React.createElement('div',null,
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Automatic Emails'),
-      React.createElement('p',{style:{color:'#555',marginBottom:16}},'Toggle which emails fire automatically. Frequencies and amounts are configured under the Settings tab.'),
+      React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:16}},'Toggle which emails fire automatically. Frequencies and amounts are configured under the Settings tab.'),
       msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
       React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:12}},
         rows.map(r=>{
           const on=!!state[r.key];
           const dimmed=r.key!=='master'&&r.key!=='fiscalYear'&&!state.master;
-          return React.createElement('div',{key:r.key,style:{display:'flex',gap:16,alignItems:'center',padding:'14px 16px',border:'1px solid #eee',borderRadius:8,background:dimmed?'#fafafa':'#fff',opacity:dimmed?0.65:1}},
+          return React.createElement('div',{key:r.key,style:{display:'flex',gap:16,alignItems:'center',padding:'14px 16px',border:'1px solid #eee',borderRadius:8,background:dimmed?'var(--surface-sunk)':'var(--surface)',opacity:dimmed?0.65:1}},
             React.createElement('div',{style:{flex:1}},
-              React.createElement('div',{style:{fontWeight:700,color:'#1a2744'}},r.label,dimmed&&React.createElement('span',{style:{fontWeight:400,color:'#888',marginLeft:8,fontSize:'0.85rem'}},'(master switch is off)')),
-              React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:'4px 0 0'}},r.desc)),
+              React.createElement('div',{style:{fontWeight:700,color:'var(--navy)'}},r.label,dimmed&&React.createElement('span',{style:{fontWeight:400,color:'var(--text-subtle)',marginLeft:8,fontSize:'var(--fs-sm)'}},'(master switch is off)')),
+              React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',margin:'4px 0 0'}},r.desc)),
             React.createElement('button',{
               className:'btn btn-sm '+(on?'btn-primary':'btn-outline'),
               disabled:saving,
@@ -1867,10 +1867,10 @@ function AdminRulesEditor() {
       React.createElement('div',{className:'rule-card-title'},f.label),
       React.createElement('input',{type:f.type||'text',value:rules[f.key]!==undefined?rules[f.key]:f.def,onChange:e=>upd(f.key,f.type==='number'?parseInt(e.target.value)||0:e.target.value),placeholder:String(f.def)}),
       React.createElement('div',{className:'rule-description'},f.desc)))),
-    React.createElement('div',{style:{marginTop:20}},React.createElement('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save All Rules')),
+    React.createElement('div',{style:{marginTop:16}},React.createElement('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save All Rules')),
     React.createElement('div',{className:'card',style:{marginTop:24}},
       React.createElement('div',{className:'card-header'},'How Auto-Calculated Times Work'),
-      React.createElement('p',{style:{lineHeight:1.8,fontSize:'0.95rem'}},'Weekday Mincha/Maariv during DST: 10 min before plag, rounded down to nearest 5 min. During standard time: 10 min before sunset, rounded down to nearest 5. Friday night DST: an early mincha shows based on plag hamincha, using the "mins before plag" value above (0 = at plag). All times can be overridden for specific dates using Schedule Overrides.')));
+      React.createElement('p',{style:{lineHeight:1.8,fontSize:'var(--fs-base)'}},'Weekday Mincha/Maariv during DST: 10 min before plag, rounded down to nearest 5 min. During standard time: 10 min before sunset, rounded down to nearest 5. Friday night DST: an early mincha shows based on plag hamincha, using the "mins before plag" value above (0 = at plag). All times can be overridden for specific dates using Schedule Overrides.')));
 }
 
 // ─── Admin Overrides ─────────────────────────────────────────────
@@ -1885,7 +1885,7 @@ function AdminOverrides() {
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Schedule Override'),
-      React.createElement('p',{style:{marginBottom:16,color:'#888',fontSize:'0.9rem'}},'Override auto-calculated times for a specific date. Only fill in times you want to change.'),
+      React.createElement('p',{style:{marginBottom:16,color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Override auto-calculated times for a specific date. Only fill in times you want to change.'),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Date'),React.createElement('input',{className:'form-input',type:'date',value:nd,onChange:e=>setNd(e.target.value)})),
         Object.entries({shacharis:'Shacharis',mincha:'Mincha',maariv:'Maariv',earlyMincha:'Early Mincha',minchaMaariv:'Mincha/Maariv'}).map(([k,l])=>
@@ -1895,7 +1895,7 @@ function AdminOverrides() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Current Overrides'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      overrides.length===0?React.createElement('p',{style:{color:'#888'}},'No overrides set.'):
+      overrides.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No overrides set.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,React.createElement('th',null,'Date'),React.createElement('th',null,'Times'),React.createElement('th',null,'Note'),React.createElement('th',null,'Actions'))),
         React.createElement('tbody',null,overrides.map(o=>React.createElement('tr',{key:o.date},
@@ -1939,18 +1939,18 @@ function AdminHolidays(){
 
   function editor(h){
     return React.createElement('div',{style:{padding:'12px 14px',borderTop:'1px solid #e0dcd4'}},
-      React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end',marginBottom:10}},
+      React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'flex-end',marginBottom:8}},
         React.createElement('div',{className:'form-group',style:{flex:'1 1 200px',margin:0}},React.createElement('label',{className:'form-label'},'Name'),React.createElement('input',{className:'form-input',value:h.name||'',onChange:e=>setField(h.key,'name',e.target.value)})),
         React.createElement('div',{className:'form-group',style:{width:90,margin:0}},React.createElement('label',{className:'form-label'},'Order'),React.createElement('input',{className:'form-input',type:'number',value:h.order||0,onChange:e=>setField(h.key,'order',e.target.value)})),
-        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:!!h.enabled,onChange:e=>setField(h.key,'enabled',e.target.checked)}),'Show on site & weekly email'),
-        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:!!h.emailEnabled,onChange:e=>setField(h.key,'emailEnabled',e.target.checked)}),'Offer holiday email')),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:!!h.enabled,onChange:e=>setField(h.key,'enabled',e.target.checked)}),'Show on site & weekly email'),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:!!h.emailEnabled,onChange:e=>setField(h.key,'emailEnabled',e.target.checked)}),'Offer holiday email')),
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Intro note (optional, shown above the schedule)'),React.createElement('input',{className:'form-input',value:h.intro||'',onChange:e=>setField(h.key,'intro',e.target.value)})),
-      (h.sections||[]).map((s,si)=>React.createElement('div',{key:si,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:10,marginBottom:10,background:'#faf8f3'}},
-        React.createElement('div',{style:{display:'flex',gap:10,flexWrap:'wrap',alignItems:'flex-end',marginBottom:8}},
+      (h.sections||[]).map((s,si)=>React.createElement('div',{key:si,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:8,marginBottom:8,background:'var(--bg)'}},
+        React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end',marginBottom:8}},
           React.createElement('div',{className:'form-group',style:{flex:'1 1 160px',margin:0}},React.createElement('label',{className:'form-label'},'Day label'),React.createElement('input',{className:'form-input',value:s.label||'',onChange:e=>setSecField(h.key,si,'label',e.target.value)})),
           React.createElement('div',{className:'form-group',style:{flex:'2 1 240px',margin:0}},React.createElement('label',{className:'form-label'},'Calendar names that trigger this day (comma-separated)'),React.createElement('input',{className:'form-input',value:(s.match||[]).join(', '),onChange:e=>setSecField(h.key,si,'match',e.target.value.split(',').map(x=>x.trim()).filter(Boolean)),placeholder:"e.g. Erev Tish'a B'Av"})),
           React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>rmSection(h.key,si),title:'Remove this day'},'✕')),
-        React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:'0.88rem'}},
+        React.createElement('table',{style:{width:'100%',borderCollapse:'collapse',fontSize:'var(--fs-sm)'}},
           React.createElement('thead',null,React.createElement('tr',null,
             React.createElement('th',{style:{textAlign:'left',padding:'2px 4px'}},'Item'),
             React.createElement('th',{style:{textAlign:'left',padding:'2px 4px',width:110}},'Time'),
@@ -1962,20 +1962,20 @@ function AdminHolidays(){
             React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('input',{className:'form-input',style:{margin:0},value:it.time||'',onChange:e=>updItem(h.key,si,ii,{time:e.target.value}),placeholder:it.auto?'(auto)':'6:00 PM'})),
             React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('select',{className:'form-input',style:{margin:0},value:it.auto||'',onChange:e=>updItem(h.key,si,ii,{auto:e.target.value})},HOLIDAY_AUTO_OPTS.map(([v,l])=>React.createElement('option',{key:v,value:v},l)))),
             React.createElement('td',{style:{padding:'2px 4px'}},React.createElement('input',{className:'form-input',style:{margin:0},value:it.note||'',onChange:e=>updItem(h.key,si,ii,{note:e.target.value}),placeholder:'optional'})),
-            React.createElement('td',{style:{padding:'2px 4px',textAlign:'center'}},React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();rmItem(h.key,si,ii);},style:{color:'#c0392b'}},'✕'))))),
+            React.createElement('td',{style:{padding:'2px 4px',textAlign:'center'}},React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();rmItem(h.key,si,ii);},style:{color:'var(--error)'}},'✕'))))),
         ),
-        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:6},onClick:()=>addItem(h.key,si)},'+ Add item')),
+        React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginTop:4},onClick:()=>addItem(h.key,si)},'+ Add item')),
       ),
       React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>addSection(h.key)},'+ Add a day (e.g. Erev / Day 2)'),
       React.createElement('div',{style:{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}},
         React.createElement('button',{className:'btn btn-primary',onClick:()=>saveHoliday(h),disabled:busy===h.key},busy===h.key?'Saving...':'Save'),
         React.createElement('button',{className:'btn btn-outline',onClick:()=>previewHoliday(h.key),disabled:busy==='prev'+h.key},busy==='prev'+h.key?'Checking...':'Preview upcoming dates'),
         React.createElement('button',{className:'btn btn-danger',style:{marginLeft:'auto'},onClick:()=>delHoliday(h)},'Delete')),
-      previews[h.key]&&previews[h.key].length>0&&React.createElement('div',{style:{marginTop:12,background:'#fff',border:'1px solid #e0dcd4',borderRadius:6,padding:12}},
-        React.createElement('div',{style:{fontWeight:700,marginBottom:6}},'Next occurrence (from the Jewish calendar):'),
+      previews[h.key]&&previews[h.key].length>0&&React.createElement('div',{style:{marginTop:12,background:'var(--surface)',border:'1px solid #e0dcd4',borderRadius:6,padding:12}},
+        React.createElement('div',{style:{fontWeight:700,marginBottom:4}},'Next occurrence (from the Jewish calendar):'),
         previews[h.key].map((occ,i)=>React.createElement('div',{key:i,style:{marginBottom:8}},
-          React.createElement('div',{style:{fontWeight:600,color:'#1a2744'}},(occ.sectionLabel||h.name)+' — '+new Date(occ.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})),
-          occ.items.map((it,j)=>React.createElement('div',{key:j,style:{fontSize:'0.85rem',color:'#555',paddingLeft:10}},it.category+(it.time?': '+it.time:'')+(it.note?' — '+it.note:'')))))));
+          React.createElement('div',{style:{fontWeight:600,color:'var(--navy)'}},(occ.sectionLabel||h.name)+' — '+new Date(occ.date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})),
+          occ.items.map((it,j)=>React.createElement('div',{key:j,style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',paddingLeft:8}},it.category+(it.time?': '+it.time:'')+(it.note?' — '+it.note:'')))))));
   }
 
   return React.createElement('div',null,
@@ -1983,18 +1983,18 @@ function AdminHolidays(){
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',null,
-          React.createElement('div',{className:'card-header',style:{marginBottom:2,paddingBottom:0,borderBottom:'none'}},'Jewish Holiday Schedules'),
-          React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:0}},'Dates come from the Jewish calendar automatically each year. Set the times below; fast/Chatzos times can auto-calculate. A holiday only appears on the site once you turn on “Show on site”.')),
+          React.createElement('div',{className:'card-header',style:{marginBottom:4,paddingBottom:0,borderBottom:'none'}},'Jewish Holiday Schedules'),
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',margin:0}},'Dates come from the Jewish calendar automatically each year. Set the times below; fast/Chatzos times can auto-calculate. A holiday only appears on the site once you turn on “Show on site”.')),
         React.createElement('div',{style:{display:'flex',gap:8}},
           !seeded&&React.createElement('button',{className:'btn btn-outline btn-sm',onClick:seedAll,disabled:busy==='seed'},busy==='seed'?'Setting up...':'Set up all holidays'),
           React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addHoliday},'+ Add holiday'))),
-      !seeded&&React.createElement('p',{style:{fontSize:'0.82rem',color:'#a05a2c',marginTop:8}},'Showing built-in defaults. Saving any holiday (or “Set up all holidays”) makes them editable and permanent.')),
+      !seeded&&React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--warning)',marginTop:8}},'Showing built-in defaults. Saving any holiday (or “Set up all holidays”) makes them editable and permanent.')),
     React.createElement('div',{style:{marginTop:12,display:'flex',flexDirection:'column',gap:8}},
       holidays.map(h=>React.createElement('div',{key:h.key,className:'card',style:{padding:0,overflow:'hidden'}},
         React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',cursor:'pointer'},onClick:()=>setOpenKey(openKey===h.key?'':h.key)},
-          React.createElement('span',{style:{fontWeight:700,color:'#1a2744',flex:1}},h.name),
+          React.createElement('span',{style:{fontWeight:700,color:'var(--navy)',flex:1}},h.name),
           h.enabled?Status('good','On site'):Status('neutral','Off'),
-          React.createElement('span',{style:{color:'#c49a3c',fontWeight:700}},openKey===h.key?'▾':'▸')),
+          React.createElement('span',{style:{color:'var(--gold)',fontWeight:700}},openKey===h.key?'▾':'▸')),
         openKey===h.key&&editor(h)))));
 }
 
@@ -2040,11 +2040,11 @@ function AdminShiurim() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Current Shiurim ('+shiurim.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      shiurim.length===0?React.createElement('p',{style:{color:'#888'}},'No shiurim yet.'):
+      shiurim.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No shiurim yet.'):
       shiurim.map(s=>React.createElement('div',{className:'shiur-card',key:s.id},
         React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
         React.createElement('div',{className:'shiur-info'},
-          React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:4,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'4px 4px',borderRadius:8}},'One-time')),
+          React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:4,fontSize:'var(--fs-xs)',background:'rgba(196,154,60,0.15)',color:'var(--gold)',padding:'4px 4px',borderRadius:8}},'One-time')),
           React.createElement('div',{className:'shiur-details'},s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),[s.topic,s.location].filter(Boolean).map((x,i)=>React.createElement('span',{className:'shiur-where',key:'w'+i},x)))),
         React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEdit(s)},'Edit'),
         React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))));
@@ -2061,14 +2061,14 @@ function AdminAccounts() {
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Admin'),
-      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Enter email of an existing user to grant admin access.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Enter email of an existing user to grant admin access.'),
       React.createElement('div',{style:{display:'flex',gap:12,alignItems:'flex-end'}},
         React.createElement('div',{className:'form-group',style:{flex:1,marginBottom:0}},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:email,onChange:e=>setEmail(e.target.value)})),
         React.createElement('button',{className:'btn btn-primary',onClick:add},'Grant Admin'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Current Admins'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      admins.length===0?React.createElement('p',{style:{color:'#888'}},'No admin accounts found.'):
+      admins.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No admin accounts found.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,React.createElement('th',null,'Email'),React.createElement('th',null,'Actions'))),
         React.createElement('tbody',null,admins.map(a=>React.createElement('tr',{key:a.id},React.createElement('td',null,a.email||a.id),React.createElement('td',null,React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>remove(a.id)},'Remove')))))))));
@@ -2484,7 +2484,7 @@ function AccountPage() {
       React.createElement('div',{className:'card-header'},'Yahrzeit Reminders'),
       React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Add yahrzeit dates for loved ones. We will email you a reminder 10 days before each year\'s observance.'),
       yahrzeits.length>0&&React.createElement('div',{style:{marginBottom:16}},
-        yahrzeits.map(y=>React.createElement('div',{key:y.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',border:'1px solid #eee',borderRadius:6,marginBottom:6}},
+        yahrzeits.map(y=>React.createElement('div',{key:y.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',border:'1px solid #eee',borderRadius:6,marginBottom:4}},
           React.createElement('div',null,
             React.createElement('div',{style:{fontWeight:700,color:'var(--navy)'}},y.deceasedName,y.relationship?' ('+y.relationship+')':''),
             React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)'}},'Gregorian: '+y.englishDeathDate+' | Hebrew: '+(y.hebrewFormatted||(y.hebrewDay+' '+y.hebrewMonth)))),
@@ -2572,7 +2572,7 @@ function AdminDonations() {
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Record Manual Payment (Check / Cash / Zelle)'),
-      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.9rem'}},'Email is optional. If you leave it blank, the receipt will be emailed to the office for printing and mailing.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-muted)',fontSize:'var(--fs-sm)'}},'Email is optional. If you leave it blank, the receipt will be emailed to the office for printing and mailing.'),
       React.createElement('form',{onSubmit:recordManual},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:mf.firstName,onChange:e=>setMf(p=>({...p,firstName:e.target.value})),required:true})),
@@ -2584,7 +2584,7 @@ function AdminDonations() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Date (optional)'),React.createElement('input',{className:'form-input',type:'date',value:mf.date,onChange:e=>setMf(p=>({...p,date:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Fiscal Year (optional)'),React.createElement('input',{className:'form-input',type:'number',placeholder:'e.g. 2025',value:mf.fiscalYear,onChange:e=>setMf(p=>({...p,fiscalYear:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Note'),React.createElement('input',{className:'form-input',value:mf.note,onChange:e=>setMf(p=>({...p,note:e.target.value}))}))),
-        React.createElement('div',{className:'form-group',style:{marginTop:8,background:'#faf8f3',padding:12,borderRadius:6,border:'1px solid #e0dcd4'}},
+        React.createElement('div',{className:'form-group',style:{marginTop:8,background:'var(--bg)',padding:12,borderRadius:6,border:'1px solid #e0dcd4'}},
           React.createElement('label',{className:'form-label'},'Apply to an open invoice / bill (optional)'),
           React.createElement('select',{className:'form-input',value:mf.pledgeId,onChange:e=>{
             const id=e.target.value;
@@ -2602,38 +2602,38 @@ function AdminDonations() {
             React.createElement('option',{value:''},'— Not applied to a bill —'),
             openBills.map(b=>React.createElement('option',{key:b.id,value:b.id},
               (b.reason||'Bill')+' — $'+(b.amount!=null?Number(b.amount).toFixed(2):'?')+' — '+(b.memberName||b.memberEmail||'')+(b.dueDate?(' ('+b.dueDate+')'):'')))),
-          mf.pledgeId&&React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.85rem',color:'#555'}},'Recording this payment applies it to the selected bill — and any linked kiddush/seudas shlishis sponsorship. The bill is marked paid only once the full balance is covered.')),
+          mf.pledgeId&&React.createElement('p',{style:{margin:'8px 0 0',fontSize:'var(--fs-sm)',color:'var(--text-muted)'}},'Recording this payment applies it to the selected bill — and any linked kiddush/seudas shlishis sponsorship. The bill is marked paid only once the full balance is covered.')),
         React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:mfBusy,style:{marginTop:8}},mfBusy?'Recording...':'Record Payment'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Import a Stripe Payment'),
-      React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.95rem'}},'If a Stripe payment cleared but is missing from the list below, paste its Payment ID (starts with "pi_") here to add it. You can find the ID on the Stripe dashboard payment page. Idempotent: won\'t double-add.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-muted)',fontSize:'var(--fs-base)'}},'If a Stripe payment cleared but is missing from the list below, paste its Payment ID (starts with "pi_") here to add it. You can find the ID on the Stripe dashboard payment page. Idempotent: won\'t double-add.'),
       React.createElement('button',{className:'btn btn-primary',onClick:importStripePayment},'Import Stripe Payment')),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Batch Import Payments from Excel'),
-      React.createElement('p',{style:{marginBottom:8,color:'#555',fontSize:'0.95rem'}},'Upload a spreadsheet with columns First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Column header capitalization and minor variants (FName, Email Address, Phone #, etc.) are accepted. Only First Name, Last Name, and Amount are required.'),
-      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.85rem'}},'Each row is auto-matched to a member by email then phone. Re-uploading the same file is safe — duplicates (same name + amount + date) are skipped.'),
+      React.createElement('p',{style:{marginBottom:8,color:'var(--text-muted)',fontSize:'var(--fs-base)'}},'Upload a spreadsheet with columns First Name, Last Name, Email, Phone, Amount, Reason, Payment Method, Note, Date. Column header capitalization and minor variants (FName, Email Address, Phone #, etc.) are accepted. Only First Name, Last Name, and Amount are required.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Each row is auto-matched to a member by email then phone. Re-uploading the same file is safe — duplicates (same name + amount + date) are skipped.'),
       React.createElement('div',{style:{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',marginBottom:8}},
         React.createElement('div',{className:'form-group',style:{flex:'1 1 220px',marginBottom:0}},
           React.createElement('label',{className:'form-label'},'Import Tag (optional)'),
           React.createElement('input',{className:'form-input',placeholder:'e.g. ShulCloud 2024',value:importTag,onChange:e=>setImportTag(e.target.value),disabled:uploading})),
         React.createElement('label',{className:'btn btn-primary',style:{cursor:uploading?'not-allowed':'pointer',opacity:uploading?0.6:1}},uploading?'Uploading...':'Upload Excel / CSV',
           React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:uploadPayments,style:{display:'none'},disabled:uploading}))),
-      importResult&&React.createElement('div',{style:{marginTop:12,padding:14,background:'#faf8f3',border:'1px solid #e0dcd4',borderRadius:8}},
-        React.createElement('div',{style:{display:'flex',gap:18,flexWrap:'wrap',fontSize:'0.95rem',marginBottom:importResult.errors?.length?10:0}},
+      importResult&&React.createElement('div',{style:{marginTop:12,padding:12,background:'var(--bg)',border:'1px solid #e0dcd4',borderRadius:8}},
+        React.createElement('div',{style:{display:'flex',gap:16,flexWrap:'wrap',fontSize:'var(--fs-base)',marginBottom:importResult.errors?.length?10:0}},
           React.createElement('span',null,React.createElement('strong',null,'Total rows: '),importResult.total||0),
-          React.createElement('span',{style:{color:'#27ae60'}},React.createElement('strong',null,'Imported: '),importResult.created||0),
-          (importResult.duplicatesSkipped>0)&&React.createElement('span',{style:{color:'#888'}},React.createElement('strong',null,'Duplicates: '),importResult.duplicatesSkipped),
-          (importResult.memberLinked>0)&&React.createElement('span',{style:{color:'#1a2744'}},React.createElement('strong',null,'Linked to members: '),importResult.memberLinked),
-          (importResult.errors?.length>0)&&React.createElement('span',{style:{color:'#c0392b'}},React.createElement('strong',null,'Errors: '),importResult.errors.length)),
-        importResult.detectedColumns?.length>0&&React.createElement('div',{style:{fontSize:'0.85rem',color:'#666',marginBottom:6}},React.createElement('strong',null,'Columns found in your file: '),'[',importResult.detectedColumns.join(', '),']'),
-        importResult.errors?.length>0&&React.createElement('details',{style:{marginTop:6}},
-          React.createElement('summary',{style:{cursor:'pointer',color:'#c0392b',fontWeight:600}},'Show '+importResult.errors.length+' error row'+(importResult.errors.length===1?'':'s')),
-          React.createElement('div',{style:{maxHeight:240,overflowY:'auto',marginTop:8,padding:10,background:'#fff',borderRadius:6,border:'1px solid #e0dcd4',fontSize:'0.82rem',fontFamily:'monospace',lineHeight:1.5}},
-            importResult.errors.map((err,i)=>React.createElement('div',{key:i,style:{paddingBottom:6,marginBottom:6,borderBottom:i<importResult.errors.length-1?'1px solid #f0ece3':'none'}},err)))))),
+          React.createElement('span',{style:{color:'var(--success)'}},React.createElement('strong',null,'Imported: '),importResult.created||0),
+          (importResult.duplicatesSkipped>0)&&React.createElement('span',{style:{color:'var(--text-subtle)'}},React.createElement('strong',null,'Duplicates: '),importResult.duplicatesSkipped),
+          (importResult.memberLinked>0)&&React.createElement('span',{style:{color:'var(--navy)'}},React.createElement('strong',null,'Linked to members: '),importResult.memberLinked),
+          (importResult.errors?.length>0)&&React.createElement('span',{style:{color:'var(--error)'}},React.createElement('strong',null,'Errors: '),importResult.errors.length)),
+        importResult.detectedColumns?.length>0&&React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginBottom:4}},React.createElement('strong',null,'Columns found in your file: '),'[',importResult.detectedColumns.join(', '),']'),
+        importResult.errors?.length>0&&React.createElement('details',{style:{marginTop:4}},
+          React.createElement('summary',{style:{cursor:'pointer',color:'var(--error)',fontWeight:600}},'Show '+importResult.errors.length+' error row'+(importResult.errors.length===1?'':'s')),
+          React.createElement('div',{style:{maxHeight:240,overflowY:'auto',marginTop:8,padding:8,background:'var(--surface)',borderRadius:6,border:'1px solid #e0dcd4',fontSize:'var(--fs-sm)',fontFamily:'monospace',lineHeight:1.5}},
+            importResult.errors.map((err,i)=>React.createElement('div',{key:i,style:{paddingBottom:4,marginBottom:4,borderBottom:i<importResult.errors.length-1?'1px solid #f0ece3':'none'}},err)))))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
-        React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center'}},
+        React.createElement('div',{style:{display:'flex',gap:4,alignItems:'center'}},
           React.createElement(BusyButton,{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg(friendlyError(e));}}},'Match to Members'),
           React.createElement(BusyButton,{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg(friendlyError(e));}}},'Remove Duplicates'),
           React.createElement(BusyButton,{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg(friendlyError(e));}}},'Send '+year+' Tax Receipts'),
@@ -2645,16 +2645,16 @@ function AdminDonations() {
           React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),React.createElement('td',null,d.displayName||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
           React.createElement('td',null,d.fiscalYear||'-'),
-          React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'#27ae60',fontSize:'0.8rem'}},'Sent'):
-            d.email?React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg(friendlyError(e));}}},'Send'):
-            React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')),
+          React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'var(--success)',fontSize:'var(--fs-sm)'}},'Sent'):
+            d.email?React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'var(--fs-xs)'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg(friendlyError(e));}}},'Send'):
+            React.createElement('span',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-xs)'}},'No email')),
           React.createElement('td',null,
-            React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem',marginRight:4},onClick:async()=>{
+            React.createElement(BusyButton,{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'var(--fs-xs)',marginRight:4},onClick:async()=>{
               const ny=prompt('Reassign to fiscal year:',String(d.fiscalYear||year));
               if(!ny)return;
               try{await apiFetch('/api/admin/donations/'+d.id,{method:'PUT',body:JSON.stringify({fiscalYear:parseInt(ny)})});setMsg('Year updated.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Edit Year'),
-            React.createElement(BusyButton,{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{
+            React.createElement(BusyButton,{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'var(--fs-xs)'},onClick:async()=>{
               if(!confirm('Delete this donation record? The Stripe charge is NOT refunded.'))return;
               try{await apiFetch('/api/admin/donations/'+d.id,{method:'DELETE'});setMsg('Donation deleted.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Delete')))))))));
@@ -2810,10 +2810,10 @@ function AdminMembers() {
     }catch(err){setMsg(friendlyError(err));}setUploading(false);e.target.value='';}
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
-    payModal&&React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000},onClick:()=>{if(!payBusy)setPayModal(null);}},
-      React.createElement('div',{style:{background:'#fff',borderRadius:10,padding:20,width:'90%',maxWidth:420,boxShadow:'0 10px 40px rgba(0,0,0,0.2)'},onClick:e=>e.stopPropagation()},
-        React.createElement('h3',{style:{margin:'0 0 4px',color:'#1a2744'}},'Mark Membership Paid'),
-        React.createElement('p',{style:{margin:'0 0 14px',color:'#555',fontSize:'0.9rem'}},payModal.displayName||payModal.email||'Member'),
+    payModal&&React.createElement('div',{style:{position:'fixed',inset:0,background:'var(--overlay)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000},onClick:()=>{if(!payBusy)setPayModal(null);}},
+      React.createElement('div',{style:{background:'var(--surface)',borderRadius:10,padding:16,width:'90%',maxWidth:420,boxShadow:'0 10px 40px rgba(0,0,0,0.2)'},onClick:e=>e.stopPropagation()},
+        React.createElement('h3',{style:{margin:'0 0 4px',color:'var(--navy)'}},'Mark Membership Paid'),
+        React.createElement('p',{style:{margin:'0 0 14px',color:'var(--text-muted)',fontSize:'var(--fs-sm)'}},payModal.displayName||payModal.email||'Member'),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),
           React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:payForm.amount,onChange:e=>setPayForm(p=>({...p,amount:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Payment method'),
@@ -2823,13 +2823,13 @@ function AdminMembers() {
             React.createElement('option',{value:'other'},'Other...'))),
         payForm.method==='other'&&React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Specify method'),
           React.createElement('input',{className:'form-input',placeholder:'e.g. Zelle, credit card, wire',value:payForm.otherMethod,onChange:e=>setPayForm(p=>({...p,otherMethod:e.target.value}))})),
-        React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'4px 0 12px'}},'Resolves this member'+(payModal.spouseUid?' and their spouse':'')+'. The amount is logged as a Membership Dues payment.'),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',margin:'4px 0 12px'}},'Resolves this member'+(payModal.spouseUid?' and their spouse':'')+'. The amount is logged as a Membership Dues payment.'),
         React.createElement('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
           React.createElement('button',{className:'btn btn-outline',onClick:()=>setPayModal(null),disabled:payBusy},'Cancel'),
           React.createElement('button',{className:'btn btn-primary',onClick:confirmPay,disabled:payBusy},payBusy?'Saving...':'Confirm Paid'))) ),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Upload Member Roster (Excel)'),
-      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Upload Excel with: First Name, Last Name, Email, Phone, Address, Spouse Email. Creates pre-filled signup links.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Upload Excel with: First Name, Last Name, Email, Phone, Address, Spouse Email. Creates pre-filled signup links.'),
       React.createElement('label',{className:'btn btn-primary',style:{cursor:'pointer'}},uploading?'Uploading...':'📤 Upload Excel File',
         React.createElement('input',{type:'file',accept:'.xlsx,.xls,.csv',onChange:handleUpload,style:{display:'none'}}))),
     // One-off "Add Member" form for when you want to onboard a single person
@@ -2837,7 +2837,7 @@ function AdminMembers() {
     // row + (by default) fires the welcome+signup email.
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Single Member'),
-      React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Manually add one member. They get a welcome email with a "Set Up My Account" link. If a pending invite already exists for this email, it is refreshed instead of duplicated.'),
+      React.createElement('p',{style:{marginBottom:12,color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Manually add one member. They get a welcome email with a "Set Up My Account" link. If a pending invite already exists for this email, it is refreshed instead of duplicated.'),
       React.createElement('form',{onSubmit:addSingleMember},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'First Name *'),React.createElement('input',{className:'form-input',value:addForm.firstName,onChange:e=>setAddForm(p=>({...p,firstName:e.target.value})),required:true})),
@@ -2847,7 +2847,7 @@ function AdminMembers() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Address'),React.createElement('input',{className:'form-input',value:addForm.address,onChange:e=>setAddForm(p=>({...p,address:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Spouse Email'),React.createElement('input',{className:'form-input',type:'email',value:addForm.spouseEmail,onChange:e=>setAddForm(p=>({...p,spouseEmail:e.target.value}))}))),
         React.createElement('div',{style:{display:'flex',gap:12,alignItems:'center',marginTop:8,flexWrap:'wrap'}},
-          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem',color:'#555'}},
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)',color:'var(--text-muted)'}},
             React.createElement('input',{type:'checkbox',checked:addForm.sendInvite,onChange:e=>setAddForm(p=>({...p,sendInvite:e.target.checked}))}),
             'Email welcome + signup link to this member'),
           React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:addBusy},addBusy?'Adding...':'Add Member')))),
@@ -2881,8 +2881,8 @@ function AdminMembers() {
         React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Status','Link'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,prefilled.slice(0,50).map(a=>React.createElement('tr',{key:a.token},
           React.createElement('td',null,(a.firstName||'')+' '+(a.lastName||'')),React.createElement('td',null,a.email),
-          React.createElement('td',null,a.claimed?React.createElement('span',{style:{color:'#27ae60',fontWeight:600}},'✓ Claimed'):React.createElement('span',{style:{color:'#c49a3c'}},'Pending')),
-          React.createElement('td',null,!a.claimed&&React.createElement('code',{style:{fontSize:'0.7rem',background:'#f0ece3',padding:'2px 6px',borderRadius:4,wordBreak:'break-all'}},'#signup?token='+a.token)))))))),
+          React.createElement('td',null,a.claimed?React.createElement('span',{style:{color:'var(--success)',fontWeight:600}},'✓ Claimed'):React.createElement('span',{style:{color:'var(--gold)'}},'Pending')),
+          React.createElement('td',null,!a.claimed&&React.createElement('code',{style:{fontSize:'var(--fs-xs)',background:'var(--surface-sunk)',padding:'2px 6px',borderRadius:4,wordBreak:'break-all'}},'#signup?token='+a.token)))))))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'All Members ('+members.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
@@ -2897,7 +2897,7 @@ function AdminMembers() {
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>selectAll(filtered)},'Select all shown'),
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearSel},'Clear ('+selectedUids.length+')'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:purgeDeadEmails,title:'Paste a list of dead emails to permanently delete in one go'},'🗑 Purge by Email...')),
-          selectedUids.length>0&&React.createElement('div',{style:{padding:10,background:'#faf8f3',borderRadius:6,marginBottom:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
+          selectedUids.length>0&&React.createElement('div',{style:{padding:8,background:'var(--bg)',borderRadius:6,marginBottom:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}},
             React.createElement('strong',{style:{marginRight:8}},selectedUids.length+' selected:'),
             React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>bulk({exemptFromDues:true},'Mark as Exempt from Dues')},'Mark Exempt'),
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>bulk({exemptFromDues:false},'Remove Exempt')},'Remove Exempt'),
@@ -2908,7 +2908,7 @@ function AdminMembers() {
           React.createElement('tbody',null,filtered.map(m=>{
             const spouseName=m.spouseUid&&uidToName[m.spouseUid]?uidToName[m.spouseUid]:(m.spouseEmail||'');
             const tag=m.tagId?tagById[m.tagId]:null;
-            return React.createElement('tr',{key:m.uid,style:selected[m.uid]?{background:'rgba(196,154,60,0.08)'}:null},
+            return React.createElement('tr',{key:m.uid,style:selected[m.uid]?{background:'var(--gold-soft)'}:null},
               React.createElement('td',null,React.createElement('input',{type:'checkbox',checked:!!selected[m.uid],onChange:()=>toggleSel(m.uid)})),
               React.createElement('td',null,m.displayName||'-'),
               React.createElement('td',null,m.email||'-'),
@@ -2917,19 +2917,19 @@ function AdminMembers() {
                 m.exemptFromDues
                   ?Status('warn','Exempt')
                   :m.membershipPaid
-                    ?React.createElement('span',{style:{color:'#27ae60',fontWeight:700}},'✓ Paid')
-                    :React.createElement('span',{style:{color:'#b00020',fontWeight:600}},'Unpaid')),
+                    ?React.createElement('span',{style:{color:'var(--success)',fontWeight:700}},'✓ Paid')
+                    :React.createElement('span',{style:{color:'var(--error)',fontWeight:600}},'Unpaid')),
               React.createElement('td',null,
-                React.createElement('select',{className:'form-input',style:{padding:'4px 6px',fontSize:'0.85rem'},value:m.tagId||'',onChange:e=>setMemberTag(m.uid,e.target.value)},
+                React.createElement('select',{className:'form-input',style:{padding:'4px 6px',fontSize:'var(--fs-sm)'},value:m.tagId||'',onChange:e=>setMemberTag(m.uid,e.target.value)},
                   React.createElement('option',{value:''},'(none)'),
                   tags.map(t=>React.createElement('option',{key:t.id,value:t.id},t.name+' ($'+Number(t.annualDues||0).toFixed(0)+')')))),
-              React.createElement('td',{style:{fontSize:'0.85rem',color:'#555'}},spouseName||'-'),
+              React.createElement('td',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)'}},spouseName||'-'),
               React.createElement('td',null,Status(m.role==='admin'?'warn':'good', m.role||'member')),
               React.createElement('td',{style:{whiteSpace:'nowrap'}},
-                !m.exemptFromDues&&!m.membershipPaid&&React.createElement('button',{className:'btn btn-sm btn-primary',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>openPayModal(m),title:'Record a manual dues payment (cash/check/other) and resolve membership'},'Mark Paid'),
-                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>resetPassword(m),title:'Email a password-reset link to this member'},'Reset PW'),
-                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem',marginRight:4},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt'),
-                React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>deleteOne(m),title:'Permanently delete this member'},'🗑')));
+                !m.exemptFromDues&&!m.membershipPaid&&React.createElement('button',{className:'btn btn-sm btn-primary',style:{padding:'3px 8px',fontSize:'var(--fs-xs)',marginRight:4},onClick:()=>openPayModal(m),title:'Record a manual dues payment (cash/check/other) and resolve membership'},'Mark Paid'),
+                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'var(--fs-xs)',marginRight:4},onClick:()=>resetPassword(m),title:'Email a password-reset link to this member'},'Reset PW'),
+                React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'var(--fs-xs)',marginRight:4},onClick:()=>toggleExempt(m),title:m.exemptFromDues?'Remove exempt flag — they will be billed':'Mark exempt — no dues, no reminders'},m.exemptFromDues?'Un-Exempt':'Exempt'),
+                React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'var(--fs-xs)'},onClick:()=>deleteOne(m),title:'Permanently delete this member'},'🗑')));
           })))));
       })()));
 }
@@ -2974,7 +2974,7 @@ function AdminSettings() {
     // Automated Reminders
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Automated Email Reminders'),
-      React.createElement('p',{style:{marginBottom:16,color:'#555',fontSize:'0.9rem'}},'When enabled, the system automatically sends membership-dues reminders monthly on the 1st at 10:00 AM ET, and pledge reminders monthly on the 1st at 10:00 AM ET. Members with auto-payment enabled are skipped.'),
+      React.createElement('p',{style:{marginBottom:16,color:'var(--text-muted)',fontSize:'var(--fs-sm)'}},'When enabled, the system automatically sends membership-dues reminders monthly on the 1st at 10:00 AM ET, and pledge reminders monthly on the 1st at 10:00 AM ET. Members with auto-payment enabled are skipped.'),
       React.createElement('div',{className:'form-group'},
         React.createElement('label',{className:'form-label'},'Master Switch'),
         React.createElement('select',{className:'form-input',style:{maxWidth:300},value:reminderSettings.enabled?'on':'off',onChange:e=>setReminderSettings(p=>({...p,enabled:e.target.value==='on'}))},
@@ -2982,8 +2982,8 @@ function AdminSettings() {
           React.createElement('option',{value:'on'},'ON - Send reminders automatically'))),
       reminderSettings.enabled&&React.createElement('div',null,
         // Membership section
-        React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
-          React.createElement('h3',{style:{color:'#1a2744',margin:'0 0 12px',fontSize:'1rem'}},'Membership Dues Reminders'),
+        React.createElement('div',{style:{background:'var(--bg)',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
+          React.createElement('h3',{style:{color:'var(--navy)',margin:'0 0 12px',fontSize:'var(--fs-base)'}},'Membership Dues Reminders'),
           React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
             React.createElement('div',{className:'form-group',style:{marginBottom:0}},
               React.createElement('label',{className:'form-label'},'Enabled'),
@@ -2996,8 +2996,8 @@ function AdminSettings() {
               React.createElement('label',{className:'form-label'},'Send reminder every X days'),
               React.createElement('input',{className:'form-input',type:'number',min:'1',value:reminderSettings.membershipFrequencyDays,onChange:e=>setReminderSettings(p=>({...p,membershipFrequencyDays:parseInt(e.target.value)||30}))})))),
         // Pledge section
-        React.createElement('div',{style:{background:'#faf8f3',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
-          React.createElement('h3',{style:{color:'#1a2744',margin:'0 0 12px',fontSize:'1rem'}},'Pledge Reminders'),
+        React.createElement('div',{style:{background:'var(--bg)',padding:16,borderRadius:8,marginBottom:16,border:'1px solid #e0dcd4'}},
+          React.createElement('h3',{style:{color:'var(--navy)',margin:'0 0 12px',fontSize:'var(--fs-base)'}},'Pledge Reminders'),
           React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
             React.createElement('div',{className:'form-group',style:{marginBottom:0}},
               React.createElement('label',{className:'form-label'},'Enabled'),
@@ -3032,11 +3032,11 @@ function AdminSettings() {
         React.createElement('div',{className:'form-group'},
           React.createElement('label',{className:'form-label'},'Fair Share Annual Dues ($)'),
           React.createElement('input',{className:'form-input',type:'number',value:membershipSettings.fairShareDues||0,onChange:e=>setMembershipSettings(p=>({...p,fairShareDues:parseFloat(e.target.value)||0}))}),
-          React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'4px 0 0'}},'Optional higher tier members can choose. Set to 0 to hide it.'))),
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',margin:'4px 0 0'}},'Optional higher tier members can choose. Set to 0 to hide it.'))),
       React.createElement('button',{className:'btn btn-primary',onClick:saveMembership,style:{marginTop:8}},'Save Membership Settings'),
       React.createElement('div',{style:{marginTop:16,paddingTop:16,borderTop:'1px solid #e0dcd4'}},
-        React.createElement('div',{style:{fontWeight:700,color:'#1a2744',marginBottom:4}},'Start a New Membership Year'),
-        React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:'0 0 8px'}},'Marks every member (except exempt) as unpaid so you can invoice the new year. Membership also auto-resets at Rosh Hashanah; doing this in the weeks before Rosh Hashanah tells the automatic reset to skip this year so it won\'t wipe early payments.'),
+        React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',marginBottom:4}},'Start a New Membership Year'),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',margin:'0 0 8px'}},'Marks every member (except exempt) as unpaid so you can invoice the new year. Membership also auto-resets at Rosh Hashanah; doing this in the weeks before Rosh Hashanah tells the automatic reset to skip this year so it won\'t wipe early payments.'),
         React.createElement('button',{className:'btn btn-danger',onClick:resetMembershipYear,disabled:resetting},resetting?'Working...':'Start New Membership Year'))));
 }
 
@@ -3071,24 +3071,24 @@ function AdminReasons() {
 
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
-    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}},
+    React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}},
       // Donation reasons
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Donation Reasons'),
-        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:12}},'These appear as dropdown options when making a donation or recording a manual payment.'),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginBottom:12}},'These appear as dropdown options when making a donation or recording a manual payment.'),
         donationReasons.map((r,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #f0ece3'}},
           React.createElement('span',null,r),
-          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeDonationReason(i),style:{padding:'4px 10px',fontSize:'0.75rem'}},'Remove'))),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removeDonationReason(i),style:{padding:'4px 10px',fontSize:'var(--fs-xs)'}},'Remove'))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('input',{className:'form-input',value:newDonation,onChange:e=>setNewDonation(e.target.value),placeholder:'New reason...',style:{flex:1},onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addDonationReason();}}}),
           React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addDonationReason},'Add'))),
       // Pledge reasons
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Pledge / Billing Reasons'),
-        React.createElement('p',{style:{fontSize:'0.85rem',color:'#888',marginBottom:12}},'These appear as dropdown options when creating a pledge or billing item.'),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginBottom:12}},'These appear as dropdown options when creating a pledge or billing item.'),
         pledgeReasons.map((r,i)=>React.createElement('div',{key:i,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #f0ece3'}},
           React.createElement('span',null,r),
-          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removePledgeReason(i),style:{padding:'4px 10px',fontSize:'0.75rem'}},'Remove'))),
+          React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>removePledgeReason(i),style:{padding:'4px 10px',fontSize:'var(--fs-xs)'}},'Remove'))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('input',{className:'form-input',value:newPledge,onChange:e=>setNewPledge(e.target.value),placeholder:'New reason...',style:{flex:1},onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();addPledgeReason();}}}),
           React.createElement('button',{className:'btn btn-primary btn-sm',onClick:addPledgeReason},'Add')))));
@@ -3155,7 +3155,7 @@ function AdminPledges() {
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Kiddush / Seudas Shlishis Sponsorship'),
-      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:0,marginBottom:12}},'For recording a sponsorship manually, including after the Wednesday cutoff. Creates the sponsorship plus a bill (invoice). Record payment in the Donations tab and apply it to the bill to mark it paid.'),
+      React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)',marginTop:0,marginBottom:12}},'For recording a sponsorship manually, including after the Wednesday cutoff. Creates the sponsorship plus a bill (invoice). Record payment in the Donations tab and apply it to the bill to mark it paid.'),
       React.createElement('form',{onSubmit:addSponsorship},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Shabbos / Date *'),React.createElement('input',{className:'form-input',type:'date',value:sf.date,onChange:e=>setSf(p=>({...p,date:e.target.value})),required:true})),
@@ -3165,12 +3165,12 @@ function AdminPledges() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email'),React.createElement('input',{className:'form-input',type:'email',value:sf.email,onChange:e=>setSf(p=>({...p,email:e.target.value}))})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:sf.phone,onChange:e=>setSf(p=>({...p,phone:e.target.value}))})),
           React.createElement('div',{className:'form-group',style:{gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Dedication'),React.createElement('input',{className:'form-input',value:sf.dedication,onChange:e=>setSf(p=>({...p,dedication:e.target.value})),placeholder:'e.g. In honor of...'}))),
-        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,marginTop:10,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:sf.sendInvoice,onChange:e=>setSf(p=>({...p,sendInvoice:e.target.checked}))}),'Email the sponsor an invoice with a Pay-Now link'),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,marginTop:8,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:sf.sendInvoice,onChange:e=>setSf(p=>({...p,sendInvoice:e.target.checked}))}),'Email the sponsor an invoice with a Pay-Now link'),
         React.createElement('button',{className:'btn btn-primary',type:'submit',style:{marginTop:8}},'Add Sponsorship'))),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Sponsorships ('+sponsorships.length+')'),
       editSp&&React.createElement(Modal,{title:'Edit Sponsorship',wide:true,onClose:()=>setEditSp(null)},
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:10}},
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:8}},
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Type'),
             React.createElement('select',{className:'form-input',value:editSp.type,onChange:e=>changeSpType(e.target.value)},
               React.createElement('option',{value:'kiddush'},'Kiddush'),
@@ -3181,18 +3181,18 @@ function AdminPledges() {
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Phone'),React.createElement('input',{className:'form-input',type:'tel',value:editSp.phone,onChange:e=>setEditSp(p=>({...p,phone:e.target.value}))})),
           React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:editSp.amount,onChange:e=>setEditSp(p=>({...p,amount:e.target.value}))})),
           React.createElement('div',{className:'form-group',style:{marginBottom:0,gridColumn:'1 / -1'}},React.createElement('label',{className:'form-label'},'Dedication'),React.createElement('input',{className:'form-input',value:editSp.dedication,onChange:e=>setEditSp(p=>({...p,dedication:e.target.value}))}))),
-        React.createElement('div',{style:{display:'flex',gap:8,marginTop:10}},
+        React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
           React.createElement('button',{className:'btn btn-primary btn-sm',onClick:saveEditSp},'Save Changes'),
           React.createElement('button',{className:'btn btn-outline btn-sm',onClick:()=>setEditSp(null)},'Cancel')),
-        React.createElement('p',{style:{margin:'8px 0 0',fontSize:'0.8rem',color:'#888'}},'Changes also update the linked unpaid bill. Switching type updates the amount to that type’s price (if it was still the old price). The date is fixed — to change it, delete and re-add.')),
-      sponsorships.length===0?React.createElement('p',{style:{color:'#888'}},'No sponsorships yet.'):
+        React.createElement('p',{style:{margin:'8px 0 0',fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Changes also update the linked unpaid bill. Switching type updates the amount to that type’s price (if it was still the old price). The date is fixed — to change it, delete and re-add.')),
+      sponsorships.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No sponsorships yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Type','Sponsor','Dedication','Amount','Status','Actions'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,sponsorships.map(s=>React.createElement('tr',{key:s.id},
           React.createElement('td',null,s.date||'-'),
           React.createElement('td',null,s.type==='kiddush'?'Kiddush':'Seudas Shlishis'),
           React.createElement('td',null,s.displayName||((s.firstName||'')+' '+(s.lastName||'')).trim()||'-'),
-          React.createElement('td',{style:{fontSize:'0.85rem',color:'#555',maxWidth:220}},s.dedication||'-'),
+          React.createElement('td',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',maxWidth:220}},s.dedication||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(s.amount||0).toFixed(2)),
           React.createElement('td',null,Status(s.status==='paid'?'good':'bad', s.status==='paid'?'Paid':'Unpaid')),
           React.createElement('td',null,
@@ -3213,9 +3213,9 @@ function AdminPledges() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Pledges & Billing'),
         React.createElement('button',{className:'btn btn-sm btn-primary',onClick:sendInvoiceEmails,title:'Email every unpaid pledge a "Pay Now" invoice link'},'📧 Send Invoices to All Unpaid')),
-      React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:8}},'Each unpaid pledge has a unique Pay link. Members get it when invoiced by email; you can also copy it below to share manually.'),
+      React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)',marginTop:8}},'Each unpaid pledge has a unique Pay link. Members get it when invoiced by email; you can also copy it below to share manually.'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      pledges.length===0?React.createElement('p',{style:{color:'#888'}},'No pledges yet.'):
+      pledges.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No pledges yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Name','Amount','Reason','Due','Status','Pay Link','Actions'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,pledges.map(p=>React.createElement('tr',{key:p.id},
@@ -3223,7 +3223,7 @@ function AdminPledges() {
           React.createElement('td',null,p.reason||'-'),React.createElement('td',null,p.dueDate||'-'),
           React.createElement('td',null,Status(p.status==='paid'?'good':'bad', p.status==='paid'?'Paid':'Unpaid')),
           React.createElement('td',null,
-            p.status!=='paid'&&p.payToken?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.75rem'},onClick:()=>copyPayLink(p),title:payLink(p)},'Copy'):React.createElement('span',{style:{color:'#bbb',fontSize:'0.8rem'}},'—')),
+            p.status!=='paid'&&p.payToken?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'var(--fs-xs)'},onClick:()=>copyPayLink(p),title:payLink(p)},'Copy'):React.createElement('span',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'—')),
           React.createElement('td',null,
             p.status!=='paid'&&React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>markPaid(p.id),style:{marginRight:4}},'Mark Paid'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(p.id)},'Delete')))))))));
@@ -3333,19 +3333,19 @@ function AdminEmailCenter() {
   function MemberPicker(){
     const fr=filteredRecipients();
     const selectedCount=Object.keys(selectedEmails).filter(e=>selectedEmails[e]).length;
-    return React.createElement('div',{className:'card',style:{marginTop:8,padding:12,background:'#faf8f3'}},
+    return React.createElement('div',{className:'card',style:{marginTop:8,padding:12,background:'var(--bg)'}},
       React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginBottom:8}},
         React.createElement('input',{className:'form-input',style:{flex:'1 1 200px'},placeholder:'Search name or email...',value:pickerFilter,onChange:e=>setPickerFilter(e.target.value)}),
         React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',onClick:selectAllFiltered},'Select all shown'),
         React.createElement('button',{type:'button',className:'btn btn-sm btn-outline',onClick:clearSelection},'Clear'),
-        React.createElement('span',{style:{fontWeight:700,color:'#1a2744'}},selectedCount+' selected')),
-      React.createElement('div',{style:{maxHeight:260,overflowY:'auto',border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}},
-        fr.length===0?React.createElement('p',{style:{padding:12,color:'#888',margin:0}},'No matches.'):
-        fr.map(r=>React.createElement('label',{key:r.email||r.uid,style:{display:'flex',alignItems:'center',gap:10,padding:'6px 10px',cursor:'pointer',borderBottom:'1px solid #f0ece3'}},
+        React.createElement('span',{style:{fontWeight:700,color:'var(--navy)'}},selectedCount+' selected')),
+      React.createElement('div',{style:{maxHeight:260,overflowY:'auto',border:'1px solid #e0dcd4',borderRadius:6,background:'var(--surface)'}},
+        fr.length===0?React.createElement('p',{style:{padding:12,color:'var(--text-subtle)',margin:0}},'No matches.'):
+        fr.map(r=>React.createElement('label',{key:r.email||r.uid,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',cursor:'pointer',borderBottom:'1px solid #f0ece3'}},
           React.createElement('input',{type:'checkbox',checked:!!selectedEmails[r.email],onChange:()=>toggleEmail(r.email),disabled:!r.email}),
           React.createElement('span',{style:{flex:1}},r.displayName||'(no name)'),
-          React.createElement('span',{style:{color:'#888',fontSize:'0.85rem'}},r.email||'no email'),
-          r.role==='admin'&&React.createElement('span',{style:{fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:10,fontWeight:700}},'admin')))));
+          React.createElement('span',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},r.email||'no email'),
+          r.role==='admin'&&React.createElement('span',{style:{fontSize:'var(--fs-xs)',background:'var(--gold-tint)',color:'var(--gold)',padding:'2px 6px',borderRadius:10,fontWeight:700}},'admin')))));
   }
 
   async function sendBlast(e){
@@ -3476,22 +3476,22 @@ function AdminEmailCenter() {
   const activeJobs=jobs.filter(j=>j.status==='running');
   function JobsPanel(){
     const statusLabel={running:'Sending…',done:'Sent',errors:'Sent with errors',cancelled:'Cancelled',failed:'Failed'};
-    const statusColor={running:'#a05a2c',done:'#27ae60',errors:'#c0392b',cancelled:'#888',failed:'#c0392b'};
+    const statusColor={running:'var(--warning)',done:'var(--success)',errors:'var(--error)',cancelled:'var(--text-subtle)',failed:'var(--error)'};
     return React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Sending Progress'),
         React.createElement('button',{className:'btn btn-sm btn-outline',onClick:loadJobs},'Refresh')),
-      React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',margin:'6px 0 12px'}},'Bulk emails send in the background so you don\'t have to wait. Progress updates automatically; a send that stops partway finishes on its own within a minute — you no longer need to "resume" manually.'),
-      jobs.length===0?React.createElement('p',{style:{color:'#888'}},'No recent sends.'):
+      React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',margin:'6px 0 12px'}},'Bulk emails send in the background so you don\'t have to wait. Progress updates automatically; a send that stops partway finishes on its own within a minute — you no longer need to "resume" manually.'),
+      jobs.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No recent sends.'):
       React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
-        jobs.map(j=>React.createElement('div',{key:j.id,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:'10px 12px',background:'#faf8f3'}},
+        jobs.map(j=>React.createElement('div',{key:j.id,style:{border:'1px solid #e0dcd4',borderRadius:6,padding:'10px 12px',background:'var(--bg)'}},
           React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
-            React.createElement('div',{style:{fontWeight:700,color:'#1a2744',flex:'1 1 200px'}},j.subject||'(no subject)'),
-            React.createElement('span',{style:{fontWeight:700,fontSize:'0.82rem',color:statusColor[j.status]||'#555'}},statusLabel[j.status]||j.status)),
-          React.createElement('div',{style:{fontSize:'0.85rem',color:'#555',marginTop:4}},
+            React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',flex:'1 1 200px'}},j.subject||'(no subject)'),
+            React.createElement('span',{style:{fontWeight:700,fontSize:'var(--fs-sm)',color:statusColor[j.status]||'var(--text-muted)'}},statusLabel[j.status]||j.status)),
+          React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginTop:4}},
             (j.sentCount||0)+' of '+(j.total||0)+' sent'+(j.failedCount?', '+j.failedCount+' failed':'')+(j.pendingCount?', '+j.pendingCount+' remaining':'')),
-          React.createElement('div',{style:{height:6,background:'#e0dcd4',borderRadius:3,marginTop:6,overflow:'hidden'}},
-            React.createElement('div',{style:{height:'100%',width:(j.total?Math.round(((j.sentCount||0)+(j.failedCount||0))/j.total*100):0)+'%',background:statusColor[j.status]||'#c49a3c'}})),
+          React.createElement('div',{style:{height:6,background:'var(--border)',borderRadius:3,marginTop:4,overflow:'hidden'}},
+            React.createElement('div',{style:{height:'100%',width:(j.total?Math.round(((j.sentCount||0)+(j.failedCount||0))/j.total*100):0)+'%',background:statusColor[j.status]||'var(--gold)'}})),
           ((j.status==='errors'||j.status==='failed')||j.status==='running')&&React.createElement('div',{style:{marginTop:8,display:'flex',gap:8}},
             (j.status==='errors'||j.status==='failed')&&React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>retryJob(j.id)},'Retry failed ('+(j.failedCount||j.pendingCount||0)+')'),
             j.status==='running'&&React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>cancelJob(j.id)},'Cancel'))))));
@@ -3524,11 +3524,11 @@ function AdminEmailCenter() {
           React.createElement('input',{className:'form-input',value:composeForm.subject,onChange:e=>setComposeForm(p=>({...p,subject:e.target.value}))})),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Email Body (HTML)'),
           EditorToolbar('composeHtmlTA',composeForm.html,v=>setComposeForm(p=>({...p,html:v}))),
-          React.createElement('textarea',{id:'composeHtmlTA',className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
-        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,margin:'8px 0',fontSize:'0.9rem'}},
+          React.createElement('textarea',{id:'composeHtmlTA',className:'form-input',rows:12,value:composeForm.html,onChange:e=>setComposeForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'var(--fs-sm)'}})),
+        React.createElement('label',{style:{display:'flex',alignItems:'center',gap:8,margin:'8px 0',fontSize:'var(--fs-sm)'}},
           React.createElement('input',{type:'checkbox',checked:!!composeForm.personalize,onChange:e=>setComposeForm(p=>({...p,personalize:e.target.checked}))}),
           React.createElement('span',null,'Personalize with each member’s name — put ',React.createElement('code',null,'[Member Name]'),' in the body and it becomes each recipient’s name (“Member” if none on file).')),
-        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',margin:'10px 0',padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',margin:'10px 0',padding:'10px 12px',background:'var(--bg)',borderRadius:6,border:'1px solid #e0dcd4'}},
           composePdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:composePdfBusy?'wait':'pointer',margin:0,opacity:composePdfBusy?0.6:1}},composePdfBusy?'Rendering…':(composePdfs.length?'Add another attachment':'Attach flyer (PDF or JPEG)'),
             React.createElement('input',{type:'file',accept:'application/pdf,image/jpeg,image/png',multiple:true,disabled:composePdfBusy,style:{display:'none'},onChange:async e=>{
               const files=Array.from(e.target.files||[]);e.target.value='';
@@ -3540,17 +3540,17 @@ function AdminEmailCenter() {
               setMsg((r.warnings.length?r.warnings.join(' ')+' ':'')+'Attachment'+(r.next.length>1?'s':'')+' ready ('+r.next.length+' of 5) — shown at the bottom of the email.');
               setComposePdfBusy(false);
             }})),
-          composePdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+          composePdfs.length>0&&React.createElement('span',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
             composePdfs.map((p,i)=>React.createElement('span',{key:i},'📎 '+p.name+' ('+p.images.length+'p) ',
-              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setComposePdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'#c0392b',marginLeft:4}},'remove')))),
-          React.createElement('span',{style:{fontSize:'0.78rem',color:'#888',flexBasis:'100%'}},'JPEG/PNG/PDF attachments display reliably in the email. (“Upload Image” inserts a picture into the body, which some email apps hide.)')),
+              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setComposePdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'var(--error)',marginLeft:4}},'remove')))),
+          React.createElement('span',{style:{fontSize:'var(--fs-xs)',color:'var(--text-subtle)',flexBasis:'100%'}},'JPEG/PNG/PDF attachments display reliably in the email. (“Upload Image” inserts a picture into the body, which some email apps hide.)')),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('compose')},'Upload Image'),
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
         React.createElement('div',{className:'card-header'},'Email Preview'),
-        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:(emailTextToHtml(composeForm.html)||'')+(composePdfs.length?'<div style="margin-top:16px;">'+composePdfs.flatMap(p=>p.images).map(b=>'<img src="data:image/jpeg;base64,'+b+'" style="max-width:100%;display:block;margin:0 auto 12px;">').join('')+'</div>':''),style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff'}}))),
+        React.createElement('iframe',{title:'Email preview',sandbox:'',srcDoc:(emailTextToHtml(composeForm.html)||'')+(composePdfs.length?'<div style="margin-top:16px;">'+composePdfs.flatMap(p=>p.images).map(b=>'<img src="data:image/jpeg;base64,'+b+'" style="max-width:100%;display:block;margin:0 auto 12px;">').join('')+'</div>':''),style:{width:'100%',height:420,border:'1px solid #e0dcd4',borderRadius:6,background:'var(--surface)'}}))),
 
     // ── Weekly schedule with date range + custom text + preview ──
     subTab==='weekly'&&React.createElement('div',null,
@@ -3574,15 +3574,15 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom Message (appears just under the davening schedule, above shiurim/sponsorships)'),
           EditorToolbar('weeklyCustomTA',weeklyCustomText,setWeeklyCustomText),
           React.createElement('textarea',{id:'weeklyCustomTA',className:'form-input',rows:6,value:weeklyCustomText,onChange:e=>setWeeklyCustomText(e.target.value),placeholder:'Add announcements, images, or any custom content here... Paragraphs, links, and HTML all work.'})),
-        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:12,padding:'10px 12px',background:'var(--bg)',borderRadius:6,border:'1px solid #e0dcd4'}},
           React.createElement('div',{style:{flexBasis:'100%'}},
-            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6}},
-              React.createElement('span',{style:{fontSize:'0.9rem',fontWeight:600}},'Include shiurim in this email:'),
-              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'0.8rem',color:'#c49a3c'},onClick:e=>{e.preventDefault();const all={};weeklyShiurim.forEach(s=>{all[s.id]=true;});setWeeklyShiurSel(all);}},'All'),
-              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'0.8rem',color:'#c49a3c'},onClick:e=>{e.preventDefault();setWeeklyShiurSel({});}},'None')),
-            weeklyShiurim.length===0?React.createElement('span',{style:{fontSize:'0.85rem',color:'#888'}},'No shiurim on file.'):
+            React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},
+              React.createElement('span',{style:{fontSize:'var(--fs-sm)',fontWeight:600}},'Include shiurim in this email:'),
+              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'var(--fs-sm)',color:'var(--gold)'},onClick:e=>{e.preventDefault();const all={};weeklyShiurim.forEach(s=>{all[s.id]=true;});setWeeklyShiurSel(all);}},'All'),
+              weeklyShiurim.length>0&&React.createElement('a',{href:'#',style:{fontSize:'var(--fs-sm)',color:'var(--gold)'},onClick:e=>{e.preventDefault();setWeeklyShiurSel({});}},'None')),
+            weeklyShiurim.length===0?React.createElement('span',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'No shiurim on file.'):
             React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:'6px 16px'}},
-              weeklyShiurim.map(s=>React.createElement('label',{key:s.id,style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.85rem'}},
+              weeklyShiurim.map(s=>React.createElement('label',{key:s.id,style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},
                 React.createElement('input',{type:'checkbox',checked:!!weeklyShiurSel[s.id],onChange:e=>setWeeklyShiurSel(p=>({...p,[s.id]:e.target.checked}))}),
                 (DAY_NAMES[s.dayOfWeek]?DAY_NAMES[s.dayOfWeek].slice(0,3)+' ':'')+s.title+(s.time?' ('+s.time+')':''))))),
           weeklyPdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:weeklyPdfBusy?'wait':'pointer',margin:0,opacity:weeklyPdfBusy?0.6:1}},weeklyPdfBusy?'Rendering…':(weeklyPdfs.length?'Add another flyer':'Attach flyer (PDF or JPEG)'),
@@ -3621,9 +3621,9 @@ function AdminEmailCenter() {
               }catch(err){setMsg(friendlyError(err,'attach that flyer'));}
               setWeeklyPdfBusy(false);
             }})),
-          weeklyPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+          weeklyPdfs.length>0&&React.createElement('span',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
             weeklyPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
-              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));setWeeklyPreviewHtml('');},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
+              React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));setWeeklyPreviewHtml('');},style:{color:'var(--error)',marginLeft:4}},'remove'))))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
@@ -3632,13 +3632,13 @@ function AdminEmailCenter() {
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setWeeklyPreviewHtml('')},'Close')),
-        React.createElement('iframe',{title:'Weekly email preview',sandbox:'',srcDoc:weeklyPreviewHtml||'',style:{width:'100%',height:600,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
+        React.createElement('iframe',{title:'Weekly email preview',sandbox:'',srcDoc:weeklyPreviewHtml||'',style:{width:'100%',height:600,border:'1px solid #e0dcd4',borderRadius:6,background:'var(--surface)',marginTop:12}}))),
 
     // ── Sponsorship email ──
     subTab==='sponsorship'&&React.createElement('div',null,
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Sponsorship Email'),
-        React.createElement('p',{style:{marginTop:0,color:'#555',fontSize:'0.9rem'}},'Choose what to include. Kiddush / Seudas Shlishis pull that Shabbos’s status — the sponsor if booked, or an "available, sponsor it" appeal with price + link if open.'),
+        React.createElement('p',{style:{marginTop:0,color:'var(--text-muted)',fontSize:'var(--fs-sm)'}},'Choose what to include. Kiddush / Seudas Shlishis pull that Shabbos’s status — the sponsor if booked, or an "available, sponsor it" appeal with price + link if open.'),
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))',gap:12}},
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Shabbos / Date'),
             React.createElement('input',{className:'form-input',type:'date',value:spDate,onChange:e=>setSpDate(e.target.value)})),
@@ -3652,11 +3652,11 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),
             React.createElement('input',{className:'form-input',value:spSubject,onChange:e=>setSpSubject(e.target.value)}))),
         spTargetGroup==='custom'&&MemberPicker(),
-        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:6,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
-          React.createElement('span',{style:{fontWeight:600,fontSize:'0.9rem'}},'Include:'),
-          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spKiddush,onChange:e=>setSpKiddush(e.target.checked)}),'Kiddush'),
-          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spSeudas,onChange:e=>setSpSeudas(e.target.checked)}),'Seudas Shlishis'),
-          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:6,fontSize:'0.9rem'}},React.createElement('input',{type:'checkbox',checked:spOtherOn,onChange:e=>setSpOtherOn(e.target.checked)}),'Other')),
+        React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:16,alignItems:'center',marginTop:4,padding:'10px 12px',background:'var(--bg)',borderRadius:6,border:'1px solid #e0dcd4'}},
+          React.createElement('span',{style:{fontWeight:600,fontSize:'var(--fs-sm)'}},'Include:'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:spKiddush,onChange:e=>setSpKiddush(e.target.checked)}),'Kiddush'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:spSeudas,onChange:e=>setSpSeudas(e.target.checked)}),'Seudas Shlishis'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'var(--fs-sm)'}},React.createElement('input',{type:'checkbox',checked:spOtherOn,onChange:e=>setSpOtherOn(e.target.checked)}),'Other')),
         spOtherOn&&React.createElement('div',{className:'form-group',style:{marginTop:12}},React.createElement('label',{className:'form-label'},'Other — custom content'),
           EditorToolbar('spOtherTA',spOtherText,setSpOtherText),
           React.createElement('textarea',{id:'spOtherTA',className:'form-input',rows:5,value:spOtherText,onChange:e=>setSpOtherText(e.target.value),placeholder:'Add any other sponsorship (e.g. Shalosh Seudos, flowers, a yahrzeit, an appeal...). Paragraphs, links, and HTML all work.'})),
@@ -3667,13 +3667,13 @@ function AdminEmailCenter() {
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSpPreviewHtml('')},'Close')),
-        React.createElement('iframe',{title:'Sponsorship email preview',sandbox:'',srcDoc:spPreviewHtml||'',style:{width:'100%',height:500,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
+        React.createElement('iframe',{title:'Sponsorship email preview',sandbox:'',srcDoc:spPreviewHtml||'',style:{width:'100%',height:500,border:'1px solid #e0dcd4',borderRadius:6,background:'var(--surface)',marginTop:12}}))),
 
     // ── Holiday schedule email ──
     subTab==='holiday'&&React.createElement('div',null,
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Holiday Schedule Email'),
-        holidayList.length===0?React.createElement('p',{style:{color:'#888'}},'No holidays are set up for email yet. Go to the “Jewish Holidays” tab, fill in a holiday\'s times, and turn on “Offer holiday email”.'):
+        holidayList.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No holidays are set up for email yet. Go to the “Jewish Holidays” tab, fill in a holiday\'s times, and turn on “Offer holiday email”.'):
         React.createElement('div',null,
           React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))',gap:12}},
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Holiday'),
@@ -3691,8 +3691,8 @@ function AdminEmailCenter() {
           holTargetGroup==='custom'&&MemberPicker(),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Custom message (optional, appears above the schedule)'),
             React.createElement('textarea',{className:'form-input',rows:4,value:holCustomText,onChange:e=>setHolCustomText(e.target.value),placeholder:'Add an announcement here... Paragraphs and links work.'})),
-          React.createElement('p',{style:{fontSize:'0.82rem',color:'#666'}},'The schedule times are pulled automatically from what you set on the “Jewish Holidays” tab, for this holiday\'s next occurrence in the Jewish calendar.'),
-          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',marginTop:6,padding:'10px 12px',background:'#faf8f3',borderRadius:6,border:'1px solid #e0dcd4'}},
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)'}},'The schedule times are pulled automatically from what you set on the “Jewish Holidays” tab, for this holiday\'s next occurrence in the Jewish calendar.'),
+          React.createElement('div',{style:{display:'flex',flexWrap:'wrap',gap:12,alignItems:'center',marginTop:4,padding:'10px 12px',background:'var(--bg)',borderRadius:6,border:'1px solid #e0dcd4'}},
             holPdfs.length<5&&React.createElement('label',{className:'btn btn-outline btn-sm',style:{cursor:holPdfBusy?'wait':'pointer',margin:0,opacity:holPdfBusy?0.6:1}},holPdfBusy?'Rendering…':(holPdfs.length?'Add another flyer':'Attach flyer (PDF or JPEG)'),
               React.createElement('input',{type:'file',accept:'application/pdf,image/jpeg,image/png',multiple:true,disabled:holPdfBusy,style:{display:'none'},onChange:async e=>{
                 const files=Array.from(e.target.files||[]);e.target.value='';
@@ -3704,9 +3704,9 @@ function AdminEmailCenter() {
                 setMsg((r.warnings.length?r.warnings.join(' ')+' ':'')+'Flyer'+(r.next.length>1?'s':'')+' ready ('+r.next.length+' of 5) — shown at the bottom of the email.');
                 setHolPdfBusy(false);
               }})),
-            holPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
+            holPdfs.length>0&&React.createElement('span',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
               holPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
-                React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setHolPdfs(prev=>prev.filter((_,j)=>j!==i));setHolPreviewHtml('');},style:{color:'#c0392b',marginLeft:4}},'remove'))))),
+                React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setHolPdfs(prev=>prev.filter((_,j)=>j!==i));setHolPreviewHtml('');},style:{color:'var(--error)',marginLeft:4}},'remove'))))),
           React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
             React.createElement('button',{className:'btn btn-outline',onClick:previewHolidayEmail},'Generate Preview'),
             React.createElement('button',{className:'btn btn-primary',onClick:sendHolidayEmail,disabled:sending},sending?'Sending...':'Send Holiday Email')))),
@@ -3714,7 +3714,7 @@ function AdminEmailCenter() {
         React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Preview'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setHolPreviewHtml('')},'Close')),
-        React.createElement('iframe',{title:'Holiday email preview',sandbox:'',srcDoc:holPreviewHtml||'',style:{width:'100%',height:560,border:'1px solid #e0dcd4',borderRadius:6,background:'#fff',marginTop:12}}))),
+        React.createElement('iframe',{title:'Holiday email preview',sandbox:'',srcDoc:holPreviewHtml||'',style:{width:'100%',height:560,border:'1px solid #e0dcd4',borderRadius:6,background:'var(--surface)',marginTop:12}}))),
 
     // ── Templates ──
     subTab==='templates'&&(()=>{
@@ -3723,7 +3723,7 @@ function AdminEmailCenter() {
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Template Name'),React.createElement('input',{className:'form-input',value:tplForm.name,onChange:e=>setTplForm(p=>({...p,name:e.target.value})),required:true})),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Subject'),React.createElement('input',{className:'form-input',value:tplForm.subject,onChange:e=>setTplForm(p=>({...p,subject:e.target.value}))}))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body (use {{variable}} for placeholders)'),
-          React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'0.85rem'}})),
+          React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'var(--fs-sm)'}})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
           React.createElement('button',{type:'button',className:'btn btn-outline btn-sm',onClick:()=>handleImageUpload('template')},'Upload Image'),
           React.createElement('button',{className:'btn btn-primary',type:'submit'},tplEditing?'Save Changes':'Save Template'),
@@ -3739,10 +3739,10 @@ function AdminEmailCenter() {
           React.createElement('div',{style:{marginTop:16}},tplFormEl)),
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},'Saved Templates ('+templates.length+')'),
-          templates.length===0?React.createElement('p',{style:{color:'#888'}},'No templates. Click "Load Default Templates" above to create standard ones.'):
+          templates.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No templates. Click "Load Default Templates" above to create standard ones.'):
           templates.map(t=>React.createElement('div',{key:t.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:'1px solid #e0dcd4'}},
-            React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontWeight:600}},t.name||t.id),React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},t.subject||'')),
-            React.createElement('div',{style:{display:'flex',gap:6}},
+            React.createElement('div',{style:{flex:1}},React.createElement('div',{style:{fontWeight:600}},t.name||t.id),React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},t.subject||'')),
+            React.createElement('div',{style:{display:'flex',gap:4}},
               React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>{setTplForm({name:t.name||t.id,subject:t.subject||'',html:t.html||''});setTplEditing(true);}},'Edit'),
               React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>loadTemplate(t)},'Use in Compose'),
               React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>deleteTemplate(t.id)},'Delete'))))));
@@ -3751,14 +3751,14 @@ function AdminEmailCenter() {
     // ── Log ──
     subTab==='log'&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Email Log (Last 100)'),
-      log.length===0?React.createElement('p',{style:{color:'#888'}},'No emails sent yet.'):
+      log.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No emails sent yet.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','To','Subject','Status'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,log.map(l=>React.createElement('tr',{key:l.id},
           React.createElement('td',null,l.sentAt?.substring(0,16)||'-'),
           React.createElement('td',null,l.to||'-'),
           React.createElement('td',null,(l.subject||'-').substring(0,40)),
-          React.createElement('td',null,React.createElement('span',{style:{color:l.status==='sent'?'#27ae60':'#c0392b',fontWeight:600}},l.status||'-')))))))));
+          React.createElement('td',null,React.createElement('span',{style:{color:l.status==='sent'?'var(--success)':'var(--error)',fontWeight:600}},l.status||'-')))))))));
 }
 
 // ─── Admin Analytics (Full Interactive Rewrite) ──────────────────
@@ -3796,24 +3796,24 @@ function AdminAnalytics() {
     truncatedNotice,
     // Filters bar
     React.createElement('div',{className:'card',style:{marginBottom:16}},
-      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:10,alignItems:'end'}},
-        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Start Date'),
-          React.createElement('input',{className:'form-input',type:'date',value:filters.startDate,onChange:e=>setFilters(p=>({...p,startDate:e.target.value})),style:{fontSize:'0.85rem'}})),
-        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'End Date'),
-          React.createElement('input',{className:'form-input',type:'date',value:filters.endDate,onChange:e=>setFilters(p=>({...p,endDate:e.target.value})),style:{fontSize:'0.85rem'}})),
-        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Category'),
-          React.createElement('select',{className:'form-input',value:filters.reason,onChange:e=>setFilters(p=>({...p,reason:e.target.value})),style:{fontSize:'0.85rem'}},
+      React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:8,alignItems:'end'}},
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'var(--fs-sm)'}},'Start Date'),
+          React.createElement('input',{className:'form-input',type:'date',value:filters.startDate,onChange:e=>setFilters(p=>({...p,startDate:e.target.value})),style:{fontSize:'var(--fs-sm)'}})),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'var(--fs-sm)'}},'End Date'),
+          React.createElement('input',{className:'form-input',type:'date',value:filters.endDate,onChange:e=>setFilters(p=>({...p,endDate:e.target.value})),style:{fontSize:'var(--fs-sm)'}})),
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'var(--fs-sm)'}},'Category'),
+          React.createElement('select',{className:'form-input',value:filters.reason,onChange:e=>setFilters(p=>({...p,reason:e.target.value})),style:{fontSize:'var(--fs-sm)'}},
             React.createElement('option',{value:'all'},'All Categories'),
             (data.allReasons||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
-        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Donor'),
-          React.createElement('select',{className:'form-input',value:filters.person,onChange:e=>setFilters(p=>({...p,person:e.target.value})),style:{fontSize:'0.85rem'}},
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'var(--fs-sm)'}},'Donor'),
+          React.createElement('select',{className:'form-input',value:filters.person,onChange:e=>setFilters(p=>({...p,person:e.target.value})),style:{fontSize:'var(--fs-sm)'}},
             React.createElement('option',{value:'all'},'All Donors'),
             (data.allPersons||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
-        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'0.8rem'}},'Method'),
-          React.createElement('select',{className:'form-input',value:filters.method,onChange:e=>setFilters(p=>({...p,method:e.target.value})),style:{fontSize:'0.85rem'}},
+        React.createElement('div',{className:'form-group',style:{marginBottom:0}},React.createElement('label',{className:'form-label',style:{fontSize:'var(--fs-sm)'}},'Method'),
+          React.createElement('select',{className:'form-input',value:filters.method,onChange:e=>setFilters(p=>({...p,method:e.target.value})),style:{fontSize:'var(--fs-sm)'}},
             React.createElement('option',{value:'all'},'All Methods'),
             (data.allMethods||[]).map(r=>React.createElement('option',{key:r,value:r},r)))),
-        React.createElement('div',{style:{display:'flex',gap:6}},
+        React.createElement('div',{style:{display:'flex',gap:4}},
           React.createElement('button',{className:'btn btn-sm btn-primary',onClick:applyFilters},'Apply'),
           React.createElement('button',{className:'btn btn-sm btn-outline',onClick:clearFilters},'Clear')))),
 
@@ -3821,10 +3821,10 @@ function AdminAnalytics() {
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))',gap:12,marginBottom:16}},
       [['Total','$'+data.totalAmount.toFixed(2)],['Transactions',data.totalCount],['Donors',data.uniqueDonors],['Average','$'+(data.totalCount?(data.totalAmount/data.totalCount).toFixed(2):'0')]].map(([l,v])=>
         React.createElement('div',{key:l,className:'card',style:{textAlign:'center',marginBottom:0,padding:16}},
-          React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.4rem',fontWeight:700,color:'#1a2744'}},v)))),
+          React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},l),React.createElement('div',{style:{fontSize:'var(--fs-lg)',fontWeight:700,color:'var(--navy)'}},v)))),
 
     // View tabs
-    React.createElement('div',{style:{display:'flex',gap:6,marginBottom:12}},
+    React.createElement('div',{style:{display:'flex',gap:4,marginBottom:12}},
       ['overview','byCategory','byMonth','byDonor','transactions'].map(v=>React.createElement('button',{key:v,className:'btn btn-sm '+(view===v?'btn-secondary':'btn-outline'),onClick:()=>{setView(v);setSelectedPerson(null);}},
         v==='overview'?'Overview':v==='byCategory'?'By Category':v==='byMonth'?'By Month':v==='byDonor'?'By Donor':'All Transactions'))),
 
@@ -3860,7 +3860,7 @@ function AdminAnalytics() {
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Name','Donations','Total','Last Donation'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,topDonors.map(([name,d])=>React.createElement('tr',{key:name,style:{cursor:'pointer'},onClick:()=>setSelectedPerson(name)},
-          React.createElement('td',{style:{color:'#2980b9',fontWeight:600}},name),React.createElement('td',null,d.count),
+          React.createElement('td',{style:{color:'var(--info)',fontWeight:600}},name),React.createElement('td',null,d.count),
           React.createElement('td',{style:{fontWeight:700}},'$'+d.total.toFixed(2)),
           React.createElement('td',null,d.donations?.[d.donations.length-1]?.date||'-'))))))),
 
@@ -3870,9 +3870,9 @@ function AdminAnalytics() {
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},selectedPerson),
         React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSelectedPerson(null)},'Back to All Donors')),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}},
-        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Total'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},'$'+(data.byPerson[selectedPerson]?.total||0).toFixed(2))),
-        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Donations'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},data.byPerson[selectedPerson]?.count||0)),
-        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Email'),React.createElement('div',{style:{fontSize:'0.9rem'}},data.byPerson[selectedPerson]?.email||'-'))),
+        React.createElement('div',{style:{background:'var(--bg)',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Total'),React.createElement('div',{style:{fontSize:'var(--fs-lg)',fontWeight:700}},'$'+(data.byPerson[selectedPerson]?.total||0).toFixed(2))),
+        React.createElement('div',{style:{background:'var(--bg)',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Donations'),React.createElement('div',{style:{fontSize:'var(--fs-lg)',fontWeight:700}},data.byPerson[selectedPerson]?.count||0)),
+        React.createElement('div',{style:{background:'var(--bg)',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Email'),React.createElement('div',{style:{fontSize:'var(--fs-sm)'}},data.byPerson[selectedPerson]?.email||'-'))),
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Amount','Category','Method'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,(data.byPerson[selectedPerson]?.donations||[]).map((d,i)=>React.createElement('tr',{key:i},
@@ -3885,15 +3885,15 @@ function AdminAnalytics() {
       // Render at most 500 rows in the DOM. Rendering all of them (up to
       // 10,000) created ~60k DOM nodes and froze the tab. Totals above are
       // computed server-side over the full set, so they stay accurate.
-      (data.donations||[]).length>500&&React.createElement('div',{className:'message',style:{marginBottom:12,color:'#888'}},'Showing the first 500 of '+(data.donations||[]).length+' transactions in this range. Narrow the date range to see specific records.'),
+      (data.donations||[]).length>500&&React.createElement('div',{className:'message',style:{marginBottom:12,color:'var(--text-subtle)'}},'Showing the first 500 of '+(data.donations||[]).length+' transactions in this range. Narrow the date range to see specific records.'),
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Name','Amount','Category','Method','Note'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,(data.donations||[]).slice(0,500).map(d=>React.createElement('tr',{key:d.id},
           React.createElement('td',null,d.createdAt?.substring(0,10)||'-'),
-          React.createElement('td',{style:{cursor:'pointer',color:'#2980b9'},onClick:()=>{setSelectedPerson(d.displayName);setView('byDonor');}},d.displayName||'-'),
+          React.createElement('td',{style:{cursor:'pointer',color:'var(--info)'},onClick:()=>{setSelectedPerson(d.displayName);setView('byDonor');}},d.displayName||'-'),
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),
           React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
-          React.createElement('td',{style:{fontSize:'0.85rem',color:'#888'}},d.note||'-'))))))));
+          React.createElement('td',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},d.note||'-'))))))));
 }
 
 // ─── High Holiday Seats Page (Public) ────────────────────────────
@@ -4179,13 +4179,13 @@ function AdminHighHolidays() {
           React.createElement('select',{className:'form-input',value:settings.enabled?'yes':'no',onChange:e=>setSettings(p=>({...p,enabled:e.target.value==='yes'}))},
             React.createElement('option',{value:'no'},'Closed'),React.createElement('option',{value:'yes'},'Open'))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Price per Seat ($)'),React.createElement('input',{className:'form-input',type:'number',value:settings.seatPrice,onChange:e=>setSettings(p=>({...p,seatPrice:parseFloat(e.target.value)||0}))})),
-        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))}),React.createElement('p',{style:{fontSize:'0.78rem',color:'#888',margin:'4px 0 0'}},'How many seats can be reserved in total (used for the “available” count).'))),
+        React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Total Seats'),React.createElement('input',{className:'form-input',type:'number',value:settings.totalSeats,onChange:e=>setSettings(p=>({...p,totalSeats:parseInt(e.target.value)||0}))}),React.createElement('p',{style:{fontSize:'var(--fs-xs)',color:'var(--text-subtle)',margin:'4px 0 0'}},'How many seats can be reserved in total (used for the “available” count).'))),
       React.createElement('button',{className:'btn btn-primary',onClick:saveSettings,style:{marginTop:8}},'Save'),
-      React.createElement('p',{style:{fontSize:'0.85rem',color:'#666',marginTop:10}},'Set “Open” and a price to go live. People reserve seats (paying by card or mailing a check); assign their exact seats under the “Seating Map” tab.'),
+      React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginTop:8}},'Set “Open” and a price to go live. People reserve seats (paying by card or mailing a check); assign their exact seats under the “Seating Map” tab.'),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:12,marginTop:16}},
         [['Reserved',totalReserved+'/'+(settings.totalSeats||0)],["Men's / Women's",totalMen+' / '+totalWomen],['Bookings',reservations.length],['Revenue','$'+totalRevenue.toFixed(2)]].map(([l,v])=>
-          React.createElement('div',{key:l,style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},l),React.createElement('div',{style:{fontSize:'1.2rem',fontWeight:700}},v))))),
+          React.createElement('div',{key:l,style:{background:'var(--bg)',padding:8,borderRadius:6,textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},l),React.createElement('div',{style:{fontSize:'var(--fs-lg)',fontWeight:700}},v))))),
 
     subTab==='reservations'&&React.createElement('div',null,
       // Manually add a reservation (walk-in, phone, check in hand, comp, etc.).
@@ -4208,7 +4208,7 @@ function AdminHighHolidays() {
                 React.createElement('option',{value:'pending'},'Pending (owes)'))),
             React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:addForm.amount,onChange:e=>setAddForm(p=>({...p,amount:e.target.value})),placeholder:'auto ('+((settings.seatPrice||0)*addSeatTotal)+')'}))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:addForm.notes,onChange:e=>setAddForm(p=>({...p,notes:e.target.value})),placeholder:'e.g. paid by check #1234'})),
-          React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Leave Amount blank to use the seat price × seats. Marking anything other than "Pending" records the payment as revenue. Assign their exact seats afterward on the Seating Map tab.'),
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',margin:'0 0 8px'}},'Leave Amount blank to use the seat price × seats. Marking anything other than "Pending" records the payment as revenue. Assign their exact seats afterward on the Seating Map tab.'),
           React.createElement('button',{className:'btn btn-primary',type:'submit',disabled:adding},adding?'Adding...':'Add Reservation'))),
       editRes&&React.createElement(Modal,{title:'Edit Reservation',wide:true,onClose:()=>setEditRes(null)},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:12}},
@@ -4228,24 +4228,24 @@ function AdminHighHolidays() {
               React.createElement('option',{value:'pending'},'Pending (owes)'))),
           React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Amount ($)'),React.createElement('input',{className:'form-input',type:'number',min:'0',step:'0.01',value:editRes.amount,onChange:e=>setEditRes(p=>({...p,amount:e.target.value}))}))),
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Notes'),React.createElement('input',{className:'form-input',value:editRes.notes,onChange:e=>setEditRes(p=>({...p,notes:e.target.value}))})),
-        React.createElement('p',{style:{fontSize:'0.8rem',color:'#888',margin:'0 0 8px'}},'Renaming updates the name shown on any seats already assigned to this reservation.'),
+        React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',margin:'0 0 8px'}},'Renaming updates the name shown on any seats already assigned to this reservation.'),
         React.createElement('div',{style:{display:'flex',gap:8}},
           React.createElement('button',{className:'btn btn-primary',onClick:saveEditRes},'Save Changes'),
           React.createElement('button',{className:'btn btn-outline',onClick:()=>setEditRes(null)},'Cancel'))),
       React.createElement('div',{className:'card'},
         React.createElement('div',{className:'card-header'},'Reservations ('+reservations.length+')'),
-        reservations.length===0?React.createElement('p',{style:{color:'#888'}},'None yet.'):
+        reservations.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'None yet.'):
         React.createElement('div',{className:'table-container'},React.createElement('table',null,
           React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Seats','Amount','Method','Assigned',''].map((h,i)=>React.createElement('th',{key:i},h)))),
           React.createElement('tbody',null,reservations.map(r=>React.createElement('tr',{key:r.id},
             React.createElement('td',null,r.displayName),React.createElement('td',null,r.email),
-            React.createElement('td',null,r.numSeats,(r.mensSeats!=null||r.womensSeats!=null)&&React.createElement('span',{style:{color:'#888',fontSize:'0.82rem'}},' ('+(r.mensSeats||0)+'M / '+(r.womensSeats||0)+'W)')),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
+            React.createElement('td',null,r.numSeats,(r.mensSeats!=null||r.womensSeats!=null)&&React.createElement('span',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},' ('+(r.mensSeats||0)+'M / '+(r.womensSeats||0)+'W)')),React.createElement('td',{style:{fontWeight:700}},'$'+(r.totalAmount||0).toFixed(2)),
             React.createElement('td',null,r.paymentMethod),
             React.createElement('td',null,(()=>{
               const need=r.numSeats||0,have=r.assignedCount||0;
-              if(have<=0) return React.createElement('span',{style:{color:'#b9b9b9'}},'—');
-              if(need>0&&have>=need) return React.createElement('span',{style:{color:'#27ae60',fontWeight:700,whiteSpace:'nowrap'}},'✓ '+have+'/'+need);
-              return React.createElement('span',{style:{color:'#c08a2c',fontWeight:600,whiteSpace:'nowrap'}},have+'/'+need);
+              if(have<=0) return React.createElement('span',{style:{color:'var(--text-subtle)'}},'—');
+              if(need>0&&have>=need) return React.createElement('span',{style:{color:'var(--success)',fontWeight:700,whiteSpace:'nowrap'}},'✓ '+have+'/'+need);
+              return React.createElement('span',{style:{color:'var(--warning)',fontWeight:600,whiteSpace:'nowrap'}},have+'/'+need);
             })()),
             React.createElement('td',null,
               React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEditRes(r)},'Edit'),
@@ -4256,20 +4256,20 @@ function AdminHighHolidays() {
 
     subTab==='mishebeirach'&&React.createElement('div',null,
       React.createElement('div',{className:'card'},
-        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
           React.createElement('div',{className:'card-header',style:{marginBottom:0,borderBottom:'none',paddingBottom:0}},'Mi Shebeirach Cards'),
           React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
             React.createElement('button',{className:'btn btn-sm btn-outline',onClick:loadCards},'Refresh'),
             React.createElement('button',{className:'btn btn-sm btn-outline',disabled:invSending,onClick:emailInvites},invSending?'Sending…':'Email everyone the link'),
             cards&&cards.length>0&&React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printMishebeirach(cards)},'Print All'))),
-        React.createElement('p',{style:{color:'#555',fontSize:'0.9rem',margin:'10px 0 0'}},'Families submit their names through a private link (sent by email, or offered right after they reserve). Each printout is grouped by relationship for the gabbai. “Email everyone the link” sends every seat reservation an invitation to add their names.')),
+        React.createElement('p',{style:{color:'var(--text-muted)',fontSize:'var(--fs-sm)',margin:'10px 0 0'}},'Families submit their names through a private link (sent by email, or offered right after they reserve). Each printout is grouped by relationship for the gabbai. “Email everyone the link” sends every seat reservation an invitation to add their names.')),
       cards===null?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading…')
-        :cards.length===0?React.createElement('div',{className:'card',style:{textAlign:'center',color:'#888',padding:30}},'No families have submitted names yet. Use “Email everyone the link” to invite them.')
-        :React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:10}},
-          cards.map(c=>React.createElement('div',{key:c.reservationId,className:'card',style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10,padding:'14px 16px'}},
+        :cards.length===0?React.createElement('div',{className:'card',style:{textAlign:'center',color:'var(--text-subtle)',padding:32}},'No families have submitted names yet. Use “Email everyone the link” to invite them.')
+        :React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+          cards.map(c=>React.createElement('div',{key:c.reservationId,className:'card',style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8,padding:'14px 16px'}},
             React.createElement('div',null,
-              React.createElement('div',{style:{fontWeight:700,color:'#1a2744'}},c.displayName||'(no name)'),
-              React.createElement('div',{style:{fontSize:'0.85rem',color:'#888'}},(c.entries||[]).length+' name'+((c.entries||[]).length===1?'':'s')+(c.email?' · '+c.email:''))),
+              React.createElement('div',{style:{fontWeight:700,color:'var(--navy)'}},c.displayName||'(no name)'),
+              React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},(c.entries||[]).length+' name'+((c.entries||[]).length===1?'':'s')+(c.email?' · '+c.email:''))),
             React.createElement('button',{className:'btn btn-sm btn-primary',onClick:()=>printMishebeirach([c])},'Print'))))));
 }
 
@@ -4367,7 +4367,7 @@ function AdminWelcomeSponsorships() {
     editingId&&React.createElement(Modal,{title:'Edit Sponsorship Card',wide:true,onClose:cancelEdit},cardForm),
     !editingId&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Sponsorship Card'),
-      React.createElement('p',{style:{color:'#555',marginBottom:12,fontSize:'0.9rem'}},
+      React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12,fontSize:'var(--fs-sm)'}},
         'These cards rotate on the entrance welcome display every 7 seconds. ',
         'Use "Title" for what is being sponsored (e.g. "Kiddush", "Seudas Shlishis", "Friday Night Dinner"), ',
         '"Sponsored by" for the donor name, and "Dedication" for the optional in-honor / in-memory line.'),
@@ -4375,17 +4375,17 @@ function AdminWelcomeSponsorships() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Current Sponsorship Cards ('+items.length+')'),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
-      items.length===0?React.createElement('p',{style:{color:'#888'}},'No sponsorship cards yet. Add one above and it will start cycling on the welcome display.'):
+      items.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No sponsorship cards yet. Add one above and it will start cycling on the welcome display.'):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['#','Title','Sponsored by','Dedication','Active','Actions'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,items.map(s=>React.createElement('tr',{key:s.id,style:s.active===false?{opacity:0.5}:null},
           React.createElement('td',null,s.order||0),
-          React.createElement('td',{style:{fontWeight:700,color:'#1a2744'}},s.title),
+          React.createElement('td',{style:{fontWeight:700,color:'var(--navy)'}},s.title),
           React.createElement('td',null,s.sponsoredBy||'—'),
-          React.createElement('td',{style:{color:'#555'}},s.dedication||'—'),
+          React.createElement('td',{style:{color:'var(--text-muted)'}},s.dedication||'—'),
           React.createElement('td',null,React.createElement('button',{className:'btn btn-sm '+(s.active!==false?'btn-primary':'btn-outline'),onClick:()=>toggleActive(s)},s.active!==false?'On':'Off')),
           React.createElement('td',null,
-            React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:6},onClick:()=>edit(s)},'Edit'),
+            React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>edit(s)},'Edit'),
             React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))))))));
 }
 
