@@ -844,8 +844,10 @@ function HomePage({navigate}) {
                 }},'TODAY')),
               byDay[dow].map(s=>React.createElement('div',{key:s.id},
                 React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-base)'}},s.title),
-                React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-medium)',marginTop:2}},
-                  [s.time,s.rabbi,s.location].filter(Boolean).join(' • ')),
+                React.createElement('div',{className:'shiur-details'},
+                  s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),
+                  s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),
+                  s.location&&React.createElement('span',{className:'shiur-where',key:'l'},s.location)),
                 s.topic&&React.createElement('div',{style:{fontSize:'var(--fs-xs)',color:'var(--text-light)',fontStyle:'italic',marginTop:2}},s.topic))));
           })));
     })(),
@@ -1026,7 +1028,7 @@ function ShiurimPage() {
       React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
       React.createElement('div',{className:'shiur-info'},
         React.createElement('div',{className:'shiur-title'},s.title),
-        React.createElement('div',{className:'shiur-details'},[s.time,s.rabbi,s.topic].filter(Boolean).join(' • ')))))));
+        React.createElement('div',{className:'shiur-details'},s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),s.topic&&React.createElement('span',{className:'shiur-where',key:'p'},s.topic)))))));
 }
 
 // ─── Admin Login ─────────────────────────────────────────────────
@@ -2010,7 +2012,7 @@ function AdminShiurim() {
         React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
         React.createElement('div',{className:'shiur-info'},
           React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:6,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:8}},'One-time')),
-          React.createElement('div',{className:'shiur-details'},[s.time,s.rabbi,s.topic,s.location].filter(Boolean).join(' • '))),
+          React.createElement('div',{className:'shiur-details'},s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),[s.topic,s.location].filter(Boolean).map((x,i)=>React.createElement('span',{className:'shiur-where',key:'w'+i},x)))),
         React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEdit(s)},'Edit'),
         React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))));
 }
@@ -2160,14 +2162,14 @@ function DonateExternal() {
   return React.createElement('div',{style:{maxWidth:560,margin:'0 auto',padding:'32px 20px',textAlign:'center'}},
     React.createElement('h2',{style:{color:'var(--navy)',marginBottom:12}},'Donate'),
     React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:28,fontSize:'var(--fs-base)',lineHeight:1.5}},'Support Congregation Ohr Chaim. Donations are processed securely on our website.'),
-    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#donate')},'Donate on our website →'));
+    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#donate')},'Donate on our website'));
 }
 function PayBillExternal() {
   const token=(window.location.hash.split('token=')[1]||'').split('&')[0];
   return React.createElement('div',{style:{maxWidth:560,margin:'0 auto',padding:'32px 20px',textAlign:'center'}},
     React.createElement('h2',{style:{color:'var(--navy)',marginBottom:12}},'Pay Your Bill'),
     React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:28,fontSize:'var(--fs-base)',lineHeight:1.5}},'Your payment is processed securely on our website.'),
-    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#pay?token='+token)},'Continue on our website →'));
+    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#pay?token='+token)},'Continue on our website'));
 }
 
 // ─── Sponsorship Page ────────────────────────────────────────────
@@ -2412,7 +2414,7 @@ function AccountPage() {
       bills.map(b=>React.createElement('div',{key:b.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 14px',border:'1px solid #e0dcd4',borderRadius:8,marginBottom:8,background:'var(--bg)',flexWrap:'wrap',gap:8}},
         React.createElement('div',{style:{flex:1,minWidth:200}},
           React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-lg)'}},'$'+parseFloat(b.amount).toFixed(2),' — ',b.reason||'Pledge'),
-          (b.dueDate||b.notes)&&React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginTop:3}},[b.dueDate&&'Due '+b.dueDate,b.notes].filter(Boolean).join(' • '))),
+          (b.dueDate||b.notes)&&React.createElement('div',{className:'shiur-details',style:{fontSize:'var(--fs-sm)',marginTop:3}},b.dueDate&&React.createElement('span',{className:'shiur-time',key:'d'},'Due '+b.dueDate),b.notes&&React.createElement('span',{className:'shiur-where',key:'n'},b.notes))),
         React.createElement('a',{href:'#pay?token='+b.payToken,className:'btn btn-primary btn-sm'},'Pay'))),
     ),
     React.createElement('div',{className:'card',style:{marginTop:16}},
