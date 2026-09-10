@@ -181,6 +181,70 @@ async function apiFetch(path, options={}) {
   return res.json();
 }
 
+// ─── User-facing failure messages ────────────────────────────────
+// Raw exception text ("Failed to fetch", "Unexpected token < in JSON") means
+// nothing to a congregant. Turn it into a plain sentence that says what
+// happened and what to do. Messages our own API sends are already written for
+// people, so those pass through untouched.
+const ERR_MARK = '⚠️ ';   // ⚠️ — also how the UI knows to style it as an error
+function friendlyError(err, action){
+  const raw = String((err && err.message) || err || '').trim();
+  const say = s => ERR_MARK + s;
+  if(/failed to fetch|networkerror|network request failed|load failed|err_internet/i.test(raw))
+    return say('Could not reach the server. Check your internet connection and try again.');
+  if(/timeout|timed out|deadline/i.test(raw))
+    return say('The server took too long to respond. Please try again in a moment.');
+  if(/\b401\b|unauthenticated|not signed in|token expired|auth\/.*expired/i.test(raw))
+    return say('Your sign-in expired. Please sign in again, then retry.');
+  if(/\b403\b|forbidden|permission|not authorized|not an admin/i.test(raw))
+    return say('You do not have permission to do that. Contact the office if you think this is a mistake.');
+  if(/\b404\b|not found/i.test(raw))
+    return say('That item no longer exists — it may have been deleted. Refresh the page and try again.');
+  if(/\b5\d\d\b|internal server|service unavailable/i.test(raw))
+    return say('The server had a problem saving that. Nothing was changed. Please try again.');
+  if(/unexpected token|json|syntaxerror|undefined is not|cannot read/i.test(raw))
+    return say((action ? 'We could not ' + action + '. ' : 'That did not go through. ') +
+               'Please try again, or contact the office at office@ohrchaim.org.');
+  // Anything our API wrote itself is already a real sentence — show it as-is.
+  if(raw && raw.length <= 200) return say(raw);
+  return say((action ? 'We could not ' + action + '. ' : 'That did not go through. ') +
+             'Please try again, or contact the office at office@ohrchaim.org.');
+}
+// True for anything that should render in the red banner.
+function isErrorMsg(m){
+  if(typeof m !== 'string' || !m) return false;
+  return m.startsWith(ERR_MARK) || /(^|\s)Error\b/.test(m) || /\brequired\b|\bplease (choose|enter|select)\b/i.test(m);
+}
+
+// ─── Loading skeletons ───────────────────────────────────────────
+// Placeholders shaped like the content that's coming, so the page keeps its
+// silhouette while loading instead of collapsing to a spinner in blank space.
+function skBar(w,h){return React.createElement('div',{className:'skeleton sk-line',style:{width:w,height:h||undefined}});}
+function SkRows(n,label){
+  return React.createElement('div',{role:'status','aria-label':label||'Loading'},
+    Array.from({length:n||5},(_,i)=>React.createElement('div',{className:'sk-row',key:i},
+      skBar((36+(i%3)*12)+'%'), skBar('20%'))));
+}
+function SkCards(n,rows,label){
+  return React.createElement('div',{className:'schedule-grid',role:'status','aria-label':label||'Loading'},
+    Array.from({length:n||6},(_,i)=>React.createElement('div',{className:'card',key:i},
+      skBar('55%','1.15em'),
+      React.createElement('div',{style:{marginTop:'var(--sp-3)'}},SkRows(rows||4)))));
+}
+function SkForm(n,label){
+  return React.createElement('div',{className:'sk-stack',role:'status','aria-label':label||'Loading'},
+    skBar('45%','1.2em'),
+    Array.from({length:n||4},(_,i)=>React.createElement('div',{key:i,className:'sk-stack',style:{marginTop:'var(--sp-3)'}},
+      skBar('30%'), skBar('100%','2.2em'))));
+}
+function SkCalendar(){
+  return React.createElement('div',{className:'calendar-grid',role:'status','aria-label':'Loading calendar'},
+    Array.from({length:7},(_,i)=>React.createElement('div',{className:'calendar-day-header',key:'h'+i},skBar('60%','0.8em'))),
+    Array.from({length:35},(_,i)=>React.createElement('div',{className:'calendar-day',key:i},
+      skBar('30%','1em'),
+      React.createElement('div',{style:{marginTop:'var(--sp-2)'}},skBar('75%','0.7em')))));
+}
+
 // Stale-while-revalidate cache for read-only endpoints. Returns the last cached
 // payload synchronously (if any) via onCached, then calls onFresh with the new
 // payload when the network fetch completes. Used to make repeat visits instant.
@@ -688,7 +752,7 @@ function HomePage({navigate}) {
       React.createElement('div',null,
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},"Today's davening"),
-          loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
+          loading?SkRows(3,'Loading today\u2019s shiurim'):
           schedule?React.createElement('div',null,
             schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},String(h).replace(/\s+5\d{3}$/,'')))),
             schedule.holidaySchedule?holidayScheduleRows(schedule.holidaySchedule):[
@@ -811,7 +875,7 @@ function SchedulePage({navigate}) {
         React.createElement('button',{onClick:()=>shift(-7)},'◀'),
         React.createElement('span',{className:'calendar-month-label'},'Week of '+formatDisplayDate(startDate).split(',').slice(1).join(',')),
         React.createElement('button',{onClick:()=>shift(7)},'▶')),
-      loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading schedule...'):
+      loading?SkCards(7,4,'Loading the week\u2019s schedule'):
       week?React.createElement('div',{className:'schedule-grid'},
         week.map(day=>{const d=new Date(day.date+'T12:00:00');const dn=DAY_NAMES[d.getDay()];
           return React.createElement('div',{className:'day-card',key:day.date},
@@ -866,7 +930,7 @@ function CalendarPage() {
       React.createElement('button',{onClick:prev},'◀'),
       React.createElement('span',{className:'calendar-month-label'},MONTH_NAMES[month-1]+' '+year),
       React.createElement('button',{onClick:next},'▶')),
-    loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
+    loading?SkCalendar():
     React.createElement('div',{className:'calendar-grid'},
       ['Sun','Mon','Tue','Wed','Thu','Fri','Shab'].map(d=>React.createElement('div',{className:'calendar-day-header',key:d},d)),
       Array.from({length:firstDay},(_,i)=>React.createElement('div',{className:'calendar-day empty',key:'e'+i})),
@@ -886,7 +950,7 @@ function CalendarPage() {
 function ZmanimPage() {
   const [data,setData]=useState(null);const [loading,setLoading]=useState(true);const [dateStr,setDateStr]=useState(getTodayStr());
   useEffect(()=>{let cancelled=false;setLoading(true);apiFetch('/api/zmanim/'+dateStr).then(d=>{if(cancelled)return;setData(d);setLoading(false);}).catch(()=>{if(!cancelled)setLoading(false);});return ()=>{cancelled=true;};},[dateStr]);
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(loading) return React.createElement('div',{className:'card'},SkRows(10,'Loading zmanim'));
   if(!data) return React.createElement('p',null,'Unable to load.');
   const z=data.zmanim;
   const col1=[['Alot HaShachar',z.alotHaShachar],['Misheyakir',z.misheyakir],['Sunrise (HaNetz)',z.sunrise],['Sof Zman Shma (MGA)',z.sofZmanShmaMGA],['Sof Zman Shma (GRA)',z.sofZmanShma],['Sof Zman Tfilla (MGA)',z.sofZmanTfillaMGA],['Sof Zman Tfilla (GRA)',z.sofZmanTfilla]].filter(([_,v])=>v);
@@ -918,12 +982,22 @@ function ZmanimPage() {
 
 // ─── Shiurim ─────────────────────────────────────────────────────
 function ShiurimPage() {
-  const [shiurim,setShiurim]=useState([]);const [loading,setLoading]=useState(true);
-  useEffect(()=>{apiFetch('/api/shiurim').then(d=>{setShiurim(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  const [shiurim,setShiurim]=useState([]);const [loading,setLoading]=useState(true);const [loadErr,setLoadErr]=useState('');
+  // A failed request used to be swallowed, so a network error looked exactly
+  // like "no shiurim". Keep the two apart.
+  function load(){setLoading(true);setLoadErr('');
+    apiFetch('/api/shiurim').then(d=>{setShiurim(d);setLoading(false);})
+      .catch(e=>{setLoadErr(friendlyError(e,'load the shiurim'));setLoading(false);});}
+  useEffect(()=>{load();},[]);
+  if(loading) return SkCards(4,3,'Loading shiurim');
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)'}},
+    React.createElement('p',{className:'message message-error'},loadErr),
+    React.createElement('button',{className:'btn btn-outline',onClick:load},'Try again'));
   return React.createElement('div',null,React.createElement('div',{className:'card'},
     React.createElement('div',{className:'card-header'},'Weekly Shiurim'),
-    shiurim.length===0?React.createElement('p',{style:{color:'var(--text-subtle)'}},'No shiurim currently scheduled.'):
+    shiurim.length===0?React.createElement('div',{style:{textAlign:'center',padding:'var(--sp-6) var(--sp-4)'}},
+      React.createElement('p',{style:{color:'var(--text-muted)',margin:0}},'The week’s shiurim will be listed here as they’re scheduled.'),
+      React.createElement('button',{className:'btn btn-outline',style:{marginTop:'var(--sp-4)'},onClick:()=>{window.location.hash='schedule';}},'See this week’s schedule')):
     shiurim.map(s=>React.createElement('div',{className:'shiur-card',key:s.id},
       React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
       React.createElement('div',{className:'shiur-info'},
@@ -935,7 +1009,7 @@ function ShiurimPage() {
 function AdminLogin({onLogin,notAdmin}) {
   const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [error,setError]=useState('');const [loading,setLoading]=useState(false);
   async function handle(e){e.preventDefault();setError('');setLoading(true);
-    try{await firebase.auth().signInWithEmailAndPassword(email,password);onLogin();}catch(err){setError(err.message);}setLoading(false);}
+    try{await firebase.auth().signInWithEmailAndPassword(email,password);onLogin();}catch(err){setError(friendlyError(err));}setLoading(false);}
   return React.createElement('div',{className:'auth-container'},
     React.createElement('div',{className:'auth-title'},'Admin Login'),
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
@@ -1035,7 +1109,7 @@ function AdminImages() {
       try{
         await apiFetch('/api/admin/site-images/'+encodeURIComponent(key),{method:'PUT',body:JSON.stringify({dataUrl:base64})});
         setMsg(slots.find(s=>s.key===key)?.label+' uploaded!');
-      }catch(err){setImages(prev);setMsg('Error saving: '+err.message);}
+      }catch(err){setImages(prev);setMsg(friendlyError(err,'save that'));}
     };
     reader.readAsDataURL(file);
     e.target.value='';
@@ -1050,12 +1124,12 @@ function AdminImages() {
     try{
       await apiFetch('/api/admin/site-images/'+encodeURIComponent(key),{method:'DELETE'});
       setMsg('Image removed.');
-    }catch(err){setImages(prev);setMsg('Error: '+err.message);}
+    }catch(err){setImages(prev);setMsg(friendlyError(err));}
   }
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Site Images'),
       React.createElement('p',{style:{color:'#555',marginBottom:16}},'Upload images for different sections of the website. Accepted formats: PNG, JPG. Max 5MB each.')),
@@ -1107,7 +1181,7 @@ function AdminSlideshow() {
         await apiFetch('/api/admin/slides',{method:'POST',body:JSON.stringify({kind:'image',dataUrl:reader.result})});
         setMsg('Slide added.');
         await load();
-      }catch(err){setMsg('Error: '+err.message);}
+      }catch(err){setMsg(friendlyError(err));}
       setBusy(false);
     };
     reader.readAsDataURL(file);
@@ -1123,7 +1197,7 @@ function AdminSlideshow() {
       setMsg('Announcement slide added.');
       setTextForm({title:'',body:'',bgColor:'#1a2744'});
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setBusy(false);
   }
 
@@ -1134,7 +1208,7 @@ function AdminSlideshow() {
       await apiFetch('/api/admin/slides/'+encodeURIComponent(id),{method:'DELETE'});
       setMsg('Slide removed.');
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setBusy(false);
   }
 
@@ -1142,7 +1216,7 @@ function AdminSlideshow() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},`Homepage Slideshow (${slides.length}/${MAX_SLIDES})`),
       React.createElement('p',{style:{color:'#555',marginBottom:12}},'Slides rotate on the homepage every 5 seconds. Mix photos and text announcements (mazel tovs, shiva notices, events). Max '+MAX_SLIDES+' slides total.'),
-      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('Maximum')||msg.includes('too large')||msg.includes('required')?'message-error':'message-success')},msg),
+      msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)||msg.includes('Maximum')||msg.includes('too large')||msg.includes('required')?'message-error':'message-success')},msg),
       loading?React.createElement('p',{style:{color:'#888'}},'Loading...'):React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12,marginBottom:12}},
         slides.map(s=>React.createElement('div',{key:s.id,style:{position:'relative'}},
           s.kind==='text'
@@ -1176,7 +1250,7 @@ function ContactPage() {
     try{
       await apiFetch('/api/contact',{method:'POST',body:JSON.stringify(form)});
       setDone(true);
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
   if(done) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
@@ -1319,7 +1393,7 @@ function AdminMemberTags() {
   const [form,setForm]=useState({name:'',annualDues:'',color:'#c49a3c',description:''});
   const [loading,setLoading]=useState(true);
   const [editingId,setEditingId]=useState(null);
-  async function load(){setLoading(true);try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){setMsg('Error: '+e.message);}setLoading(false);}
+  async function load(){setLoading(true);try{setTags(await apiFetch('/api/admin/member-tags'));}catch(e){setMsg(friendlyError(e));}setLoading(false);}
   useEffect(()=>{load();},[]);
   async function save(e){
     e.preventDefault();setMsg('');
@@ -1337,12 +1411,12 @@ function AdminMemberTags() {
       setForm({name:'',annualDues:'',color:'#c49a3c',description:''});
       setEditingId(null);
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   function edit(t){setEditingId(t.id);setForm({name:t.name||'',annualDues:String(t.annualDues||0),color:t.color||'#c49a3c',description:t.description||''});}
   async function del(id){
     if(!confirm('Delete this tag? Any members currently tagged with it will have their tag cleared.'))return;
-    try{const r=await apiFetch('/api/admin/member-tags/'+id,{method:'DELETE'});setMsg('Tag deleted. '+r.membersCleared+' member(s) cleared.');await load();}catch(e){setMsg('Error: '+e.message);}
+    try{const r=await apiFetch('/api/admin/member-tags/'+id,{method:'DELETE'});setMsg('Tag deleted. '+r.membersCleared+' member(s) cleared.');await load();}catch(e){setMsg(friendlyError(e));}
   }
   const closeEdit=()=>{setEditingId(null);setForm({name:'',annualDues:'',color:'#c49a3c',description:''});};
   const tagForm=React.createElement('form',{onSubmit:save},
@@ -1355,7 +1429,7 @@ function AdminMemberTags() {
       React.createElement('button',{className:'btn btn-primary',type:'submit'},editingId?'Save Changes':'Create Tag'),
       editingId&&React.createElement('button',{className:'btn btn-outline',type:'button',onClick:closeEdit},'Cancel')));
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('required')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     editingId&&React.createElement(Modal,{title:'Edit Member Tag',wide:true,onClose:closeEdit},tagForm),
     !editingId&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Create Member Tag'),
@@ -1411,7 +1485,7 @@ function AdminSeating() {
 
   async function load(){
     setLoading(true);
-    try{ setData(await apiFetch('/api/admin/seating/chart')); setMsg(''); }catch(e){ setMsg('Error: '+e.message); }
+    try{ setData(await apiFetch('/api/admin/seating/chart')); setMsg(''); }catch(e){ setMsg(friendlyError(e)); }
     setLoading(false);
   }
   useEffect(()=>{load();},[]);
@@ -1437,7 +1511,7 @@ function AdminSeating() {
       setSelected(null);
       await load();
       setMsg('Seat '+selected.number+' assigned.');
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
   }
 
   async function clearSeat(){
@@ -1448,7 +1522,7 @@ function AdminSeating() {
       setSelected(null);
       await load();
       setMsg('Seat '+selected.number+' cleared.');
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
   }
 
   async function seedHolders(){
@@ -1458,7 +1532,7 @@ function AdminSeating() {
       const res=await apiFetch('/api/admin/seating/seed-holders',{method:'POST',body:JSON.stringify({})});
       setMsg('Seeded '+res.seeded+' seats ('+res.skipped+' skipped).');
       await load();
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
     setSeeding(false);
   }
 
@@ -1469,7 +1543,7 @@ function AdminSeating() {
       const res=await apiFetch('/api/admin/seating/clear-all',{method:'DELETE'});
       setMsg('Cleared '+res.cleared+' assignments.');
       await load();
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
   }
   // Open a print-ready view for a chosen section ('ladies' | 'mens' | 'both'),
   // each on its own A4 page. The browser's print dialog also offers "Save as PDF".
@@ -1566,7 +1640,7 @@ function AdminSeating() {
   Object.values(data.assignments||{}).forEach(a=>{if(a&&a.reservationId)assignedByRes[a.reservationId]=(assignedByRes[a.reservationId]||0)+1;});
 
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'Seating Chart ('+assignedCount+'/'+totalSeats+' assigned)'),
@@ -1652,7 +1726,7 @@ function AdminAutoEmails() {
   const [msg,setMsg]=useState('');
   const [saving,setSaving]=useState(false);
   const [loadErr,setLoadErr]=useState('');
-  function loadState(){setLoadErr('');apiFetch('/api/admin/auto-emails').then(setState).catch(err=>setLoadErr(err.message||'Failed to load'));}
+  function loadState(){setLoadErr('');apiFetch('/api/admin/auto-emails').then(setState).catch(err=>setLoadErr(friendlyError(err,'load these settings')));}
   useEffect(()=>{loadState();},[]);
   async function toggle(key){
     if(!state||saving)return;
@@ -1664,7 +1738,7 @@ function AdminAutoEmails() {
       setMsg(next[key]?'Enabled.':'Disabled.');
     }catch(err){
       setState(state);
-      setMsg('Error: '+err.message);
+      setMsg(friendlyError(err));
     }
     setSaving(false);
   }
@@ -1682,7 +1756,7 @@ function AdminAutoEmails() {
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Automatic Emails'),
       React.createElement('p',{style:{color:'#555',marginBottom:16}},'Toggle which emails fire automatically. Frequencies and amounts are configured under the Settings tab.'),
-      msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+      msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
       React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:12}},
         rows.map(r=>{
           const on=!!state[r.key];
@@ -1703,10 +1777,10 @@ function AdminAutoEmails() {
 // ─── Admin Rules Editor ──────────────────────────────────────────
 function AdminRulesEditor() {
   const [rules,setRules]=useState({});const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [msg,setMsg]=useState('');const [loadErr,setLoadErr]=useState('');
-  function loadRules(){setLoading(true);setLoadErr('');apiFetch('/api/admin/davening-rules').then(d=>{setRules(d);setLoading(false);}).catch(e=>{setLoadErr(e.message||'Failed to load');setLoading(false);});}
+  function loadRules(){setLoading(true);setLoadErr('');apiFetch('/api/admin/davening-rules').then(d=>{setRules(d);setLoading(false);}).catch(e=>{setLoadErr(friendlyError(e,'load these settings'));setLoading(false);});}
   useEffect(()=>{loadRules();},[]);
   function upd(k,v){setRules(p=>({...p,[k]:v}));}
-  async function save(){setSaving(true);setMsg('');try{await apiFetch('/api/admin/davening-rules',{method:'PUT',body:JSON.stringify(rules)});setMsg('Rules saved!');}catch(e){setMsg('Error: '+e.message);}setSaving(false);}
+  async function save(){setSaving(true);setMsg('');try{await apiFetch('/api/admin/davening-rules',{method:'PUT',body:JSON.stringify(rules)});setMsg('Rules saved!');}catch(e){setMsg(friendlyError(e));}setSaving(false);}
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
   // Never render the editor (with hardcoded defaults) on a load failure — saving
   // would overwrite the shul's real configured times with defaults.
@@ -1729,7 +1803,7 @@ function AdminRulesEditor() {
     {key:'motzeiShabbosMinsBefore',label:'Motzei Shabbos Maariv (mins before tzeis)',def:10,desc:'Minutes before tzeis hakochavim',type:'number'},
   ];
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'rules-grid'},fields.map(f=>React.createElement('div',{className:'rule-card',key:f.key},
       React.createElement('div',{className:'rule-card-title'},f.label),
       React.createElement('input',{type:f.type||'text',value:rules[f.key]!==undefined?rules[f.key]:f.def,onChange:e=>upd(f.key,f.type==='number'?parseInt(e.target.value)||0:e.target.value),placeholder:String(f.def)}),
@@ -1745,11 +1819,11 @@ function AdminOverrides() {
   const [overrides,setOverrides]=useState([]);const [loading,setLoading]=useState(true);const [msg,setMsg]=useState('');
   const [nd,setNd]=useState('');const [nt,setNt]=useState({shacharis:'',mincha:'',maariv:'',earlyMincha:'',minchaMaariv:''});const [nn,setNn]=useState('');
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setOverrides(await apiFetch('/api/admin/schedule-overrides'));setMsg('');}catch(e){setMsg('Error loading overrides: '+e.message);}setLoading(false);}
-  async function add(){if(!nd)return;setMsg('');try{const times={};Object.entries(nt).forEach(([k,v])=>{if(v)times[k]=v;});await apiFetch('/api/admin/schedule-override',{method:'POST',body:JSON.stringify({date:nd,times,note:nn})});setMsg('Override added!');setNd('');setNt({shacharis:'',mincha:'',maariv:'',earlyMincha:'',minchaMaariv:''});setNn('');load();}catch(e){setMsg('Error: '+e.message);}}
-  async function del(date){if(!confirm('Delete override for '+date+'?'))return;try{await apiFetch('/api/admin/schedule-override/'+date,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
+  async function load(){setLoading(true);try{setOverrides(await apiFetch('/api/admin/schedule-overrides'));setMsg('');}catch(e){setMsg(friendlyError(e,'load the overrides'));}setLoading(false);}
+  async function add(){if(!nd)return;setMsg('');try{const times={};Object.entries(nt).forEach(([k,v])=>{if(v)times[k]=v;});await apiFetch('/api/admin/schedule-override',{method:'POST',body:JSON.stringify({date:nd,times,note:nn})});setMsg('Override added!');setNd('');setNt({shacharis:'',mincha:'',maariv:'',earlyMincha:'',minchaMaariv:''});setNn('');load();}catch(e){setMsg(friendlyError(e));}}
+  async function del(date){if(!confirm('Delete override for '+date+'?'))return;try{await apiFetch('/api/admin/schedule-override/'+date,{method:'DELETE'});load();}catch(e){setMsg(friendlyError(e));}}
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Schedule Override'),
       React.createElement('p',{style:{marginBottom:16,color:'#888',fontSize:'0.9rem'}},'Override auto-calculated times for a specific date. Only fill in times you want to change.'),
@@ -1786,7 +1860,7 @@ function AdminHolidays(){
   const [previews,setPreviews]=useState({});
   const [busy,setBusy]=useState('');
   useEffect(()=>{load();},[]);
-  function load(){setLoading(true);setLoadErr('');apiFetch('/api/admin/holidays').then(d=>{setHolidays(d.holidays||[]);setSeeded(d.seeded!==false);setLoading(false);}).catch(e=>{setLoadErr(e.message||'Failed to load');setLoading(false);});}
+  function load(){setLoading(true);setLoadErr('');apiFetch('/api/admin/holidays').then(d=>{setHolidays(d.holidays||[]);setSeeded(d.seeded!==false);setLoading(false);}).catch(e=>{setLoadErr(friendlyError(e,'load these settings'));setLoading(false);});}
   function updateHoliday(key,updater){setHolidays(hs=>hs.map(h=>h.key===key?updater({...h}):h));}
   function setField(key,field,val){updateHoliday(key,h=>({...h,[field]:val}));}
   function updItem(key,si,ii,patch){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,items:s.items.map((it,j)=>j!==ii?it:{...it,...patch})})}));}
@@ -1795,11 +1869,11 @@ function AdminHolidays(){
   function setSecField(key,si,field,val){updateHoliday(key,h=>({...h,sections:h.sections.map((s,i)=>i!==si?s:{...s,[field]:val})}));}
   function addSection(key){updateHoliday(key,h=>({...h,sections:[...(h.sections||[]),{id:'sec'+Math.floor(Math.random()*1e6),label:'New day',match:[],items:[]}]}));}
   function rmSection(key,si){if(!confirm('Remove this day/section?'))return;updateHoliday(key,h=>({...h,sections:h.sections.filter((_,i)=>i!==si)}));}
-  async function seedAll(){setBusy('seed');setMsg('');try{const r=await apiFetch('/api/admin/holidays/seed',{method:'POST'});setMsg('Set up '+(r.created||0)+' holidays.');load();}catch(e){setMsg('Error: '+e.message);}setBusy('');}
-  async function saveHoliday(h){setBusy(h.key);setMsg('');try{await apiFetch('/api/admin/holidays/'+h.key,{method:'PUT',body:JSON.stringify({name:h.name,intro:h.intro,enabled:!!h.enabled,emailEnabled:!!h.emailEnabled,order:Number(h.order)||0,sections:(h.sections||[]).map(s=>({id:s.id,label:s.label,match:s.match,items:s.items}))})});setMsg('Saved “'+h.name+'”.');setSeeded(true);}catch(e){setMsg('Error: '+e.message);}setBusy('');}
-  async function previewHoliday(key){setBusy('prev'+key);setMsg('');try{const r=await apiFetch('/api/admin/holidays/'+key+'/preview');setPreviews(p=>({...p,[key]:r.occurrences||[]}));if(!(r.occurrences||[]).length)setMsg('No upcoming date found in the next ~13 months (check the calendar names).');}catch(e){setMsg('Error: '+e.message);}setBusy('');}
-  async function delHoliday(h){if(!confirm('Delete “'+h.name+'”? This removes its custom schedule.'))return;try{await apiFetch('/api/admin/holidays/'+h.key,{method:'DELETE'});setMsg('Deleted “'+h.name+'”.');load();}catch(e){setMsg('Error: '+e.message);}}
-  async function addHoliday(){const name=prompt('Holiday name (for example: Yom HaAtzmaut):');if(!name)return;const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);if(!key){setMsg('Please use a name with letters.');return;}try{await apiFetch('/api/admin/holidays',{method:'POST',body:JSON.stringify({key,name})});setMsg('Added “'+name+'”. Open it to add the calendar names + times.');await new Promise(r=>setTimeout(r,300));load();setOpenKey(key);}catch(e){setMsg('Error: '+e.message);}}
+  async function seedAll(){setBusy('seed');setMsg('');try{const r=await apiFetch('/api/admin/holidays/seed',{method:'POST'});setMsg('Set up '+(r.created||0)+' holidays.');load();}catch(e){setMsg(friendlyError(e));}setBusy('');}
+  async function saveHoliday(h){setBusy(h.key);setMsg('');try{await apiFetch('/api/admin/holidays/'+h.key,{method:'PUT',body:JSON.stringify({name:h.name,intro:h.intro,enabled:!!h.enabled,emailEnabled:!!h.emailEnabled,order:Number(h.order)||0,sections:(h.sections||[]).map(s=>({id:s.id,label:s.label,match:s.match,items:s.items}))})});setMsg('Saved “'+h.name+'”.');setSeeded(true);}catch(e){setMsg(friendlyError(e));}setBusy('');}
+  async function previewHoliday(key){setBusy('prev'+key);setMsg('');try{const r=await apiFetch('/api/admin/holidays/'+key+'/preview');setPreviews(p=>({...p,[key]:r.occurrences||[]}));if(!(r.occurrences||[]).length)setMsg('No upcoming date found in the next ~13 months (check the calendar names).');}catch(e){setMsg(friendlyError(e));}setBusy('');}
+  async function delHoliday(h){if(!confirm('Delete “'+h.name+'”? This removes its custom schedule.'))return;try{await apiFetch('/api/admin/holidays/'+h.key,{method:'DELETE'});setMsg('Deleted “'+h.name+'”.');load();}catch(e){setMsg(friendlyError(e));}}
+  async function addHoliday(){const name=prompt('Holiday name (for example: Yom HaAtzmaut):');if(!name)return;const key=name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);if(!key){setMsg('Please use a name with letters.');return;}try{await apiFetch('/api/admin/holidays',{method:'POST',body:JSON.stringify({key,name})});setMsg('Added “'+name+'”. Open it to add the calendar names + times.');await new Promise(r=>setTimeout(r,300));load();setOpenKey(key);}catch(e){setMsg(friendlyError(e));}}
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading holidays...');
   if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:24}},React.createElement('p',{className:'message message-error'},'Could not load holidays: '+loadErr),React.createElement('button',{className:'btn btn-outline',onClick:load},'Retry'));
@@ -1846,7 +1920,7 @@ function AdminHolidays(){
   }
 
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}},
         React.createElement('div',null,
@@ -1873,15 +1947,15 @@ function AdminShiurim() {
   useEffect(()=>{load();},[]);
   // cache:no-store so the admin always sees the just-added shiur instead of
   // the 5-minute Cache-Control: public response served to the homepage.
-  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));setMsg('');}catch(e){setMsg('Error loading shiurim: '+e.message);}setLoading(false);}
+  async function load(){setLoading(true);try{setShiurim(await apiFetch('/api/shiurim',{cache:'no-store'}));setMsg('');}catch(e){setMsg(friendlyError(e,'load the shiurim'));}setLoading(false);}
   function resetForm(){setForm({title:'',rabbi:'',time:'',dayOfWeek:0,topic:'',recurring:true,location:''});setEditingId(null);}
   async function save(){if(!form.title)return;try{
     if(editingId){await apiFetch('/api/admin/shiurim/'+editingId,{method:'PUT',body:JSON.stringify(form)});setMsg('Shiur updated!');}
     else{await apiFetch('/api/admin/shiurim',{method:'POST',body:JSON.stringify(form)});setMsg('Shiur added!');}
     resetForm();load();
-  }catch(e){setMsg('Error: '+e.message);}}
+  }catch(e){setMsg(friendlyError(e));}}
   function startEdit(s){setEditingId(s.id);setForm({title:s.title||'',rabbi:s.rabbi||'',time:s.time||'',dayOfWeek:Number(s.dayOfWeek)||0,topic:s.topic||'',recurring:s.recurring!==false,location:s.location||''});window.scrollTo({top:0,behavior:'smooth'});}
-  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});if(editingId===id)resetForm();load();}catch(e){setMsg('Error: '+e.message);}}
+  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/shiurim/'+id,{method:'DELETE'});if(editingId===id)resetForm();load();}catch(e){setMsg(friendlyError(e));}}
   const shiurForm=React.createElement('div',null,
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))',gap:12}},
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Title *'),React.createElement('input',{className:'form-input',value:form.title,onChange:e=>setForm(p=>({...p,title:e.target.value}))})),
@@ -1899,7 +1973,7 @@ function AdminShiurim() {
         React.createElement('button',{className:'btn btn-primary',onClick:save},editingId?'Save Changes':'Add Shiur'),
         editingId&&React.createElement('button',{className:'btn btn-outline',onClick:resetForm},'Cancel')));
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     editingId&&React.createElement(Modal,{title:'Edit Shiur',wide:true,onClose:resetForm},shiurForm),
     !editingId&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Shiur'),
@@ -1921,11 +1995,11 @@ function AdminShiurim() {
 function AdminAccounts() {
   const [admins,setAdmins]=useState([]);const [loading,setLoading]=useState(true);const [email,setEmail]=useState('');const [msg,setMsg]=useState('');
   useEffect(()=>{load();},[]);
-  async function load(){setLoading(true);try{setAdmins(await apiFetch('/api/admin/users'));setMsg('');}catch(e){setMsg('Error loading admins: '+e.message);}setLoading(false);}
-  async function add(){if(!email)return;setMsg('');try{await apiFetch('/api/admin/make-admin',{method:'POST',body:JSON.stringify({email})});setMsg('Admin added!');setEmail('');load();}catch(e){setMsg('Error: '+e.message);}}
-  async function remove(uid){if(!confirm('Remove admin?'))return;try{await apiFetch('/api/admin/remove-admin',{method:'POST',body:JSON.stringify({uid})});load();}catch(e){setMsg('Error: '+e.message);}}
+  async function load(){setLoading(true);try{setAdmins(await apiFetch('/api/admin/users'));setMsg('');}catch(e){setMsg(friendlyError(e,'load the admins'));}setLoading(false);}
+  async function add(){if(!email)return;setMsg('');try{await apiFetch('/api/admin/make-admin',{method:'POST',body:JSON.stringify({email})});setMsg('Admin added!');setEmail('');load();}catch(e){setMsg(friendlyError(e));}}
+  async function remove(uid){if(!confirm('Remove admin?'))return;try{await apiFetch('/api/admin/remove-admin',{method:'POST',body:JSON.stringify({uid})});load();}catch(e){setMsg(friendlyError(e));}}
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Admin'),
       React.createElement('p',{style:{marginBottom:12,color:'#888',fontSize:'0.9rem'}},'Enter email of an existing user to grant admin access.'),
@@ -2004,7 +2078,7 @@ function DonatePage() {
             }
           }
         });
-        if(result.error){setMsg(result.error.message||'Payment failed. Please check your card details.');setLoading(false);return;}
+        if(result.error){setMsg(ERR_MARK+(result.error.message||'Payment failed. Please check your card details.'));setLoading(false);return;}
         if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setLoading(false);return;}
         paidPiId=result.paymentIntent.id;
         paidPiRef.current=paidPiId; // remember so a confirm retry never re-charges
@@ -2078,16 +2152,24 @@ function SponsorshipPage() {
   const [selectedDate,setSelectedDate]=useState('');const [selectedType,setSelectedType]=useState('kiddush');
   const [form,setForm]=useState({firstName:'',lastName:'',email:'',phone:'',dedication:''});
   const [booking,setBooking]=useState(false);const [msg,setMsg]=useState('');const [done,setDone]=useState(false);
-  useEffect(()=>{apiFetch('/api/sponsorships').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  const [loadErr,setLoadErr]=useState('');
+  // A failed load must not look like "nothing is available".
+  function loadSponsorships(){setLoading(true);setLoadErr('');
+    apiFetch('/api/sponsorships').then(d=>{setData(d);setLoading(false);})
+      .catch(e=>{setLoadErr(friendlyError(e,'load the sponsorship dates'));setLoading(false);});}
+  useEffect(()=>{loadSponsorships();},[]);
   function upd(k,v){setForm(p=>({...p,[k]:v}));}
   async function handleBook(e){
     e.preventDefault();
     if(!selectedDate||!form.firstName||!form.lastName||!form.email){setMsg('Please fill all required fields.');return;}
     setBooking(true);setMsg('');
-    try{await apiFetch('/api/sponsorships/book',{method:'POST',body:JSON.stringify({date:selectedDate,type:selectedType,...form})});setDone(true);}catch(err){setMsg(err.message);}
+    try{await apiFetch('/api/sponsorships/book',{method:'POST',body:JSON.stringify({date:selectedDate,type:selectedType,...form})});setDone(true);}catch(err){setMsg(friendlyError(err,'book that sponsorship'));}
     setBooking(false);
   }
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(loading) return SkCards(4,2,'Loading sponsorship dates');
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)'}},
+    React.createElement('p',{className:'message message-error'},loadErr),
+    React.createElement('button',{className:'btn btn-outline',onClick:loadSponsorships},'Try again'));
   if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'🎉'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Sponsorship Confirmed!'),
@@ -2168,7 +2250,7 @@ function AccountPage() {
     try{
       const res=await apiFetch('/api/membership/create-subscription-checkout',{method:'POST',body:JSON.stringify({interval,level:subLevel})});
       if(res.url) openExternal(res.url);
-    }catch(e){setMsg('Error: '+e.message);setSubBusy(false);}
+    }catch(e){setMsg(friendlyError(e));setSubBusy(false);}
   }
 
   async function addYahrzeit(e){
@@ -2180,7 +2262,7 @@ function AccountPage() {
       setYahrzeitForm({deceasedName:'',relationship:'',englishDeathDate:'',notes:''});
       setYahrzeits(await apiFetch('/api/yahrzeits'));
       setMsg('Yahrzeit added. A reminder email will go out 10 days before each year.');
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setYahrzeitBusy(false);
   }
   async function deleteYahrzeit(id){
@@ -2188,7 +2270,7 @@ function AccountPage() {
     try{
       await apiFetch('/api/yahrzeits/'+id,{method:'DELETE'});
       setYahrzeits(await apiFetch('/api/yahrzeits'));
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   async function cancelSubscription(){
@@ -2199,7 +2281,7 @@ function AccountPage() {
       setMsg('Automatic payment canceled. It will not renew.');
       const s=await apiFetch('/api/membership/subscription-status').catch(()=>({active:false}));
       setSubStatus(s);
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
     setSubBusy(false);
   }
 
@@ -2212,11 +2294,11 @@ function AccountPage() {
       await firebase.auth().signOut();
       alert('Your account has been permanently deleted.');
       window.location.hash='#home';
-    }catch(e){setMsg('Error: '+e.message);setDelBusy(false);}
+    }catch(e){setMsg(friendlyError(e));setDelBusy(false);}
   }
-  useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(err.message));}}},[]);
+  useEffect(()=>{const hash=window.location.hash;if(hash.includes('token=')){const token=hash.split('token=')[1]?.split('&')[0];if(token){setAuthMode('prefill');apiFetch('/api/auth/prefill/'+token).then(d=>{setRegForm(p=>({...p,firstName:d.firstName||'',lastName:d.lastName||'',email:d.email||'',phone:d.phone||'',address:d.address||'',spouseEmail:d.spouseEmail||''}));}).catch(err=>setError(friendlyError(err)));}}},[]);
 
-  async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(err.message);}}
+  async function handleLogin(e){e.preventDefault();setError('');try{await firebase.auth().signInWithEmailAndPassword(loginForm.email,loginForm.password);}catch(err){setError(friendlyError(err));}}
   async function handleGoogle(){setError('');
     try{
       const provider=new firebase.auth.GoogleAuthProvider();
@@ -2226,7 +2308,7 @@ function AccountPage() {
     }catch(err){
       if(err.code==='auth/account-exists-with-different-credential') setError('This email already has an account here. Please sign in with your email and password below.');
       else if(err.code==='auth/popup-closed-by-user'||err.code==='auth/cancelled-popup-request'){/* user dismissed */}
-      else setError(err.message||'Google sign-in failed.');
+      else setError(friendlyError(err,'sign you in with Google'));
     }
   }
   async function handleForgotPassword(){
@@ -2236,7 +2318,7 @@ function AccountPage() {
     try{
       await firebase.auth().sendPasswordResetEmail(email);
       setError('Password reset email sent to '+email+'. Check your inbox.');
-    }catch(err){setError(err.message);}
+    }catch(err){setError(friendlyError(err));}
   }
   async function handleRegister(e){e.preventDefault();setError('');
     if(!regForm.firstName||!regForm.lastName||!regForm.email||!regForm.password){setError('All required fields must be filled.');return;}
@@ -2244,10 +2326,10 @@ function AccountPage() {
       if(token){await apiFetch('/api/auth/claim-prefill',{method:'POST',body:JSON.stringify({token,password:regForm.password})});
       }else{await apiFetch('/api/auth/register',{method:'POST',body:JSON.stringify(regForm)});}
       await firebase.auth().signInWithEmailAndPassword(regForm.email,regForm.password);
-    }catch(err){setError(err.message);}}
-  async function saveProfile(){setMsg('');try{await apiFetch('/api/auth/profile',{method:'PUT',body:JSON.stringify(editForm)});setProfile(p=>({...p,...editForm}));setEditing(false);setMsg('Profile updated!');}catch(e){setMsg('Error: '+e.message);}}
+    }catch(err){setError(friendlyError(err));}}
+  async function saveProfile(){setMsg('');try{await apiFetch('/api/auth/profile',{method:'PUT',body:JSON.stringify(editForm)});setProfile(p=>({...p,...editForm}));setEditing(false);setMsg('Profile updated!');}catch(e){setMsg(friendlyError(e));}}
 
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(loading) return React.createElement('div',{className:'card'},SkForm(5,'Loading your account'));
   if(!user) return React.createElement('div',{className:'auth-container'},
     siteImages.loginLogo&&React.createElement('img',{src:siteImages.loginLogo,alt:'Congregation Ohr Chaim',className:'auth-logo'}),
     React.createElement('div',{className:'auth-title'},authMode==='prefill'?'Complete Your Account':'My Account'),
@@ -2277,7 +2359,7 @@ function AccountPage() {
       React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Create Account'),
       authMode!=='prefill'&&React.createElement('p',{style:{marginTop:16,textAlign:'center',color:'var(--text-subtle)'}},'Have an account? ',React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setAuthMode('login');},style:{color:'var(--gold)',fontWeight:600}},'Sign in'))));
   return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'My Profile'),
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
@@ -2387,7 +2469,7 @@ function AdminDonations() {
       setMsg('Payment recorded.'+billNote+tail);
       setMf({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:'',paymentMethod:'check',fiscalYear:'',date:'',pledgeId:''});
       load();loadBills();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setMfBusy(false);}
   async function importStripePayment(){
     const id=prompt('Paste the Stripe Payment ID (starts with "pi_") from the Stripe dashboard payment page:');
@@ -2402,7 +2484,7 @@ function AdminDonations() {
         setMsg('Already in the system: $'+(res.amount||0).toFixed(2)+' for '+(res.email||'(no email)')+'.'+yearNote+receiptNote);
       } else setMsg('Imported $'+res.amount+' for '+(res.email||'(no email)')+(res.receiptSent?'. Receipt sent.':'. No receipt sent.'));
       load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   async function uploadPayments(e){
@@ -2422,13 +2504,13 @@ function AdminDonations() {
         if(data.errors?.length) parts.push(data.errors.length+' errors');
         setMsg(parts.join(' • '));
         load();
-      } else setMsg('Error: '+(data.error||'upload failed'));
-    }catch(err){setMsg('Error: '+err.message);}
+      } else setMsg(friendlyError(data.error||'upload failed'));
+    }catch(err){setMsg(friendlyError(err));}
     setUploading(false);
     e.target.value='';
   }
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Record Manual Payment (Check / Cash / Zelle)'),
       React.createElement('p',{style:{marginBottom:12,color:'#555',fontSize:'0.9rem'}},'Email is optional. If you leave it blank, the receipt will be emailed to the office for printing and mailing.'),
@@ -2493,9 +2575,9 @@ function AdminDonations() {
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}},
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},'All Donations'),
         React.createElement('div',{style:{display:'flex',gap:6,alignItems:'center'}},
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg('Error: '+e.message);}}},'Match to Members'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg('Error: '+e.message);}}},'Remove Duplicates'),
-          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg('Error: '+e.message);}}},'Send '+year+' Tax Receipts'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{setMsg('Matching...');try{const r=await apiFetch('/api/admin/match-donations',{method:'POST'});setMsg('Matched '+r.matched+' donations to members ('+r.unmatched+' unmatched)');}catch(e){setMsg(friendlyError(e));}}},'Match to Members'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',title:'Find Stripe subscription invoices that produced multiple donation rows (legacy webhook bug) and remove the duplicates.',onClick:async()=>{if(!confirm('Scan stripe-subscription donations and delete duplicate rows that share the same Stripe invoice?\\n\\nThe oldest row (or the one whose receipt was already sent) is kept.'))return;setMsg('Removing duplicates...');try{const r=await apiFetch('/api/admin/dedupe-subscription-donations',{method:'POST'});setMsg('Removed '+r.removed+' duplicate row(s) across '+r.invoicesScanned+' invoice(s).');await load();}catch(e){setMsg(friendlyError(e));}}},'Remove Duplicates'),
+          React.createElement('button',{className:'btn btn-sm btn-outline',onClick:async()=>{if(!confirm('Send '+year+' tax receipts to all donors?'))return;setMsg('Sending...');try{const r=await apiFetch('/api/admin/send-all-tax-receipts',{method:'POST',body:JSON.stringify({year})});setMsg('Sent to '+r.sent+' donors');}catch(e){setMsg(friendlyError(e));}}},'Send '+year+' Tax Receipts'),
           React.createElement('select',{className:'form-input',style:{width:100},value:year,onChange:e=>setYear(parseInt(e.target.value))},[2024,2025,2026,2027,2028].map(y=>React.createElement('option',{key:y,value:y},y))))),
       loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'})):
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
@@ -2505,17 +2587,17 @@ function AdminDonations() {
           React.createElement('td',{style:{fontWeight:700}},'$'+(d.amount||0).toFixed(2)),React.createElement('td',null,d.reason||'-'),React.createElement('td',null,d.paymentMethod||'-'),
           React.createElement('td',null,d.fiscalYear||'-'),
           React.createElement('td',null,d.receiptSent?React.createElement('span',{style:{color:'#27ae60',fontSize:'0.8rem'}},'Sent'):
-            d.email?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg('Error: '+e.message);}}},'Send'):
+            d.email?React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{try{await apiFetch('/api/admin/send-receipt',{method:'POST',body:JSON.stringify({donationId:d.id})});setMsg('Receipt sent to '+d.email);load();}catch(e){setMsg(friendlyError(e));}}},'Send'):
             React.createElement('span',{style:{color:'#888',fontSize:'0.75rem'}},'No email')),
           React.createElement('td',null,
             React.createElement('button',{className:'btn btn-sm btn-outline',style:{padding:'3px 8px',fontSize:'0.7rem',marginRight:4},onClick:async()=>{
               const ny=prompt('Reassign to fiscal year:',String(d.fiscalYear||year));
               if(!ny)return;
-              try{await apiFetch('/api/admin/donations/'+d.id,{method:'PUT',body:JSON.stringify({fiscalYear:parseInt(ny)})});setMsg('Year updated.');load();}catch(e){setMsg('Error: '+e.message);}
+              try{await apiFetch('/api/admin/donations/'+d.id,{method:'PUT',body:JSON.stringify({fiscalYear:parseInt(ny)})});setMsg('Year updated.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Edit Year'),
             React.createElement('button',{className:'btn btn-sm btn-danger',style:{padding:'3px 8px',fontSize:'0.7rem'},onClick:async()=>{
               if(!confirm('Delete this donation record? The Stripe charge is NOT refunded.'))return;
-              try{await apiFetch('/api/admin/donations/'+d.id,{method:'DELETE'});setMsg('Donation deleted.');load();}catch(e){setMsg('Error: '+e.message);}
+              try{await apiFetch('/api/admin/donations/'+d.id,{method:'DELETE'});setMsg('Donation deleted.');load();}catch(e){setMsg(friendlyError(e));}
             }},'Delete')))))))));
 }
 
@@ -2559,7 +2641,7 @@ function AdminMembers() {
       setMsg((payModal.displayName||'Member')+' membership marked paid ('+method+(r.amount?(' · $'+Number(r.amount).toFixed(2)):'')+')'+(r.spouseUpdated?' — spouse resolved too':'')+'.');
       setPayModal(null);
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setPayBusy(false);
   }
   function toggleSel(uid){setSelected(p=>{const n={...p};if(n[uid])delete n[uid];else n[uid]=true;return n;});}
@@ -2574,13 +2656,13 @@ function AdminMembers() {
       setMsg(label+' applied to '+selectedUids.length+' member(s).');
       clearSel();
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function setMemberTag(uid,tagId){
     try{
       await apiFetch('/api/admin/members/'+uid,{method:'PUT',body:JSON.stringify({tagId:tagId||null})});
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function toggleExempt(m){
     const next=!m.exemptFromDues;
@@ -2588,7 +2670,7 @@ function AdminMembers() {
       await apiFetch('/api/admin/members/'+m.uid,{method:'PUT',body:JSON.stringify({exemptFromDues:next})});
       setMsg(m.displayName+' marked '+(next?'exempt from dues':'not exempt')+'.');
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function editMember(m){
     const newEmail=prompt('Edit email for '+(m.displayName||m.uid)+'.\n\nChanging the email will update Firebase Auth and send a "set password" link to the NEW address. Leave blank to keep current.', m.email||'');
@@ -2600,7 +2682,7 @@ function AdminMembers() {
       const r=await apiFetch('/api/admin/members/'+m.uid,{method:'PUT',body:JSON.stringify({email:trimmed})});
       setMsg('Email updated.'+(r.passwordResetSent?' Password-set link sent to '+trimmed+'.':r.passwordResetError?' Could not send link: '+r.passwordResetError:''));
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function resetPassword(m){
     const label=m.displayName||m.email||m.uid;
@@ -2610,7 +2692,7 @@ function AdminMembers() {
     try{
       const r=await apiFetch('/api/admin/members/'+m.uid+'/reset-password',{method:'POST'});
       setMsg('Password-reset link sent to '+(r.email||m.email)+'.');
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function deleteOne(m){
     const label=m.displayName||m.email||m.uid;
@@ -2623,7 +2705,7 @@ function AdminMembers() {
       const result=(r.results||[])[0]||{};
       setMsg('Deleted '+label+': '+(result.usersDeleted||0)+' user, '+(result.authDeleted||0)+' login, '+(result.prefilledDeleted||0)+' pending invite.');
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function purgeDeadEmails(){
     const raw=prompt('Paste emails to permanently delete (one per line, or comma-separated). For each email we delete the member profile, Firebase Auth login, and pending invites. Donation history is preserved.');
@@ -2637,7 +2719,7 @@ function AdminMembers() {
       const totals=(r.results||[]).reduce((acc,x)=>({u:acc.u+(x.usersDeleted||0),a:acc.a+(x.authDeleted||0),p:acc.p+(x.prefilledDeleted||0),e:acc.e+(x.errors||[]).length}),{u:0,a:0,p:0,e:0});
       setMsg('Purged '+emails.length+' email'+(emails.length===1?'':'s')+': '+totals.u+' user docs, '+totals.a+' logins, '+totals.p+' invites'+(totals.e?' ('+totals.e+' errors — check server logs)':'')+'.');
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
   async function addSingleMember(e){
     e.preventDefault();setMsg('');
@@ -2659,16 +2741,16 @@ function AdminMembers() {
       setMsg(parts.join(' '));
       setAddForm({firstName:'',lastName:'',email:'',phone:'',address:'',spouseEmail:'',sendInvite:true});
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setAddBusy(false);
   }
   async function handleUpload(e){const file=e.target.files[0];if(!file)return;setUploading(true);setMsg('');
     const fd=new FormData();fd.append('file',file);
     try{const token=await firebase.auth().currentUser?.getIdToken();const res=await fetch(BACKEND_URL+'/api/admin/upload-roster',{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});const data=await res.json();
-      if(res.ok){setMsg('Created '+data.created+' pre-filled accounts.'+(data.errors?.length?' Errors: '+data.errors.join('; '):''));load();}else setMsg('Error: '+(data.error||'failed'));
-    }catch(err){setMsg('Error: '+err.message);}setUploading(false);e.target.value='';}
+      if(res.ok){setMsg('Created '+data.created+' pre-filled accounts.'+(data.errors?.length?' Errors: '+data.errors.join('; '):''));load();}else setMsg(friendlyError(data.error||'failed'));
+    }catch(err){setMsg(friendlyError(err));}setUploading(false);e.target.value='';}
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     payModal&&React.createElement('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000},onClick:()=>{if(!payBusy)setPayModal(null);}},
       React.createElement('div',{style:{background:'#fff',borderRadius:10,padding:20,width:'90%',maxWidth:420,boxShadow:'0 10px 40px rgba(0,0,0,0.2)'},onClick:e=>e.stopPropagation()},
         React.createElement('h3',{style:{margin:'0 0 4px',color:'#1a2744'}},'Mark Membership Paid'),
@@ -2723,7 +2805,7 @@ function AdminMembers() {
               const r=await apiFetch('/api/admin/prefilled-accounts/unclaimed',{method:'DELETE'});
               setMsg('Cleared '+r.deleted+' unclaimed invite'+(r.deleted===1?'':'s')+'. '+r.kept+' claimed account'+(r.kept===1?'':'s')+' kept.');
               load();
-            }catch(e){setMsg('Error: '+e.message);}
+            }catch(e){setMsg(friendlyError(e));}
           }},'🗑 Clear Unclaimed'),
           React.createElement('button',{className:'btn btn-sm btn-primary',onClick:async()=>{
             const pending=prefilled.filter(a=>!a.claimed&&a.email);
@@ -2734,7 +2816,7 @@ function AdminMembers() {
               const siteUrl=SITE_URL+'/';
               const res=await apiFetch('/api/admin/send-signup-invites',{method:'POST',body:JSON.stringify({accounts:pending.map(a=>({email:a.email,firstName:a.firstName,lastName:a.lastName,token:a.token})),siteUrl})});
               setMsg('Sent '+res.sent+' invite emails'+(res.failed?' ('+res.failed+' failed)':''));
-            }catch(e){setMsg('Error: '+e.message);}
+            }catch(e){setMsg(friendlyError(e));}
           }},'Send All Invites ('+prefilled.filter(a=>!a.claimed).length+')'))),
       React.createElement('div',{className:'table-container',style:{marginTop:12}},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Name','Email','Status','Link'].map(h=>React.createElement('th',{key:h},h)))),
@@ -2811,24 +2893,24 @@ function AdminSettings() {
   },[]);
 
   async function saveReminders(){setMsg('');
-    try{await apiFetch('/api/admin/reminder-settings',{method:'PUT',body:JSON.stringify(reminderSettings)});setMsg('Reminder settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+    try{await apiFetch('/api/admin/reminder-settings',{method:'PUT',body:JSON.stringify(reminderSettings)});setMsg('Reminder settings saved!');}catch(e){setMsg(friendlyError(e));}}
   async function saveSponsor(){setMsg('');
-    try{await apiFetch('/api/admin/sponsorship-settings',{method:'PUT',body:JSON.stringify(sponsorSettings)});setMsg('Sponsorship pricing saved!');}catch(e){setMsg('Error: '+e.message);}}
+    try{await apiFetch('/api/admin/sponsorship-settings',{method:'PUT',body:JSON.stringify(sponsorSettings)});setMsg('Sponsorship pricing saved!');}catch(e){setMsg(friendlyError(e));}}
   async function saveMembership(){setMsg('');
-    try{await apiFetch('/api/admin/membership-settings',{method:'PUT',body:JSON.stringify(membershipSettings)});setMsg('Membership settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+    try{await apiFetch('/api/admin/membership-settings',{method:'PUT',body:JSON.stringify(membershipSettings)});setMsg('Membership settings saved!');}catch(e){setMsg(friendlyError(e));}}
   async function resetMembershipYear(){
     if(!confirm('Start a NEW membership year now?\n\nThis marks EVERY member (except those flagged exempt) as unpaid, so a fresh year of invoices can go out. Members currently on auto-pay keep their subscription.\n\nThis cannot be undone.'))return;
     if(!confirm('Are you sure? Every member will show as dues-not-paid until they pay again.'))return;
     setResetting(true);setMsg('');
-    try{const r=await apiFetch('/api/admin/members/reset-membership-year',{method:'POST'});setMsg('New membership year started — '+(r.reset||0)+' members reset'+(r.skipped?', '+r.skipped+' exempt skipped':'')+(r.suppressedRoshHashanahYear?'. The automatic Rosh Hashanah reset is set to skip this year so it won\'t wipe payments received before then.':'')+'.');}catch(e){setMsg('Error: '+e.message);}
+    try{const r=await apiFetch('/api/admin/members/reset-membership-year',{method:'POST'});setMsg('New membership year started — '+(r.reset||0)+' members reset'+(r.skipped?', '+r.skipped+' exempt skipped':'')+(r.suppressedRoshHashanahYear?'. The automatic Rosh Hashanah reset is set to skip this year so it won\'t wipe payments received before then.':'')+'.');}catch(e){setMsg(friendlyError(e));}
     setResetting(false);}
   async function runNow(){setRunning(true);setMsg('');
-    try{const res=await apiFetch('/api/admin/run-reminders',{method:'POST'});setMsg(res.message||'Reminders sent!');}catch(e){setMsg('Error: '+e.message);}setRunning(false);}
+    try{const res=await apiFetch('/api/admin/run-reminders',{method:'POST'});setMsg(res.message||'Reminders sent!');}catch(e){setMsg(friendlyError(e));}setRunning(false);}
 
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
 
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
 
     // Automated Reminders
     React.createElement('div',{className:'card'},
@@ -2916,10 +2998,10 @@ function AdminReasons() {
   },[]);
 
   async function saveDonationReasons(list){
-    try{await apiFetch('/api/admin/donation-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setDonationReasons(list);setMsg('Donation reasons saved!');}catch(e){setMsg('Error: '+e.message);}
+    try{await apiFetch('/api/admin/donation-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setDonationReasons(list);setMsg('Donation reasons saved!');}catch(e){setMsg(friendlyError(e));}
   }
   async function savePledgeReasons(list){
-    try{await apiFetch('/api/admin/pledge-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setPledgeReasons(list);setMsg('Pledge reasons saved!');}catch(e){setMsg('Error: '+e.message);}
+    try{await apiFetch('/api/admin/pledge-reasons',{method:'PUT',body:JSON.stringify({reasons:list})});setPledgeReasons(list);setMsg('Pledge reasons saved!');}catch(e){setMsg(friendlyError(e));}
   }
   function addDonationReason(){if(!newDonation.trim())return;saveDonationReasons([...donationReasons,newDonation.trim()]);setNewDonation('');}
   function removeDonationReason(i){saveDonationReasons(donationReasons.filter((_,idx)=>idx!==i));}
@@ -2929,7 +3011,7 @@ function AdminReasons() {
   if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
 
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}},
       // Donation reasons
       React.createElement('div',{className:'card'},
@@ -2981,25 +3063,25 @@ function AdminPledges() {
       await apiFetch('/api/admin/sponsorships/'+editSp.id,{method:'PUT',body:JSON.stringify({type:editSp.type,firstName:editSp.firstName,lastName:editSp.lastName,email:editSp.email,phone:editSp.phone,dedication:editSp.dedication,amount})});
     }
     setMsg('Sponsorship updated.');setEditSp(null);loadSponsorships();load();
-  }catch(err){setMsg('Error: '+err.message);}}
+  }catch(err){setMsg(friendlyError(err));}}
   async function delSp(s){if(!confirm('Delete this sponsorship? Its unpaid bill (if any) will be removed too.'))return;try{
     if(s.source==='pledge'){await apiFetch('/api/admin/pledges/'+s.id,{method:'DELETE'});setMsg('Sponsorship bill deleted.');}
     else{const r=await apiFetch('/api/admin/sponsorships/'+s.id,{method:'DELETE'});setMsg('Sponsorship deleted.'+(r.billRemoved?' Linked bill removed.':''));}
     loadSponsorships();load();
-  }catch(e){setMsg('Error: '+e.message);}}
-  async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg('Error: '+err.message);}}
-  async function markPaid(id){if(!confirm('Mark this bill as fully paid? This stops future reminders for it.'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg('Error: '+e.message);}}
+  }catch(e){setMsg(friendlyError(e));}}
+  async function add(e){e.preventDefault();setMsg('');try{await apiFetch('/api/admin/pledges',{method:'POST',body:JSON.stringify(form)});setMsg('Pledge added!');setForm({memberName:'',memberEmail:'',amount:'',reason:'',dueDate:'',notes:''});load();}catch(err){setMsg(friendlyError(err));}}
+  async function markPaid(id){if(!confirm('Mark this bill as fully paid? This stops future reminders for it.'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'PUT',body:JSON.stringify({status:'paid',paidAt:new Date().toISOString()})});load();}catch(e){setMsg(friendlyError(e));}}
   async function addSponsorship(e){e.preventDefault();setMsg('');
-    if(!sf.date||!sf.firstName||!sf.lastName){setMsg('Error: date and name are required');return;}
+    if(!sf.date||!sf.firstName||!sf.lastName){setMsg(ERR_MARK+'Please enter both a date and a name.');return;}
     try{
       const r=await apiFetch('/api/admin/sponsorships',{method:'POST',body:JSON.stringify({...sf,siteUrl:SITE_URL+'/'})});
       setMsg('Sponsorship added ($'+(r.amount!=null?Number(r.amount).toFixed(2):'?')+'). A bill was created'+(r.invoiceSent?' and emailed':'')+' — record payment in the Donations tab and apply it to this invoice.');
       setSf({date:'',type:'kiddush',firstName:'',lastName:'',email:'',phone:'',dedication:'',sendInvoice:true});
       load();loadSponsorships();
-    }catch(err){setMsg('Error: '+err.message);}}
-  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg('Error: '+e.message);}}
+    }catch(err){setMsg(friendlyError(err));}}
+  async function del(id){if(!confirm('Delete?'))return;try{await apiFetch('/api/admin/pledges/'+id,{method:'DELETE'});load();}catch(e){setMsg(friendlyError(e));}}
   function payLink(p){return SITE_URL+'/'+'#pay?token='+(p.payToken||'');}
-  function copyPayLink(p){try{navigator.clipboard.writeText(payLink(p));setMsg('Pay link copied to clipboard.');}catch(e){setMsg('Could not copy: '+e.message);}}
+  function copyPayLink(p){try{navigator.clipboard.writeText(payLink(p));setMsg('Pay link copied to clipboard.');}catch(e){setMsg(ERR_MARK+'Could not copy the link automatically. Select it and copy manually.');}}
   async function sendInvoiceEmails(){
     if(!confirm('Send a "Pay $X Now" invoice email to every unpaid pledge with a member email? Members already invoiced recently will get a repeat reminder.'))return;
     setMsg('Sending...');
@@ -3008,10 +3090,10 @@ function AdminPledges() {
       const r=await apiFetch('/api/admin/send-pledge-reminders',{method:'POST',body:JSON.stringify({siteUrl})});
       setMsg('Sent '+(r.sent||0)+' invoice email(s)'+(r.skipped?' ('+r.skipped+' skipped — no email on file)':''));
       load();
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
   }
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Kiddush / Seudas Shlishis Sponsorship'),
       React.createElement('p',{style:{color:'#888',fontSize:'0.85rem',marginTop:0,marginBottom:12}},'For recording a sponsorship manually, including after the Wednesday cutoff. Creates the sponsorship plus a bill (invoice). Record payment in the Donations tab and apply it to the bill to mark it paid.'),
@@ -3158,8 +3240,8 @@ function AdminEmailCenter() {
     const t=setInterval(()=>{loadJobs();apiFetch('/api/admin/email/log').then(setLog).catch(()=>{});},5000);
     return ()=>clearInterval(t);
   },[jobs]);
-  async function retryJob(id){setMsg('');try{const r=await apiFetch('/api/admin/email/jobs/'+id+'/retry',{method:'POST'});setMsg('Retrying '+(r.requeued||0)+' recipient(s).');loadJobs();setTimeout(loadJobs,3000);}catch(e){setMsg('Error: '+e.message);}}
-  async function cancelJob(id){if(!confirm('Cancel this send? Recipients not yet emailed will be skipped.'))return;setMsg('');try{await apiFetch('/api/admin/email/jobs/'+id+'/cancel',{method:'POST'});loadJobs();}catch(e){setMsg('Error: '+e.message);}}
+  async function retryJob(id){setMsg('');try{const r=await apiFetch('/api/admin/email/jobs/'+id+'/retry',{method:'POST'});setMsg('Retrying '+(r.requeued||0)+' recipient(s).');loadJobs();setTimeout(loadJobs,3000);}catch(e){setMsg(friendlyError(e));}}
+  async function cancelJob(id){if(!confirm('Cancel this send? Recipients not yet emailed will be skipped.'))return;setMsg('');try{await apiFetch('/api/admin/email/jobs/'+id+'/cancel',{method:'POST'});loadJobs();}catch(e){setMsg(friendlyError(e));}}
 
   function getTargetEmails(group){
     const dedupe=list=>[...new Set(list.filter(Boolean))];
@@ -3218,7 +3300,7 @@ function AdminEmailCenter() {
       setMsg('Queued for '+(res.queued||targetEmails.length)+' recipient'+((res.queued||targetEmails.length)===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
       setComposePdfs([]);
       loadJobs();setTimeout(loadJobs,3000);
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
 
@@ -3231,7 +3313,7 @@ function AdminEmailCenter() {
       // line-break formatting) exactly as the sent email — no client splicing.
       const res=await apiFetch('/api/admin/email/preview-weekly',{method:'POST',body:JSON.stringify({startDate:weeklyStartDate,endDate:weeklyEndDate,shiurIds,customText:weeklyCustomText,pdfImages:weeklyPdfs.length?weeklyPdfs.flatMap(p=>p.images):null})});
       setWeeklyPreviewHtml(res.html||'');
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   async function sendWeeklyCustom(){
@@ -3247,14 +3329,14 @@ function AdminEmailCenter() {
       const q=res.queued||targetEmails.length;
       setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background'+(weeklyPdfs.length?' (flyer'+(weeklyPdfs.length>1?'s':'')+' at the bottom)':'')+'. Watch progress under "Sending" below.');
       loadJobs();setTimeout(loadJobs,3000);
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
 
   function spBody(extra){return JSON.stringify({date:spDate,includeKiddush:spKiddush,includeSeudas:spSeudas,otherText:spOtherOn?spOtherText:null,subject:spSubject,siteUrl:SITE_URL+'/',...extra});}
   async function previewSponsorship(){setMsg('');
     if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');return;}
-    try{const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({preview:true})});setSpPreviewHtml(res.html||'');}catch(err){setMsg('Error: '+err.message);}
+    try{const res=await apiFetch('/api/admin/email/sponsorship',{method:'POST',body:spBody({preview:true})});setSpPreviewHtml(res.html||'');}catch(err){setMsg(friendlyError(err));}
   }
   async function sendSponsorship(){setMsg('');
     if(!spKiddush&&!spSeudas&&!(spOtherOn&&spOtherText.trim())){setMsg('Pick Kiddush, Seudas Shlishis, or add Other text.');return;}
@@ -3267,13 +3349,13 @@ function AdminEmailCenter() {
       const q=res.queued||targetEmails.length;
       setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
       loadJobs();setTimeout(loadJobs,3000);
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
 
   async function previewHolidayEmail(){setMsg('');setHolPreviewHtml('');
     if(!holKey){setMsg('Pick a holiday first.');return;}
-    try{const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,customText:holCustomText,pdfImages:holPdfs.length?holPdfs.flatMap(p=>p.images):null,preview:true})});setHolPreviewHtml(res.html||'');if(!(res.occurrences||[]).length)setMsg('Heads up: no upcoming date for this holiday was found in the Jewish calendar, so the email would have no times.');}catch(err){setMsg('Error: '+err.message);}
+    try{const res=await apiFetch('/api/admin/email/holiday',{method:'POST',body:JSON.stringify({key:holKey,customText:holCustomText,pdfImages:holPdfs.length?holPdfs.flatMap(p=>p.images):null,preview:true})});setHolPreviewHtml(res.html||'');if(!(res.occurrences||[]).length)setMsg('Heads up: no upcoming date for this holiday was found in the Jewish calendar, so the email would have no times.');}catch(err){setMsg(friendlyError(err));}
   }
   async function sendHolidayEmail(){setMsg('');
     if(!holKey){setMsg('Pick a holiday first.');return;}
@@ -3287,28 +3369,28 @@ function AdminEmailCenter() {
       const q=res.queued||targetEmails.length;
       setMsg('Queued for '+q+' recipient'+(q===1?'':'s')+' — sending in the background. Watch progress under "Sending" below.');
       loadJobs();setTimeout(loadJobs,3000);
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
 
   async function saveTemplate(e){
     e.preventDefault();setMsg('');
     try{await apiFetch('/api/admin/email/templates',{method:'POST',body:JSON.stringify(tplForm)});setMsg('Template saved!');setTplForm({name:'',subject:'',html:''});setTplEditing(false);
-      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(err){setMsg('Error: '+err.message);}
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(err){setMsg(friendlyError(err));}
   }
 
   async function deleteTemplate(id){if(!confirm('Delete template?'))return;
-    try{await apiFetch('/api/admin/email/templates/'+id,{method:'DELETE'});setTemplates(t=>t.filter(x=>x.id!==id));}catch(e){setMsg('Error: '+e.message);}
+    try{await apiFetch('/api/admin/email/templates/'+id,{method:'DELETE'});setTemplates(t=>t.filter(x=>x.id!==id));}catch(e){setMsg(friendlyError(e));}
   }
 
   async function seedDefaults(){setMsg('');
     try{const res=await apiFetch('/api/admin/email/seed-templates',{method:'POST'});setMsg('Created '+res.created+' default templates');
-      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg(friendlyError(e));}
   }
 
   async function cleanTemplates(){setMsg('');
     try{const res=await apiFetch('/api/admin/email/clean-templates',{method:'POST',body:JSON.stringify({})});setMsg('Cleaned '+res.updated+' of '+res.total+' templates.');
-      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg('Error: '+e.message);}
+      apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg(friendlyError(e));}
   }
 
   function handleImageUpload(target){
@@ -3356,7 +3438,7 @@ function AdminEmailCenter() {
             j.status==='running'&&React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>cancelJob(j.id)},'Cancel'))))));
   }
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
       ['compose','weekly','sponsorship','holiday','templates','sending','log'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='sending')loadJobs();}},
         t==='compose'?'Compose Email':t==='weekly'?'Weekly Schedule':t==='sponsorship'?'Sponsorship Email':t==='holiday'?'Holiday Schedule':t==='templates'?'Templates':t==='sending'?('Sending'+(activeJobs.length?' ('+activeJobs.length+')':'')):'Email Log'))),
@@ -3477,7 +3559,7 @@ function AdminEmailCenter() {
                 setWeeklyPreviewHtml(''); // stale — force a fresh preview after the flyer set changed
                 const total=next.length;
                 setMsg((warnings.length?warnings.join(' ')+' ':'')+'Flyer'+(total>1?'s':'')+' ready ('+total+' of 5) — shown at the bottom of the email in the order listed.');
-              }catch(err){setMsg('Flyer error: '+err.message);}
+              }catch(err){setMsg(friendlyError(err,'attach that flyer'));}
               setWeeklyPdfBusy(false);
             }})),
           weeklyPdfs.length>0&&React.createElement('span',{style:{fontSize:'0.85rem',color:'#555',display:'flex',flexWrap:'wrap',gap:'2px 14px'}},
@@ -3772,7 +3854,7 @@ function MishebeirachEditor({token,embedded}){
         setMeta({displayName:d.displayName||'',categories:d.categories||[]});
         const rows=(d.entries&&d.entries.length?d.entries:[{english:'',hebrew:'',category:''}]).map(e=>({english:e.english||'',hebrew:e.hebrew||'',category:e.category||'',hebrewEdited:!!(e.hebrew||'').trim()}));
         setEntries(rows);setLoading(false);})
-      .catch(err=>{if(ok){setMsg(err.message||'Could not load this card.');setLoading(false);}});
+      .catch(err=>{if(ok){setMsg(friendlyError(err,'load this card'));setLoading(false);}});
     return ()=>{ok=false;};},[token]);
   function upd(i,k,v){setEntries(p=>p.map((e,idx)=>{if(idx!==i)return e;
     const n={...e,[k]:v};
@@ -3786,9 +3868,9 @@ function MishebeirachEditor({token,embedded}){
     try{const r=await apiFetch('/api/high-holidays/mishebeirach/'+encodeURIComponent(token),{method:'POST',body:JSON.stringify({entries:clean})});
       setSavedCount((r&&r.count)||clean.length);setSaved(true);
       if(typeof window!=='undefined')window.scrollTo({top:0,behavior:'smooth'});}
-    catch(err){setMsg('Error: '+err.message);}
+    catch(err){setMsg(friendlyError(err));}
     setSaving(false);}
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(loading) return React.createElement('div',{className:'card'},SkForm(3,'Loading your Mi Shebeirach card'));
   if(saved) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'44px 28px',border:'2px solid #c49a3c'}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',lineHeight:1,marginBottom:12}},'✓'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center',justifyContent:'center'}},'Names Saved'),
@@ -3839,7 +3921,13 @@ function HighHolidaySeatsPage() {
   const [submitting,setSubmitting]=useState(false);
   const [msToken,setMsToken]=useState('');const [showMs,setShowMs]=useState(false);
   const cardMountRef=useRef(null);const stripeRef=useRef(null);const cardElementRef=useRef(null);const paidPiRef=useRef(null);
-  useEffect(()=>{apiFetch('/api/high-holidays/seats').then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));},[]);
+  const [loadErr,setLoadErr]=useState('');
+  // Without this, a network failure rendered "Seat reservations are not
+  // currently open" — telling people the feature is closed when it isn't.
+  function loadSeats(){setLoading(true);setLoadErr('');
+    apiFetch('/api/high-holidays/seats').then(d=>{setData(d);setLoading(false);})
+      .catch(e=>{setLoadErr(friendlyError(e,'load the seat reservations'));setLoading(false);});}
+  useEffect(()=>{loadSeats();},[]);
   function upd(k,v){setForm(p=>({...p,[k]:v}));}
   // Mount the Stripe card field only when paying by card (and the form is open).
   useEffect(()=>{
@@ -3871,18 +3959,21 @@ function HighHolidaySeatsPage() {
       if(!piId){
         const pi=await apiFetch('/api/donations/create-payment',{method:'POST',body:JSON.stringify({amount:total,firstName:form.firstName,lastName:form.lastName,email:form.email,phone:form.phone,reason:'High Holiday Seats',type:'highHolidaySeats'})});
         const result=await stripeRef.current.confirmCardPayment(pi.clientSecret,{payment_method:{card:cardElementRef.current,billing_details:{name:(form.firstName+' '+form.lastName).trim(),email:form.email}}});
-        if(result.error){setMsg(result.error.message||'Payment failed. Please check your card details.');setSubmitting(false);return;}
+        if(result.error){setMsg(ERR_MARK+(result.error.message||'Payment failed. Please check your card details.'));setSubmitting(false);return;}
         if(result.paymentIntent?.status!=='succeeded'){setMsg('Payment did not complete. Status: '+(result.paymentIntent?.status||'unknown'));setSubmitting(false);return;}
         piId=result.paymentIntent.id;paidPiRef.current=piId;
       }
       const resp=await apiFetch('/api/high-holidays/reserve',{method:'POST',body:JSON.stringify({...form,paymentMethod:'stripe',paymentIntentId:piId})});
       setMsToken(resp&&resp.msToken||'');paidPiRef.current=null;setDone(true);
     }catch(err){
-      setMsg(paidPiRef.current?'Your card was charged, but saving the reservation hit a snag. Please click Reserve once more to finish — you will NOT be charged again.':('Error: '+err.message));
+      setMsg(paidPiRef.current?ERR_MARK+'Your card was charged, but saving the reservation hit a snag. Please click Reserve once more to finish — you will NOT be charged again.':friendlyError(err,'reserve those seats'));
     }
     setSubmitting(false);
   }
-  if(loading) return React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...');
+  if(loading) return React.createElement('div',{className:'card'},SkForm(4,'Loading seat reservations'));
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)',maxWidth:600,margin:'0 auto'}},
+    React.createElement('p',{className:'message message-error'},loadErr),
+    React.createElement('button',{className:'btn btn-outline',onClick:loadSeats},'Try again'));
   if(done) return React.createElement('div',{style:{maxWidth:640,margin:'0 auto'}},
     React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
       React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation '+(payMethod==='check'?'Received!':'Confirmed!')),
@@ -3949,7 +4040,7 @@ function AdminHighHolidays() {
     setLoading(false);}
 
   async function saveSettings(){setMsg('');
-    try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg('Error: '+e.message);}}
+    try{await apiFetch('/api/admin/high-holidays/settings',{method:'PUT',body:JSON.stringify(settings)});setMsg('Settings saved!');}catch(e){setMsg(friendlyError(e));}}
   async function addReservation(e){e.preventDefault();if(adding)return;setMsg('');
     if(!addForm.firstName||!addForm.lastName||addSeatTotal<1){setMsg('First name, last name, and at least one seat are required.');return;}
     setAdding(true);
@@ -3958,7 +4049,7 @@ function AdminHighHolidays() {
       setMsg('Reservation added.');
       setAddForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',paymentMethod:'check',amount:'',notes:''});
       await load();
-    }catch(e){setMsg('Error: '+e.message);}
+    }catch(e){setMsg(friendlyError(e));}
     setAdding(false);}
   function startEditRes(r){setEditRes({id:r.id,firstName:r.firstName||'',lastName:r.lastName||'',email:r.email||'',phone:r.phone||'',mensSeats:String(r.mensSeats!=null?r.mensSeats:(r.numSeats||0)),womensSeats:String(r.womensSeats!=null?r.womensSeats:0),paymentMethod:r.paymentMethod||'pending',amount:r.totalAmount!=null?String(r.totalAmount):'',notes:r.notes||''});}
   async function saveEditRes(){setMsg('');
@@ -3967,20 +4058,20 @@ function AdminHighHolidays() {
     try{
       await apiFetch('/api/admin/high-holidays/reservations/'+editRes.id,{method:'PUT',body:JSON.stringify({firstName:editRes.firstName,lastName:editRes.lastName,email:editRes.email,phone:editRes.phone,mensSeats:editRes.mensSeats,womensSeats:editRes.womensSeats,paymentMethod:editRes.paymentMethod,amount:editRes.amount,notes:editRes.notes})});
       setMsg('Reservation updated.');setEditRes(null);await load();
-    }catch(e){setMsg('Error: '+e.message);}}
+    }catch(e){setMsg(friendlyError(e));}}
   async function delReservation(r){
     if(!confirm('Delete '+(r.displayName||'this')+' reservation ('+r.numSeats+' seat'+(r.numSeats>1?'s':'')+')? Any assigned seats will be freed.'))return;
-    try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg('Error: '+e.message);}}
+    try{await apiFetch('/api/admin/high-holidays/reservations/'+r.id,{method:'DELETE'});await load();}catch(e){setMsg(friendlyError(e));}}
 
   // ── Mi Shebeirach cards ──
   const [cards,setCards]=useState(null);const [msCats,setMsCats]=useState([]);const [invSending,setInvSending]=useState(false);
-  async function loadCards(){try{const d=await apiFetch('/api/admin/high-holidays/mishebeirach');setCards(d.cards||[]);setMsCats(d.categories||[]);}catch(e){setMsg('Error: '+e.message);}}
+  async function loadCards(){try{const d=await apiFetch('/api/admin/high-holidays/mishebeirach');setCards(d.cards||[]);setMsCats(d.categories||[]);}catch(e){setMsg(friendlyError(e));}}
   async function emailInvites(){
     if(!confirm('Email every seat reservation a private link to add their Mi Shebeirach names? Each person gets one email.'))return;
     setInvSending(true);setMsg('');
     try{const r=await apiFetch('/api/admin/high-holidays/mishebeirach/email-invites',{method:'POST',body:JSON.stringify({siteUrl:window.location.origin})});
       setMsg('Invites sent: '+r.sent+(r.skipped?(' · skipped '+r.skipped+' (no email or duplicate)'):''));}
-    catch(e){setMsg('Error: '+e.message);}
+    catch(e){setMsg(friendlyError(e));}
     setInvSending(false);}
   function printMishebeirach(list){
     const order=msCats.length?msCats:['Other'];
@@ -4017,7 +4108,7 @@ function AdminHighHolidays() {
   const totalRevenue=reservations.reduce((s,r)=>s+(r.totalAmount||0),0);
 
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{style:{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}},
       ['settings','reservations','seatingmap','mishebeirach'].map(t=>React.createElement('button',{key:t,className:'btn btn-sm '+(subTab===t?'btn-primary':'btn-outline'),onClick:()=>{setSubTab(t);if(t==='mishebeirach')loadCards();if(t==='reservations')load();}},
         t==='settings'?'Settings':t==='reservations'?'Reservations ('+reservations.length+')':t==='seatingmap'?'Seating Map':'Mi Shebeirach'))),
@@ -4136,7 +4227,7 @@ function AdminWelcomeSponsorships() {
 
   async function load(){
     setLoading(true);
-    try{ setItems(await apiFetch('/api/admin/welcome/sponsorships')); }catch(e){ setMsg('Error: '+e.message); }
+    try{ setItems(await apiFetch('/api/admin/welcome/sponsorships')); }catch(e){ setMsg(friendlyError(e)); }
     setLoading(false);
   }
   useEffect(()=>{load();},[]);
@@ -4162,7 +4253,7 @@ function AdminWelcomeSponsorships() {
       setForm({title:'',sponsoredBy:'',dedication:'',active:true,order:0});
       setEditingId(null);
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   function edit(s){
@@ -4178,7 +4269,7 @@ function AdminWelcomeSponsorships() {
     try{
       await apiFetch('/api/admin/welcome/sponsorships/'+s.id,{method:'PUT',body:JSON.stringify({active:!s.active})});
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   async function del(id){
@@ -4187,7 +4278,7 @@ function AdminWelcomeSponsorships() {
       await apiFetch('/api/admin/welcome/sponsorships/'+id,{method:'DELETE'});
       setMsg('Deleted.');
       await load();
-    }catch(err){setMsg('Error: '+err.message);}
+    }catch(err){setMsg(friendlyError(err));}
   }
 
   const cardForm=React.createElement('form',{onSubmit:save},
@@ -4213,7 +4304,7 @@ function AdminWelcomeSponsorships() {
           React.createElement('button',{className:'btn btn-primary',type:'submit'},editingId?'Save Changes':'Add Card'),
           editingId&&React.createElement('button',{className:'btn btn-outline',type:'button',onClick:cancelEdit},'Cancel')));
   return React.createElement('div',null,
-    msg&&React.createElement('div',{className:'message '+(msg.includes('Error')||msg.includes('required')?'message-error':'message-success')},msg),
+    msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     editingId&&React.createElement(Modal,{title:'Edit Sponsorship Card',wide:true,onClose:cancelEdit},cardForm),
     !editingId&&React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Add Sponsorship Card'),
@@ -4648,7 +4739,7 @@ function PayBillPage() {
   }
 
   // Render
-  if(loading) return React.createElement('div',{className:'loading',style:{padding:60}},React.createElement('div',{className:'spinner'}),'Loading bill...');
+  if(loading) return React.createElement('div',{className:'card'},SkForm(3,'Loading your bill'));
   if(err&&!bill) return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
     React.createElement('h2',{style:{color:'var(--error)'}},'Unable to load bill'),
     React.createElement('p',null,err),

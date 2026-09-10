@@ -459,3 +459,23 @@ input:disabled, select:disabled, textarea:disabled {
   .btn:active:not(:disabled) { transform: none; }
   .day-card:hover { transform: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Skeletons — placeholders shaped like the content that's coming,
+   so a loading screen has the same silhouette as the loaded one.
+   ═══════════════════════════════════════════════════════════════════ */
+.skeleton { position: relative; overflow: hidden; background: var(--surface-sunk);
+  border-radius: var(--radius-control); }
+.skeleton::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: sk-shimmer 1.4s ease-in-out infinite; }
+@keyframes sk-shimmer { 100% { transform: translateX(100%); } }
+
+.sk-line { height: 0.8em; margin: 0; }
+.sk-row { display: flex; justify-content: space-between; align-items: center;
+  gap: var(--sp-4); padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.sk-row:last-child { border-bottom: none; }
+.sk-stack { display: flex; flex-direction: column; gap: var(--sp-2); }
+.sk-title { height: 1.1em; width: 45%; margin-bottom: var(--sp-3); }
+/* Screen readers get a live status instead of a pile of empty boxes. */
+.sk-wrap { position: relative; }
