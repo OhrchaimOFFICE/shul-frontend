@@ -63,6 +63,12 @@
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
   --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
 
+  /* ── Container widths: every page is one of these, not a one-off ── */
+  --w-page:  1200px;  /* the main content column */
+  --w-wide:  1040px;  /* wide editors (Mi Shebeirach's 4-column rows) */
+  --w-prose:  720px;  /* long-form reading: privacy, terms */
+  --w-form:   620px;  /* single-column forms and confirmations */
+
   /* ── Radius: one for controls, one for cards, one for pills ── */
   --radius-control: 8px;
   --radius-card: 14px;
@@ -164,21 +170,21 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .hero-slide-body { font-size: var(--fs-base); line-height: 1.4; white-space: pre-wrap; max-width: 90%; }
 
 /* ─── Page Content ─────────────────────────────────────────────── */
-.page-wrap { max-width: 1200px; margin: 0 auto; padding: 12px 24px; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-wrap { max-width: var(--w-page); margin: 0 auto; padding: var(--sp-5) var(--sp-5); }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-5); }
 .page-header h1 { font-family: var(--font-display); font-size: var(--fs-xl); color: var(--navy); font-weight: var(--fw-bold); }
 .page-header-date { font-size: var(--fs-sm); color: var(--text-light); }
 
 /* ─── Cards ────────────────────────────────────────────────────── */
-.card { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; margin-bottom: 8px; position: relative; overflow: hidden; }
-.card-header { font-family: var(--font-display); font-size: var(--fs-lg); color: var(--navy); font-weight: var(--fw-semi); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
-.card-plain { background: var(--white); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px 16px; margin-bottom: 12px; }
+.card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-card); padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-4); position: relative; overflow: hidden; }
+.card-header { font-family: var(--font-display); font-size: var(--fs-lg); color: var(--navy); font-weight: var(--fw-semi); margin-bottom: var(--sp-3); display: flex; align-items: center; justify-content: space-between; }
+.card-plain { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-card); padding: var(--sp-4) var(--sp-5); margin-bottom: var(--sp-4); }
 
 /* ─── Three-column grid ────────────────────────────────────────── */
-.home-grid { display: grid; grid-template-columns: 1fr 1fr 240px; gap: 8px; }
+.home-grid { display: grid; grid-template-columns: 1fr 1fr 240px; gap: var(--sp-4); }
 
 /* ─── Time rows ────────────────────────────────────────────────── */
-.time-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: var(--fs-base); border-bottom: 0.5px solid var(--border); }
+.time-row { display: flex; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-2) 0; font-size: var(--fs-base); border-bottom: 0.5px solid var(--border); }
 .time-row:last-child { border: none; }
 .time-label { color: var(--text-medium); font-weight: var(--fw-semi); }
 .time-value { font-weight: var(--fw-bold); color: var(--navy); font-size: var(--fs-base); }
@@ -198,10 +204,10 @@ body { font-family: var(--font-body); background: var(--cream); color: var(--tex
 .holiday-badge { display: inline-block; background: var(--error); color: var(--on-navy); padding: 4px 8px; border-radius: var(--radius-pill); font-size: var(--fs-xs); font-weight: var(--fw-semi); margin-top: 4px; margin-right: 4px; }
 
 /* ─── Zmanim Panel ─────────────────────────────────────────────── */
-.zmanim-panel { background: var(--gold-soft); border: 0.5px solid var(--gold-tint); border-radius: var(--radius-lg); padding: 8px 12px; position: relative; overflow: hidden; }
-.zmanim-panel-title { font-family: var(--font-display); font-size: var(--fs-lg); color: var(--navy); font-weight: var(--fw-semi); text-align: center; margin-bottom: 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.zmanim-panel { background: var(--gold-soft); border: 0.5px solid var(--gold-tint); border-radius: var(--radius-card); padding: var(--sp-4); position: relative; overflow: hidden; }
+.zmanim-panel-title { font-family: var(--font-display); font-size: var(--fs-base); color: var(--navy); font-weight: var(--fw-semi); text-align: center; margin-bottom: var(--sp-3); display: flex; align-items: center; justify-content: center; gap: var(--sp-2); line-height: var(--lh-tight); }
 .panel-tree-icon { height: 28px; width: auto; }
-.zman-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: var(--fs-sm); }
+.zman-row { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-1) 0; font-size: var(--fs-sm); }
 .zman-name { color: var(--text-muted); }
 .zman-time { color: var(--text); font-weight: var(--fw-semi); }
 .zmanim-expand-btn { display: flex; align-items: center; justify-content: center; min-height: 44px; width: 100%; margin-top: 4px; padding: 4px; background: var(--navy); color: var(--gold); border: none; border-radius: var(--radius-control); font-size: var(--fs-xs); font-weight: var(--fw-semi); cursor: pointer; text-align: center; font-family: var(--font-body); letter-spacing: 0.3px; }
@@ -535,4 +541,11 @@ input:disabled, select:disabled, textarea:disabled {
   .agenda-what .calendar-event { white-space: normal; word-break: normal;
     overflow: visible; text-overflow: clip; font-size: var(--fs-sm);
     padding: var(--sp-1) var(--sp-2); max-width: 100%; margin-top: 0; }
+}
+
+/* Marquee panels fade at the edge they scroll toward — this signals that more
+   content is coming, rather than leaving a row visibly chopped. */
+.scroll-fade {
+  -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 20px), transparent 100%);
 }

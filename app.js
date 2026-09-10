@@ -410,6 +410,9 @@ function ScrollPanel({children}) {
   }, [children]);
   return React.createElement('div', {
     ref: wrapRef,
+    // Fade the bottom edge while scrolling so the clipped row reads as
+    // "still going" rather than as a row sliced in half.
+    className: scrolling ? 'scroll-fade' : undefined,
     style: { flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }
   },
     React.createElement('div', {
@@ -535,10 +538,10 @@ function ZmanimPanel({onExpand}) {
       sb.shabbosEnds    && ['הבדלה',        fmtShort(sb.shabbosEnds),    false]
     ].filter(Boolean);
 
-    const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'10px 4px',borderBottom:'1px dashed rgba(245,232,200,0.12)',fontSize:'var(--fs-xl)'};
+    const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'baseline',padding:'8px 4px',borderBottom:'1px dashed rgba(245,232,200,0.12)',fontSize:'var(--fs-xl)'};
     const labelStyle=accent=>({color:accent?'var(--warning)':'var(--board-text)',fontWeight:500});
     const timeStyle=accent=>({color:accent?'var(--warning)':'var(--board-text)',fontWeight:700,fontFamily:'var(--font-display)',direction:'ltr',minWidth:90,textAlign:'left'});
-    const colHeader={textAlign:'center',fontSize:'var(--fs-xl)',color:'var(--gold-light)',borderBottom:'2px solid rgba(196,154,60,0.4)',paddingBottom:8,marginBottom:14,fontWeight:700,letterSpacing:1};
+    const colHeader={textAlign:'center',fontSize:'var(--fs-xl)',color:'var(--gold-light)',borderBottom:'2px solid rgba(196,154,60,0.4)',paddingBottom:8,marginBottom:12,fontWeight:700,letterSpacing:1};
 
     return React.createElement('div',{style:{
       position:'fixed',inset:0,zIndex:9999,
@@ -547,7 +550,7 @@ function ZmanimPanel({onExpand}) {
       fontFamily:'var(--font-display), Georgia, serif',
       display:'flex',flexDirection:'column',
       height:'100vh',width:'100vw',overflow:'hidden',
-      padding:'20px 32px',
+      padding:'16px 32px',
       boxSizing:'border-box'
     }},
       React.createElement('style',null,'@keyframes vScroll{from{transform:translateY(0)}to{transform:translateY(-50%)}}'),
@@ -563,18 +566,18 @@ function ZmanimPanel({onExpand}) {
         display:'grid',gridTemplateColumns:'1fr auto 1fr',
         alignItems:'center',gap:24,
         borderBottom:'1px solid rgba(196,154,60,0.4)',
-        paddingBottom:12,marginBottom:18,flexShrink:0
+        paddingBottom:12,marginBottom:16,flexShrink:0
       }},
         React.createElement('div',{style:{textAlign:'left'}},
           React.createElement('div',{style:{fontSize:'var(--fs-xl)',color:'var(--gold-light)',fontWeight:600,letterSpacing:1,lineHeight:1.1}},'Cong Ohr Chaim'),
-          React.createElement('div',{style:{fontSize:'var(--fs-base)',color:'var(--board-line)',marginTop:6,letterSpacing:0.5}},englishDate)
+          React.createElement('div',{style:{fontSize:'var(--fs-base)',color:'var(--board-line)',marginTop:4,letterSpacing:0.5}},englishDate)
         ),
         React.createElement('div',{style:{textAlign:'center',minWidth:280}},
           React.createElement('div',{style:{fontSize:'var(--fs-display)',color:'var(--board-text)',fontWeight:600,letterSpacing:1}},clockStr)
         ),
         React.createElement('div',{style:{textAlign:'right',direction:'rtl'}},
           React.createElement('div',{style:{fontSize:'var(--fs-xl)',color:'var(--gold-light)',fontWeight:600,letterSpacing:1,lineHeight:1.1}},'קהל אור חיים'),
-          hebDate && React.createElement('div',{style:{fontSize:'var(--fs-base)',color:'var(--board-line)',marginTop:6}},hebDate)
+          hebDate && React.createElement('div',{style:{fontSize:'var(--fs-base)',color:'var(--board-line)',marginTop:4}},hebDate)
         )
       ),
 
@@ -586,7 +589,7 @@ function ZmanimPanel({onExpand}) {
         // LEFT: Shabbos / Yom Tov column
         React.createElement('div',{style:{direction:'rtl',padding:'0 16px',display:'flex',flexDirection:'column',minHeight:0,overflow:'hidden'}},
           React.createElement('div',{style:colHeader},'זמנים לשבת ויו"ט'),
-          parshaHe && React.createElement('div',{style:{textAlign:'center',fontSize:'var(--fs-display)',fontWeight:700,color:'var(--gold-light)',margin:'2px 0 14px',letterSpacing:2,flexShrink:0}},parshaHe),
+          parshaHe && React.createElement('div',{style:{textAlign:'center',fontSize:'var(--fs-display)',fontWeight:700,color:'var(--gold-light)',margin:'4px 0 12px',letterSpacing:2,flexShrink:0}},parshaHe),
           shabbosRows.length>0
             ? React.createElement(ScrollPanel,{key:'sb-'+shabbosRows.length},
                 shabbosRows.map(([label,time,accent])=>
@@ -622,7 +625,7 @@ function ZmanimPanel({onExpand}) {
             background:'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 100%)',
             border:'1px solid rgba(196,154,60,0.35)',
             borderRadius:6,
-            padding:'14px 20px',
+            padding:'12px 16px',
             boxShadow:'inset 0 1px 0 rgba(245,232,200,0.1), 0 4px 12px rgba(0,0,0,0.4)',
             width:'90%',
             flexShrink:0,
@@ -677,7 +680,7 @@ function ZmanimPanel({onExpand}) {
     React.createElement('iframe',{ref:iframeRef,sandbox:'allow-scripts',style:{width:'100%',height:320,border:'none',borderRadius:4},title:'MyZmanim'}),
     // Davening times
     schedule&&React.createElement('div',{style:{marginTop:8,borderTop:'2px solid #c49a3c',paddingTop:8}},
-      React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-sm)',marginBottom:6}},'Davening Times'),
+      React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-sm)',marginBottom:4}},'Davening Times'),
       schedule.davening?.selichos&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Selichos'),React.createElement('span',{className:'zman-time'},schedule.davening.selichos)),
       schedule.davening?.shacharis&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Shacharis'),React.createElement('span',{className:'zman-time'},schedule.davening.shacharis)),
       schedule.davening?.earlyMincha&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Early Mincha'),React.createElement('span',{className:'zman-time'},schedule.davening.earlyMincha)),
@@ -686,11 +689,11 @@ function ZmanimPanel({onExpand}) {
       schedule.davening?.maariv&&React.createElement('div',{className:'zman-row'},React.createElement('span',{className:'zman-name'},'Maariv'),React.createElement('span',{className:'zman-time'},schedule.davening.maariv)),
       showCandles&&schedule.zmanim?.candleLighting&&React.createElement('div',{className:'zman-row',style:{color:'var(--gold)',fontWeight:600}},React.createElement('span',null,'Candle Lighting'),React.createElement('span',null,schedule.zmanim.candleLighting))),
     // Today's shiurim
-    todayShiurim.length>0&&React.createElement('div',{style:{marginTop:8,borderTop:'1px solid #e0dcd4',paddingTop:6}},
+    todayShiurim.length>0&&React.createElement('div',{style:{marginTop:8,borderTop:'1px solid #e0dcd4',paddingTop:4}},
       React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-sm)',marginBottom:4}},'Shiurim Today'),
-      todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{fontSize:'var(--fs-sm)',padding:'3px 0',color:'var(--text-muted)'}},s.title+(s.time?' - '+s.time:'')))),
+      todayShiurim.map(s=>React.createElement('div',{key:s.id,style:{fontSize:'var(--fs-sm)',padding:'4px 0',color:'var(--text-muted)'}},s.title+(s.time?' - '+s.time:'')))),
     // Buttons
-    React.createElement('div',{style:{display:'flex',gap:6,marginTop:10}},
+    React.createElement('div',{style:{display:'flex',gap:4,marginTop:8}},
       React.createElement('button',{className:'zmanim-expand-btn',onClick:openFullscreen,style:{flex:1}},'Full Screen'),
       onExpand&&React.createElement('button',{className:'zmanim-expand-btn',onClick:onExpand,style:{flex:1}},'Zmanim Page'))
   );
@@ -754,7 +757,7 @@ function HomePage({navigate}) {
           React.createElement('div',{className:'card-header'},"Today's davening"),
           loading?SkRows(3,'Loading today\u2019s shiurim'):
           schedule?React.createElement('div',null,
-            schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},String(h).replace(/\s+5\d{3}$/,'')))),
+            schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:8}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},String(h).replace(/\s+5\d{3}$/,'')))),
             schedule.holidaySchedule?holidayScheduleRows(schedule.holidaySchedule):[
             schedule.davening?.selichos&&React.createElement('div',{className:'time-row',key:'sl'},React.createElement('span',{className:'time-label'},'Selichos'),React.createElement('span',{className:'time-value'},schedule.davening.selichos)),
             schedule.davening?.shacharis&&React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
@@ -771,22 +774,22 @@ function HomePage({navigate}) {
         React.createElement('div',{className:'card'},
           React.createElement('div',{className:'card-header'},'This Shabbos',sb?.parsha&&React.createElement('span',{className:'badge'},sb.parsha)),
           sb?React.createElement('div',null,
-            React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--gold)',marginBottom:2,letterSpacing:0.5}},'FRIDAY NIGHT'),
+            React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--gold)',marginBottom:4,letterSpacing:0.5}},'FRIDAY NIGHT'),
             sb.earlyCandleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Early Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.earlyCandleLighting)),
             sb.candleLighting&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Candle Lighting'),React.createElement('span',{className:'time-value candle-lighting'},sb.candleLighting)),
             sb.fridayMincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha / Kabbalas Shabbos'),React.createElement('span',{className:'time-value'},sb.fridayMincha)),
-            React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--gold)',marginTop:6,marginBottom:2,letterSpacing:0.5}},'SHABBOS DAY'),
+            React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--gold)',marginTop:4,marginBottom:4,letterSpacing:0.5}},'SHABBOS DAY'),
             sb.shacharis&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},sb.shacharis)),
             sb.sofZmanShma&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Latest Shema'),React.createElement('span',{className:'time-value'},sb.sofZmanShma)),
             sb.mincha&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Mincha'),React.createElement('span',{className:'time-value'},sb.mincha)),
             sb.sunset&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Sunset'),React.createElement('span',{className:'time-value'},sb.sunset)),
             sb.shabbosEnds&&React.createElement('div',{className:'time-row'},React.createElement('span',{className:'time-label'},'Havdalah'),React.createElement('span',{className:'time-value'},sb.shabbosEnds)),
-            shabbosShiurim.length>0&&React.createElement('div',{style:{marginTop:6,paddingTop:6,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
-              React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--navy)',marginBottom:3}},'SHIURIM'),
-              shabbosShiurim.map(s=>React.createElement('div',{key:s.id,style:{display:'flex',justifyContent:'space-between',padding:'2px 0',fontSize:'var(--fs-sm)'}},
+            shabbosShiurim.length>0&&React.createElement('div',{style:{marginTop:4,paddingTop:4,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
+              React.createElement('div',{style:{fontSize:'var(--fs-base)',fontWeight:700,color:'var(--navy)',marginBottom:4}},'SHIURIM'),
+              shabbosShiurim.map(s=>React.createElement('div',{key:s.id,style:{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'var(--fs-sm)'}},
                 React.createElement('span',{style:{color:'var(--text-muted)'}},s.title+(s.rabbi?' - '+s.rabbi:'')),
                 React.createElement('span',{style:{fontWeight:600,color:'var(--navy)'}},s.time||'')))),
-            React.createElement('div',{style:{marginTop:6,paddingTop:6,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
+            React.createElement('div',{style:{marginTop:4,paddingTop:4,borderTop:'0.5px solid rgba(0,0,0,0.05)'}},
               React.createElement('div',{className:'sponsor-row'},
                 React.createElement('div',{className:'sponsor-btn',onClick:()=>navigate('sponsorship')},
                   React.createElement('div',{className:'sponsor-label'},'Kiddush'),
@@ -815,14 +818,14 @@ function HomePage({navigate}) {
         const aa=(a-todayDow+7)%7, bb=(b-todayDow+7)%7;
         return aa-bb;
       });
-      return React.createElement('div',{className:'card',style:{marginTop:10,padding:'16px 20px',border:'1px solid rgba(196,154,60,0.35)'}},
+      return React.createElement('div',{className:'card',style:{marginTop:8,padding:'16px 16px',border:'1px solid rgba(196,154,60,0.35)'}},
         React.createElement('div',{className:'card-header',style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
           React.createElement('span',null,'📖 Weekly Shiurim'),
           React.createElement('span',{className:'badge',style:{cursor:'pointer'},onClick:()=>navigate('shiurim')},'See all')),
         React.createElement('div',{style:{
           display:'grid',
           gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))',
-          gap:10,marginTop:8
+          gap:8,marginTop:8
         }},
           dowOrder.map(dow=>{
             const isToday=dow===todayDow;
@@ -830,17 +833,17 @@ function HomePage({navigate}) {
               background:isToday?'var(--gold-soft)':'var(--cream)',
               border:isToday?'2px solid var(--gold)':'1px solid var(--border)',
               borderRadius:'var(--radius)',
-              padding:'12px 14px',
-              display:'flex',flexDirection:'column',gap:6
+              padding:'12px 12px',
+              display:'flex',flexDirection:'column',gap:4
             }},
               React.createElement('div',{style:{
                 display:'flex',justifyContent:'space-between',alignItems:'center',
-                marginBottom:4,paddingBottom:6,borderBottom:'1px solid rgba(0,0,0,0.06)'
+                marginBottom:4,paddingBottom:4,borderBottom:'1px solid rgba(0,0,0,0.06)'
               }},
                 React.createElement('span',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-base)'}},DAY_LABEL[dow]||'Other'),
                 isToday&&React.createElement('span',{style:{
                   background:'var(--gold)',color:'var(--navy)',fontSize:'var(--fs-xs)',
-                  fontWeight:800,padding:'2px 8px',borderRadius:10,letterSpacing:0.5
+                  fontWeight:800,padding:'4px 8px',borderRadius:10,letterSpacing:0.5
                 }},'TODAY')),
               byDay[dow].map(s=>React.createElement('div',{key:s.id},
                 React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-base)'}},s.title),
@@ -848,7 +851,7 @@ function HomePage({navigate}) {
                   s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),
                   s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),
                   s.location&&React.createElement('span',{className:'shiur-where',key:'l'},s.location)),
-                s.topic&&React.createElement('div',{style:{fontSize:'var(--fs-xs)',color:'var(--text-light)',fontStyle:'italic',marginTop:2}},s.topic))));
+                s.topic&&React.createElement('div',{style:{fontSize:'var(--fs-xs)',color:'var(--text-light)',fontStyle:'italic',marginTop:4}},s.topic))));
           })));
     })(),
 
@@ -982,15 +985,15 @@ function ZmanimPage() {
   const col1=[['Alot HaShachar',z.alotHaShachar],['Misheyakir',z.misheyakir],['Sunrise (HaNetz)',z.sunrise],['Sof Zman Shma (MGA)',z.sofZmanShmaMGA],['Sof Zman Shma (GRA)',z.sofZmanShma],['Sof Zman Tfilla (MGA)',z.sofZmanTfillaMGA],['Sof Zman Tfilla (GRA)',z.sofZmanTfilla]].filter(([_,v])=>v);
   const col2=[['Chatzos',z.chatzot],['Mincha Gedola',z.minchaGedola],['Mincha Ketana',z.minchaKetana],['Plag HaMincha',z.plagHaMincha],['Sunset (Shkia)',z.sunset],['Tzeis HaKochavim',z.tzeit]].filter(([_,v])=>v);
   const showCandles=z.candleLighting&&(new Date(dateStr+'T12:00:00').getDay()===5);
-  const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 20px',fontSize:'var(--fs-lg)',borderBottom:'1px solid rgba(0,0,0,0.06)'};
+  const rowStyle={display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',fontSize:'var(--fs-lg)',borderBottom:'1px solid rgba(0,0,0,0.06)'};
   const nameStyle={color:'var(--text-muted)',fontWeight:500};
   const timeStyle={color:'var(--navy)',fontWeight:700,fontFamily:"'Playfair Display', serif"};
   return React.createElement('div',{style:{width:'100%'}},
-    React.createElement('div',{className:'card',style:{padding:'28px 32px'}},
+    React.createElement('div',{className:'card',style:{padding:'24px 32px'}},
       React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:12}},
         React.createElement('h2',{style:{fontFamily:"'Playfair Display', serif",fontSize:'var(--fs-xl)',color:'var(--navy)',fontWeight:700,margin:0}},'Zmanim for '+formatDisplayDate(dateStr)),
         React.createElement('input',{type:'date',value:dateStr,onChange:e=>setDateStr(e.target.value),className:'form-input',style:{width:200,fontSize:'var(--fs-lg)'}})),
-      data.hebrewDate?.hebrew&&React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--gold)',fontWeight:700,marginBottom:20,textAlign:'center',fontFamily:"'Playfair Display', serif"}},data.hebrewDate.hebrew),
+      data.hebrewDate?.hebrew&&React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--gold)',fontWeight:700,marginBottom:16,textAlign:'center',fontFamily:"'Playfair Display', serif"}},data.hebrewDate.hebrew),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))',gap:'var(--sp-5)'}},
         React.createElement('div',{style:{background:'var(--gold-soft)',borderRadius:8,padding:'8px 0',border:'0.5px solid rgba(196,154,60,0.15)'}},
           col1.map(([n,v])=>React.createElement('div',{style:rowStyle,key:n},
@@ -1000,10 +1003,10 @@ function ZmanimPage() {
           col2.map(([n,v])=>React.createElement('div',{style:rowStyle,key:n},
             React.createElement('span',{style:nameStyle},n),
             React.createElement('span',{style:timeStyle},fmtZ(v)))))),
-      showCandles&&React.createElement('div',{style:{background:'var(--gold)',padding:'16px 24px',borderRadius:8,marginTop:20,display:'flex',justifyContent:'space-between',alignItems:'center'}},
+      showCandles&&React.createElement('div',{style:{background:'var(--gold)',padding:'16px 24px',borderRadius:8,marginTop:16,display:'flex',justifyContent:'space-between',alignItems:'center'}},
         React.createElement('span',{style:{color:'var(--navy)',fontWeight:700,fontSize:'var(--fs-lg)'}},'Candle Lighting'),
         React.createElement('span',{style:{color:'var(--navy)',fontWeight:700,fontSize:'var(--fs-xl)',fontFamily:"'Playfair Display', serif"}},fmtZ(z.candleLighting))),
-      React.createElement('p',{style:{textAlign:'center',marginTop:20,fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'317 W 47th St, Miami Beach')));
+      React.createElement('p',{style:{textAlign:'center',marginTop:16,fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'317 W 47th St, Miami Beach')));
 }
 
 // ─── Shiurim ─────────────────────────────────────────────────────
@@ -1279,12 +1282,12 @@ function ContactPage() {
     }catch(err){setMsg(friendlyError(err));}
     setSending(false);
   }
-  if(done) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
+  if(done) return React.createElement('div',{className:'card',style:{maxWidth:'var(--w-form)',margin:'0 auto',textAlign:'center',padding:32}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'✉️'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Message Sent'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Thanks, '+form.name+'. We received your message and will be in touch soon.'),
-    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({name:'',email:'',phone:'',subject:'',message:''});}},'Send Another'));
-  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:16},onClick:()=>{setDone(false);setForm({name:'',email:'',phone:'',subject:'',message:''});}},'Send Another'));
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Contact the Office'),
       React.createElement('p',{style:{marginBottom:16,color:'var(--text-muted)'}},'Send a message to the shul office. You can also email office@ohrchaim.org or visit us at 317 W 47th Street, Miami Beach, FL 33140.'),
@@ -1301,47 +1304,47 @@ function ContactPage() {
 }
 
 function PrivacyPage() {
-  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-prose)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Privacy Policy'),
       React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Last updated: '+new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Who we are'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Who we are'),
       React.createElement('p',null,'This site is operated by Congregation Ohr Chaim, 317 W 47th Street, Miami Beach, FL 33140, a tax-exempt religious organization under section 501(c)(3) of the Internal Revenue Code (EIN 59-2202972). Questions about this policy: office@ohrchaim.org.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Information we collect'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Information we collect'),
       React.createElement('ul',null,
         React.createElement('li',null,'Account information you provide: name, email, phone, address, spouse email (optional), and yahrzeit entries.'),
         React.createElement('li',null,'Donation information: amounts, reasons, and dates. Card payment details are processed directly by Stripe and never touch our servers.'),
         React.createElement('li',null,'Basic log data automatically provided by your browser, such as IP and timestamps.')),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'How we use it'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'How we use it'),
       React.createElement('ul',null,
         React.createElement('li',null,'Manage your membership, billing, kiddush sponsorships, and seat reservations.'),
         React.createElement('li',null,'Send davening schedules, membership reminders, donation receipts, yahrzeit reminders, and other shul communications.'),
         React.createElement('li',null,'Issue annual tax-deductible contribution summaries.')),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Sharing'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Sharing'),
       React.createElement('p',null,'We do not sell or rent your personal information. We share it only with service providers needed to operate this site (Stripe for payments, Google for email delivery, Firebase/Google Cloud for hosting and storage) under their standard data protection terms, or when required by law.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Your choices'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Your choices'),
       React.createElement('p',null,'You may view and edit your profile on the Account page, unsubscribe from automatic reminders in Settings, cancel automatic payments at any time, or request deletion by contacting the office.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Cookies'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Cookies'),
       React.createElement('p',null,'We use a single session cookie for login via Firebase Authentication. No advertising or tracking cookies are used.'),
       React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)',marginTop:24}},'This policy may be updated from time to time. Material changes will be communicated by email to active members.')));
 }
 
 function TermsPage() {
-  return React.createElement('div',{style:{maxWidth:760,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-prose)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Terms of Service'),
       React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)'}},'Last updated: '+new Date().toLocaleDateString('en-US',{month:'long',year:'numeric'})),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Who these terms apply to'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Who these terms apply to'),
       React.createElement('p',null,'By using this website you agree to these terms. The site is operated by Congregation Ohr Chaim, a tax-exempt religious organization under section 501(c)(3) of the Internal Revenue Code (EIN 59-2202972), located at 317 W 47th Street, Miami Beach, FL 33140.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Donations and payments'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Donations and payments'),
       React.createElement('p',null,'Donations are tax-deductible to the extent allowed by law. No goods or services are provided in exchange for a contribution unless explicitly stated. Card payments are processed by Stripe; we never see or store your full card number. Recurring membership payments continue until canceled from your Account page.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Refunds'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Refunds'),
       React.createElement('p',null,'Donations are generally non-refundable. If a payment was made in error, contact the office within 30 days at office@ohrchaim.org and we will review in good faith.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Seat reservations and sponsorships'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Seat reservations and sponsorships'),
       React.createElement('p',null,'High Holiday seats and kiddush/seudas shlishis sponsorships are confirmed once payment is received. Seat assignments are at the discretion of the shul. Scheduling conflicts may require the shul to move a sponsorship to a nearby date.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Your account'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Your account'),
       React.createElement('p',null,'You are responsible for keeping your login credentials secure and for the accuracy of the information you submit. The shul may suspend or remove accounts that violate these terms or applicable law.'),
-      React.createElement('h3',{style:{color:'var(--navy)',marginTop:20}},'Disclaimer'),
+      React.createElement('h3',{style:{color:'var(--navy)',marginTop:16}},'Disclaimer'),
       React.createElement('p',null,'Davening times, zmanim, and the calendar are provided as a convenience and should not be relied upon for questions of halacha. Consult a rav with any halachic question.'),
       React.createElement('p',{style:{color:'var(--text-subtle)',fontSize:'var(--fs-sm)',marginTop:24}},'Governing law: Florida. Disputes will be resolved in Miami-Dade County, FL.')));
 }
@@ -2011,7 +2014,7 @@ function AdminShiurim() {
       shiurim.map(s=>React.createElement('div',{className:'shiur-card',key:s.id},
         React.createElement('div',{className:'shiur-day'},DAY_NAMES[s.dayOfWeek]?.substring(0,3)||'?'),
         React.createElement('div',{className:'shiur-info'},
-          React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:6,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'2px 6px',borderRadius:8}},'One-time')),
+          React.createElement('div',{className:'shiur-title'},s.title,s.recurring===false&&React.createElement('span',{style:{marginLeft:4,fontSize:'0.7rem',background:'rgba(196,154,60,0.15)',color:'#c49a3c',padding:'4px 4px',borderRadius:8}},'One-time')),
           React.createElement('div',{className:'shiur-details'},s.time&&React.createElement('span',{className:'shiur-time',key:'t'},s.time),s.rabbi&&React.createElement('span',{className:'shiur-who',key:'r'},s.rabbi),[s.topic,s.location].filter(Boolean).map((x,i)=>React.createElement('span',{className:'shiur-where',key:'w'+i},x)))),
         React.createElement('button',{className:'btn btn-sm btn-outline',style:{marginRight:4},onClick:()=>startEdit(s)},'Edit'),
         React.createElement('button',{className:'btn btn-sm btn-danger',onClick:()=>del(s.id)},'Delete')))));
@@ -2120,16 +2123,16 @@ function DonatePage() {
     setLoading(false);
   }
 
-  if(step==='done') return React.createElement('div',null,React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
+  if(step==='done') return React.createElement('div',null,React.createElement('div',{className:'card',style:{textAlign:'center',padding:32}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'✅'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Thank You!'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Your donation of $'+form.amount+' has been received. A receipt will be sent to '+form.email+'.'),
-    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setStep('form');setForm({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:''});}},'Make Another Donation')));
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:16},onClick:()=>{setStep('form');setForm({firstName:'',lastName:'',email:'',phone:'',amount:'',reason:'General Donation',note:''});}},'Make Another Donation')));
 
-  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Make a Donation'),
-      React.createElement('p',{style:{marginBottom:20,color:'var(--text-muted)'}},'Support Congregation Ohr Chaim. Contributions are tax-deductible to the extent allowed by law. EIN 59-2202972.'),
+      React.createElement('p',{style:{marginBottom:16,color:'var(--text-muted)'}},'Support Congregation Ohr Chaim. Contributions are tax-deductible to the extent allowed by law. EIN 59-2202972.'),
       msg&&React.createElement('div',{className:'message message-error'},msg),
       React.createElement('form',{onSubmit:handleDonate},
         React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
@@ -2147,9 +2150,9 @@ function DonatePage() {
           React.createElement('input',{className:'form-input',value:form.note,onChange:e=>upd('note',e.target.value),placeholder:'In honor of... / In memory of...'})),
         React.createElement('div',{className:'form-group'},
           React.createElement('label',{className:'form-label'},'Card Details *'),
-          React.createElement('div',{ref:cardMountRef,style:{padding:'14px 14px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
-          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginTop:6}},'Secured by Stripe. We never see or store your card number.')),
-        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading||!cardReady,style:{marginTop:8,fontSize:'var(--fs-lg)',padding:'14px 28px'}},
+          React.createElement('div',{ref:cardMountRef,style:{padding:'12px 12px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginTop:4}},'Secured by Stripe. We never see or store your card number.')),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:loading||!cardReady,style:{marginTop:8,fontSize:'var(--fs-lg)',padding:'12px 24px'}},
           loading?'Processing...':'💝 Donate $'+(form.amount||'0')))));
 }
 
@@ -2159,17 +2162,17 @@ function DonatePage() {
 // SFSafariViewController). On the web these routes render the normal in-app
 // Stripe forms (DonatePage / PayBillPage).
 function DonateExternal() {
-  return React.createElement('div',{style:{maxWidth:560,margin:'0 auto',padding:'32px 20px',textAlign:'center'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto',padding:'32px 16px',textAlign:'center'}},
     React.createElement('h2',{style:{color:'var(--navy)',marginBottom:12}},'Donate'),
-    React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:28,fontSize:'var(--fs-base)',lineHeight:1.5}},'Support Congregation Ohr Chaim. Donations are processed securely on our website.'),
-    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#donate')},'Donate on our website'));
+    React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:24,fontSize:'var(--fs-base)',lineHeight:1.5}},'Support Congregation Ohr Chaim. Donations are processed securely on our website.'),
+    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'12px 32px'},onClick:()=>openExternal(SITE_URL+'/#donate')},'Donate on our website'));
 }
 function PayBillExternal() {
   const token=(window.location.hash.split('token=')[1]||'').split('&')[0];
-  return React.createElement('div',{style:{maxWidth:560,margin:'0 auto',padding:'32px 20px',textAlign:'center'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto',padding:'32px 16px',textAlign:'center'}},
     React.createElement('h2',{style:{color:'var(--navy)',marginBottom:12}},'Pay Your Bill'),
-    React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:28,fontSize:'var(--fs-base)',lineHeight:1.5}},'Your payment is processed securely on our website.'),
-    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'14px 32px'},onClick:()=>openExternal(SITE_URL+'/#pay?token='+token)},'Continue on our website'));
+    React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:24,fontSize:'var(--fs-base)',lineHeight:1.5}},'Your payment is processed securely on our website.'),
+    React.createElement('button',{className:'btn btn-primary',style:{fontSize:'var(--fs-base)',padding:'12px 32px'},onClick:()=>openExternal(SITE_URL+'/#pay?token='+token)},'Continue on our website'));
 }
 
 // ─── Sponsorship Page ────────────────────────────────────────────
@@ -2196,18 +2199,18 @@ function SponsorshipPage() {
   if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)'}},
     React.createElement('p',{className:'message message-error'},loadErr),
     React.createElement('button',{className:'btn btn-outline',onClick:loadSponsorships},'Try again'));
-  if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
+  if(done) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:32,maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'🎉'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Sponsorship Confirmed!'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Your '+(selectedType==='kiddush'?'Kiddush':'Seudas Shlishis')+' for '+formatDisplayDate(selectedDate)+' has been confirmed.'),
-    React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',dedication:''});setSelectedDate('');}},'Back'));
+    React.createElement('button',{className:'btn btn-primary',style:{marginTop:16},onClick:()=>{setDone(false);setForm({firstName:'',lastName:'',email:'',phone:'',dedication:''});setSelectedDate('');}},'Back'));
   if(!data) return React.createElement('p',null,'Unable to load.');
   const upcoming=data.upcoming||[];const reservations=data.reservations||{};const pricing=data.pricing||{};const parshaMap=data.parshaMap||{};const dateLabels=data.dateLabels||{};
-  return React.createElement('div',{style:{maxWidth:700,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Sponsor Kiddush or Seudas Shlishis'),
       React.createElement('p',{style:{marginBottom:16,color:'var(--text-muted)'}},'Choose an upcoming Shabbos or Yom Tov below. Reservation cutoff: Wednesday at 8:00 PM.'),
-      React.createElement('p',{style:{marginBottom:20,fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Kiddush: $'+(pricing.kiddushPrice||'TBD')+' • Seudas Shlishis: $'+(pricing.seudasShlishisPrice||'TBD')),
+      React.createElement('p',{style:{marginBottom:16,fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Kiddush: $'+(pricing.kiddushPrice||'TBD')+' • Seudas Shlishis: $'+(pricing.seudasShlishisPrice||'TBD')),
       React.createElement('div',{className:'form-group'},
         React.createElement('label',{className:'form-label'},'Select Shabbos / Yom Tov'),
         React.createElement('select',{className:'form-input',value:selectedDate,onChange:e=>setSelectedDate(e.target.value)},
@@ -2216,7 +2219,7 @@ function SponsorshipPage() {
             const label=dateLabels[d]?dateLabels[d]:parshaMap[d]?parshaMap[d]:'';
             return React.createElement('option',{key:d,value:d},formatDisplayDate(d)+(label?' - '+label:''));
           }))),
-      selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}},
+      selectedDate&&React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}},
         ['kiddush','seudasShlishis'].map(t=>{
           const res=reservations[selectedDate]?.[t];const taken=!!res;
           const label=t==='kiddush'?'Kiddush':'Seudas Shlishis';
@@ -2362,7 +2365,7 @@ function AccountPage() {
     React.createElement('div',{className:'auth-subtitle'},'Congregation Ohr Chaim'),
     error&&React.createElement('div',{className:'message message-error'},error),
     authMode!=='prefill'&&React.createElement('div',null,
-      React.createElement('button',{type:'button',className:'btn btn-block',onClick:handleGoogle,style:{background:'var(--surface)',border:'1px solid #d4cfc4',color:'var(--navy)',display:'flex',alignItems:'center',justifyContent:'center',gap:10,fontWeight:600}},
+      React.createElement('button',{type:'button',className:'btn btn-block',onClick:handleGoogle,style:{background:'var(--surface)',border:'1px solid #d4cfc4',color:'var(--navy)',display:'flex',alignItems:'center',justifyContent:'center',gap:8,fontWeight:600}},
         React.createElement('img',{src:'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',alt:'',width:18,height:18,style:{display:'block'}}),
         'Continue with Google'),
       React.createElement('div',{style:{textAlign:'center',color:'var(--text-subtle)',fontSize:'var(--fs-sm)',margin:'12px 0'}},'— or —')),
@@ -2384,7 +2387,7 @@ function AccountPage() {
       React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'Password *'),React.createElement('input',{className:'form-input',type:'password',value:regForm.password,onChange:e=>setRegForm(p=>({...p,password:e.target.value})),required:true,minLength:6})),
       React.createElement('button',{className:'btn btn-primary btn-block',type:'submit'},'Create Account'),
       authMode!=='prefill'&&React.createElement('p',{style:{marginTop:16,textAlign:'center',color:'var(--text-subtle)'}},'Have an account? ',React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setAuthMode('login');},style:{color:'var(--gold)',fontWeight:600}},'Sign in'))));
-  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'My Profile'),
@@ -2411,10 +2414,10 @@ function AccountPage() {
     bills.length>0&&React.createElement('div',{className:'card',style:{marginTop:16}},
       React.createElement('div',{className:'card-header'},'Outstanding Bills ('+bills.length+')'),
       React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12,fontSize:'var(--fs-sm)'}},'Pay your shul bills below. Each one is a single charge — no recurring subscription is created.'),
-      bills.map(b=>React.createElement('div',{key:b.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 14px',border:'1px solid #e0dcd4',borderRadius:8,marginBottom:8,background:'var(--bg)',flexWrap:'wrap',gap:8}},
+      bills.map(b=>React.createElement('div',{key:b.id,style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 12px',border:'1px solid #e0dcd4',borderRadius:8,marginBottom:8,background:'var(--bg)',flexWrap:'wrap',gap:8}},
         React.createElement('div',{style:{flex:1,minWidth:200}},
           React.createElement('div',{style:{fontWeight:700,color:'var(--navy)',fontSize:'var(--fs-lg)'}},'$'+parseFloat(b.amount).toFixed(2),' — ',b.reason||'Pledge'),
-          (b.dueDate||b.notes)&&React.createElement('div',{className:'shiur-details',style:{fontSize:'var(--fs-sm)',marginTop:3}},b.dueDate&&React.createElement('span',{className:'shiur-time',key:'d'},'Due '+b.dueDate),b.notes&&React.createElement('span',{className:'shiur-where',key:'n'},b.notes))),
+          (b.dueDate||b.notes)&&React.createElement('div',{className:'shiur-details',style:{fontSize:'var(--fs-sm)',marginTop:4}},b.dueDate&&React.createElement('span',{className:'shiur-time',key:'d'},'Due '+b.dueDate),b.notes&&React.createElement('span',{className:'shiur-where',key:'n'},b.notes))),
         React.createElement('a',{href:'#pay?token='+b.payToken,className:'btn btn-primary btn-sm'},'Pay'))),
     ),
     React.createElement('div',{className:'card',style:{marginTop:16}},
@@ -2433,13 +2436,13 @@ function AccountPage() {
           React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Set up automatic membership payments. Pay the full annual amount once per year, or spread it across 12 monthly installments. Paying activates your membership automatically.'),
           // Membership level: Standard or Fair Share (shown only if Fair Share is configured).
           subOptions&&subOptions.fairShare>0&&React.createElement('div',{style:{marginBottom:12}},
-            React.createElement('div',{style:{fontWeight:700,marginBottom:6,fontSize:'var(--fs-sm)'}},'Choose your membership level:'),
-            React.createElement('label',{style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 10px',border:'1px solid '+(subLevel==='standard'?'var(--gold)':'var(--border)'),borderRadius:6,marginBottom:6,cursor:'pointer',background:subLevel==='standard'?'var(--gold-soft)':'var(--surface)'}},
-              React.createElement('input',{type:'radio',name:'subLevel',checked:subLevel==='standard',onChange:()=>setSubLevel('standard'),style:{marginTop:3}}),
+            React.createElement('div',{style:{fontWeight:700,marginBottom:4,fontSize:'var(--fs-sm)'}},'Choose your membership level:'),
+            React.createElement('label',{style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 8px',border:'1px solid '+(subLevel==='standard'?'var(--gold)':'var(--border)'),borderRadius:6,marginBottom:4,cursor:'pointer',background:subLevel==='standard'?'var(--gold-soft)':'var(--surface)'}},
+              React.createElement('input',{type:'radio',name:'subLevel',checked:subLevel==='standard',onChange:()=>setSubLevel('standard'),style:{marginTop:4}}),
               React.createElement('span',null,React.createElement('strong',null,'Standard Membership'),subOptions.standard>0&&React.createElement('span',null,' — $'+subOptions.standard.toLocaleString()+'/year'))),
-            React.createElement('label',{style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 10px',border:'1px solid '+(subLevel==='fairShare'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:subLevel==='fairShare'?'var(--gold-soft)':'var(--surface)'}},
-              React.createElement('input',{type:'radio',name:'subLevel',checked:subLevel==='fairShare',onChange:()=>setSubLevel('fairShare'),style:{marginTop:3}}),
-              React.createElement('span',null,React.createElement('strong',null,'Fair Share Membership'),' — $'+subOptions.fairShare.toLocaleString()+'/year',React.createElement('span',{style:{display:'block',fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginTop:2}},'Reflects a member\'s proportional share of the shul\'s actual annual operating budget. Helps ensure the full cost of running the shul and its programs is met.')))),
+            React.createElement('label',{style:{display:'flex',alignItems:'flex-start',gap:8,padding:'8px 8px',border:'1px solid '+(subLevel==='fairShare'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:subLevel==='fairShare'?'var(--gold-soft)':'var(--surface)'}},
+              React.createElement('input',{type:'radio',name:'subLevel',checked:subLevel==='fairShare',onChange:()=>setSubLevel('fairShare'),style:{marginTop:4}}),
+              React.createElement('span',null,React.createElement('strong',null,'Fair Share Membership'),' — $'+subOptions.fairShare.toLocaleString()+'/year',React.createElement('span',{style:{display:'block',fontSize:'var(--fs-sm)',color:'var(--text-muted)',marginTop:4}},'Reflects a member\'s proportional share of the shul\'s actual annual operating budget. Helps ensure the full cost of running the shul and its programs is met.')))),
           React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('year')},subBusy?'Loading...':'Pay annually'),
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))),
@@ -3837,9 +3840,9 @@ function AdminAnalytics() {
         React.createElement('div',{className:'card-header',style:{marginBottom:0,paddingBottom:0,borderBottom:'none'}},selectedPerson),
         React.createElement('button',{className:'btn btn-sm btn-outline',onClick:()=>setSelectedPerson(null)},'Back to All Donors')),
       React.createElement('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:16}},
-        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Total'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},'$'+(data.byPerson[selectedPerson]?.total||0).toFixed(2))),
-        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Donations'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},data.byPerson[selectedPerson]?.count||0)),
-        React.createElement('div',{style:{background:'#faf8f3',padding:10,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Email'),React.createElement('div',{style:{fontSize:'0.9rem'}},data.byPerson[selectedPerson]?.email||'-'))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Total'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},'$'+(data.byPerson[selectedPerson]?.total||0).toFixed(2))),
+        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Donations'),React.createElement('div',{style:{fontSize:'1.3rem',fontWeight:700}},data.byPerson[selectedPerson]?.count||0)),
+        React.createElement('div',{style:{background:'#faf8f3',padding:8,borderRadius:6,textAlign:'center'}},React.createElement('div',{style:{fontSize:'0.8rem',color:'#888'}},'Email'),React.createElement('div',{style:{fontSize:'0.9rem'}},data.byPerson[selectedPerson]?.email||'-'))),
       React.createElement('div',{className:'table-container'},React.createElement('table',null,
         React.createElement('thead',null,React.createElement('tr',null,['Date','Amount','Category','Method'].map(h=>React.createElement('th',{key:h},h)))),
         React.createElement('tbody',null,(data.byPerson[selectedPerson]?.donations||[]).map((d,i)=>React.createElement('tr',{key:i},
@@ -3897,18 +3900,18 @@ function MishebeirachEditor({token,embedded}){
     catch(err){setMsg(friendlyError(err));}
     setSaving(false);}
   if(loading) return React.createElement('div',{className:'card'},SkForm(3,'Loading your Mi Shebeirach card'));
-  if(saved) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'44px 28px',border:'2px solid #c49a3c'}},
+  if(saved) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'48px 24px',border:'2px solid #c49a3c'}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',lineHeight:1,marginBottom:12}},'✓'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center',justifyContent:'center'}},'Names Saved'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)',maxWidth:460,margin:'0 auto'}},
       savedCount>0?('The gabbai will have your '+savedCount+' name'+(savedCount===1?'':'s')+'. You can return to this same link any time to add or change them.')
       :'Your names have been cleared. You can return to this same link any time to add names.'),
-    React.createElement('button',{className:'btn btn-outline',style:{marginTop:22},onClick:()=>{setSaved(false);setMsg('');}},'Add or Edit Names'));
+    React.createElement('button',{className:'btn btn-outline',style:{marginTop:24},onClick:()=>{setSaved(false);setMsg('');}},'Add or Edit Names'));
   const cats=(meta&&meta.categories)||[];
   const isErr=msg.startsWith('Error')||msg.startsWith('Could not')||msg.includes('not valid');
   return React.createElement('div',{className:'card',style:embedded?{marginTop:16,border:'2px solid #c49a3c'}:{}},
     React.createElement('div',{className:'card-header'},'Mi Shebeirach Names'+(meta&&meta.displayName?' — '+meta.displayName:'')),
-    React.createElement('p',{style:{color:'var(--text-muted)',marginTop:-4,marginBottom:14,fontSize:'var(--fs-sm)'}},'Type each name in English and it will appear in Hebrew — you can fix the Hebrew if needed. Choose who each person is; the gabbai’s printout is grouped by that. This is optional.'),
+    React.createElement('p',{style:{color:'var(--text-muted)',marginTop:-4,marginBottom:12,fontSize:'var(--fs-sm)'}},'Type each name in English and it will appear in Hebrew — you can fix the Hebrew if needed. Choose who each person is; the gabbai’s printout is grouped by that. This is optional.'),
     msg&&React.createElement('div',{className:'message '+(isErr?'message-error':'message-success')},msg),
     React.createElement('div',{className:'ms-list'},
       entries.map((e,i)=>React.createElement('div',{key:i,className:'ms-row'},
@@ -3922,7 +3925,7 @@ function MishebeirachEditor({token,embedded}){
             cats.map(c=>React.createElement('option',{key:c,value:c},c)))),
         React.createElement('button',{type:'button',className:'btn btn-sm btn-outline ms-remove',title:'Remove this name',onClick:()=>removeRow(i)},'✕ Remove'))),
     ),
-    React.createElement('div',{style:{display:'flex',gap:10,marginTop:14,flexWrap:'wrap'}},
+    React.createElement('div',{style:{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}},
       React.createElement('button',{type:'button',className:'btn btn-outline',onClick:addRow},'+ Add another name'),
       React.createElement('button',{type:'button',className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save Names')));
 }
@@ -3931,10 +3934,10 @@ function MishebeirachPage(){
   const siteImages=useSiteImages();
   const token=(window.location.hash.split('token=')[1]||'').split('&')[0];
   const logo=siteImages.topLogo||'logo.png';
-  if(!token) return React.createElement('div',{className:'card',style:{maxWidth:600,margin:'0 auto',textAlign:'center',padding:40}},
+  if(!token) return React.createElement('div',{className:'card',style:{maxWidth:'var(--w-form)',margin:'0 auto',textAlign:'center',padding:32}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none'}},'Mi Shebeirach'),
     React.createElement('p',{style:{color:'var(--text-muted)'}},'This link is missing its code. Please open the exact link from your email, or contact the office at office@ohrchaim.org.'));
-  return React.createElement('div',{style:{maxWidth:1040,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-wide)',margin:'0 auto'}},
     React.createElement('div',{style:{textAlign:'center',marginBottom:8}},
       React.createElement('img',{src:logo,alt:'Congregation Ohr Chaim',style:{height:84,width:'auto'}})),
     React.createElement(MishebeirachEditor,{token:token}));
@@ -3997,26 +4000,26 @@ function HighHolidaySeatsPage() {
     setSubmitting(false);
   }
   if(loading) return React.createElement('div',{className:'card'},SkForm(4,'Loading seat reservations'));
-  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)',maxWidth:600,margin:'0 auto'}},
+  if(loadErr) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:'var(--sp-6)',maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('p',{className:'message message-error'},loadErr),
     React.createElement('button',{className:'btn btn-outline',onClick:loadSeats},'Try again'));
-  if(done) return React.createElement('div',{style:{maxWidth:640,margin:'0 auto'}},
-    React.createElement('div',{className:'card',style:{textAlign:'center',padding:40}},
+  if(done) return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
+    React.createElement('div',{className:'card',style:{textAlign:'center',padding:32}},
       React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Reservation '+(payMethod==='check'?'Received!':'Confirmed!')),
       React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Your '+((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0))+' seat(s) have been reserved.'+(payMethod==='check'?' Please mail your check to the office to complete payment. The office will assign your specific seats.':' The office will assign your specific seats.')),
-      msToken&&!showMs&&React.createElement('div',{style:{marginTop:22,paddingTop:20,borderTop:'1px solid #eee'}},
+      msToken&&!showMs&&React.createElement('div',{style:{marginTop:24,paddingTop:16,borderTop:'1px solid #eee'}},
         React.createElement('p',{style:{color:'var(--text-muted)',margin:'0 0 12px'}},'Would you like the gabbai to have names for a Mi Shebeirach? You can add them now — it’s optional.'),
         React.createElement('button',{className:'btn btn-outline',onClick:()=>setShowMs(true)},'Add Mi Shebeirach Names')),
-      !showMs&&React.createElement('button',{className:'btn btn-primary',style:{marginTop:20},onClick:()=>{setDone(false);setShowMs(false);setForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});}},'Done')),
+      !showMs&&React.createElement('button',{className:'btn btn-primary',style:{marginTop:16},onClick:()=>{setDone(false);setShowMs(false);setForm({firstName:'',lastName:'',email:'',phone:'',mensSeats:'1',womensSeats:'0',notes:''});}},'Done')),
     showMs&&msToken&&React.createElement(MishebeirachEditor,{token:msToken,embedded:true}));
-  if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:40,maxWidth:600,margin:'0 auto'}},
+  if(!data?.settings?.enabled) return React.createElement('div',{className:'card',style:{textAlign:'center',padding:32,maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'High Holiday Seats'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Seat reservations are not currently open.'));
   const total=(data.settings.seatPrice||0)*((parseInt(form.mensSeats||0)||0)+(parseInt(form.womensSeats||0)||0));
-  return React.createElement('div',{style:{maxWidth:600,margin:'0 auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'0 auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Reserve High Holiday Seats'),
-      React.createElement('div',{style:{display:'flex',gap:20,marginBottom:20}},
+      React.createElement('div',{style:{display:'flex',gap:16,marginBottom:16}},
         React.createElement('div',{style:{background:'var(--bg)',padding:12,borderRadius:8,flex:1,textAlign:'center'}},
           React.createElement('div',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)'}},'Price per seat'),
           React.createElement('div',{style:{fontSize:'var(--fs-lg)',fontWeight:700,color:'var(--navy)'}},'$'+(data.settings.seatPrice||0))),
@@ -4036,13 +4039,13 @@ function HighHolidaySeatsPage() {
         React.createElement('div',{style:{background:'var(--bg)',padding:12,borderRadius:8,margin:'12px 0',textAlign:'center'}},
           React.createElement('span',{style:{fontSize:'var(--fs-lg)',fontWeight:700}},'Total: $'+total.toFixed(2))),
         total>0&&React.createElement('div',{style:{margin:'12px 0'}},
-          React.createElement('div',{style:{fontWeight:700,marginBottom:6}},'How would you like to pay?'),
-          React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:10}},
-            React.createElement('label',{style:{flex:'1 1 180px',display:'flex',alignItems:'center',gap:8,padding:'10px 12px',border:'1px solid '+(payMethod==='card'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:payMethod==='card'?'var(--gold-soft)':'var(--surface)'}},
+          React.createElement('div',{style:{fontWeight:700,marginBottom:4}},'How would you like to pay?'),
+          React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:8}},
+            React.createElement('label',{style:{flex:'1 1 180px',display:'flex',alignItems:'center',gap:8,padding:'8px 12px',border:'1px solid '+(payMethod==='card'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:payMethod==='card'?'var(--gold-soft)':'var(--surface)'}},
               React.createElement('input',{type:'radio',name:'payMethod',checked:payMethod==='card',onChange:()=>setPayMethod('card')}),'Pay now by card'),
-            React.createElement('label',{style:{flex:'1 1 180px',display:'flex',alignItems:'center',gap:8,padding:'10px 12px',border:'1px solid '+(payMethod==='check'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:payMethod==='check'?'var(--gold-soft)':'var(--surface)'}},
+            React.createElement('label',{style:{flex:'1 1 180px',display:'flex',alignItems:'center',gap:8,padding:'8px 12px',border:'1px solid '+(payMethod==='check'?'var(--gold)':'var(--border)'),borderRadius:6,cursor:'pointer',background:payMethod==='check'?'var(--gold-soft)':'var(--surface)'}},
               React.createElement('input',{type:'radio',name:'payMethod',checked:payMethod==='check',onChange:()=>setPayMethod('check')}),'Reserve now, mail a check')),
-          payMethod==='card'&&React.createElement('div',{ref:cardMountRef,style:{padding:'14px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
+          payMethod==='card'&&React.createElement('div',{ref:cardMountRef,style:{padding:'12px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
           payMethod==='check'&&React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-muted)',margin:0}},'Your seats will be held. Please mail a check for $'+total.toFixed(2)+' to the office to complete your reservation.')),
         React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:submitting},submitting?'Processing...':(total>0&&payMethod==='card'?'Pay $'+total.toFixed(2)+' & Reserve':'Reserve Seats')))));
 }
@@ -4766,29 +4769,29 @@ function PayBillPage() {
 
   // Render
   if(loading) return React.createElement('div',{className:'card'},SkForm(3,'Loading your bill'));
-  if(err&&!bill) return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+  if(err&&!bill) return React.createElement('div',{className:'card',style:{maxWidth:'var(--w-form)',margin:'32px auto',textAlign:'center',padding:32}},
     React.createElement('h2',{style:{color:'var(--error)'}},'Unable to load bill'),
     React.createElement('p',null,err),
-    React.createElement('p',{style:{marginTop:20}},React.createElement('a',{href:'#home',style:{color:'var(--gold)'}},'Return to homepage')));
-  if(bill&&bill.status==='paid') return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+    React.createElement('p',{style:{marginTop:16}},React.createElement('a',{href:'#home',style:{color:'var(--gold)'}},'Return to homepage')));
+  if(bill&&bill.status==='paid') return React.createElement('div',{className:'card',style:{maxWidth:'var(--w-form)',margin:'32px auto',textAlign:'center',padding:32}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'✅'),
     React.createElement('h2',{style:{color:'var(--success)'}},'Already Paid'),
     React.createElement('p',null,'This bill was already paid. Thank you!'),
-    React.createElement('p',{style:{marginTop:20}},React.createElement('a',{href:'#home',style:{color:'var(--gold)'}},'Return to homepage')));
-  if(done) return React.createElement('div',{className:'card',style:{maxWidth:560,margin:'40px auto',textAlign:'center',padding:40}},
+    React.createElement('p',{style:{marginTop:16}},React.createElement('a',{href:'#home',style:{color:'var(--gold)'}},'Return to homepage')));
+  if(done) return React.createElement('div',{className:'card',style:{maxWidth:'var(--w-form)',margin:'32px auto',textAlign:'center',padding:32}},
     React.createElement('div',{style:{fontSize:'var(--icon-xl)',marginBottom:16}},'✅'),
     React.createElement('div',{className:'card-header',style:{borderBottom:'none',textAlign:'center'}},'Thank You!'),
     React.createElement('p',{style:{fontSize:'var(--fs-lg)',color:'var(--text-muted)'}},'Your payment of $'+(bill.amount||0).toFixed(2)+' has been received. A receipt is on its way to your inbox.'),
-    React.createElement('a',{href:'#home',className:'btn btn-primary',style:{marginTop:20,display:'inline-block'}},'Return to homepage'));
+    React.createElement('a',{href:'#home',className:'btn btn-primary',style:{marginTop:16,display:'inline-block'}},'Return to homepage'));
 
-  return React.createElement('div',{style:{maxWidth:560,margin:'40px auto'}},
+  return React.createElement('div',{style:{maxWidth:'var(--w-form)',margin:'32px auto'}},
     React.createElement('div',{className:'card'},
       React.createElement('div',{className:'card-header'},'Pay Your Bill'),
-      bill.memberName&&React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:14}},'Bill for ',React.createElement('strong',null,bill.memberName)),
-      React.createElement('div',{style:{background:'var(--bg)',padding:16,borderRadius:8,margin:'12px 0 18px',border:'1px solid #e0dcd4'}},
-        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0',fontSize:'var(--fs-base)'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'Amount'),React.createElement('span',{style:{fontWeight:700,fontSize:'var(--fs-lg)',color:'var(--navy)'}},'$'+parseFloat(bill.amount).toFixed(2))),
-        bill.reason&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'For'),React.createElement('span',null,bill.reason)),
-        bill.dueDate&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'6px 0'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'Due'),React.createElement('span',null,bill.dueDate))),
+      bill.memberName&&React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Bill for ',React.createElement('strong',null,bill.memberName)),
+      React.createElement('div',{style:{background:'var(--bg)',padding:16,borderRadius:8,margin:'12px 0 16px',border:'1px solid #e0dcd4'}},
+        React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'4px 0',fontSize:'var(--fs-base)'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'Amount'),React.createElement('span',{style:{fontWeight:700,fontSize:'var(--fs-lg)',color:'var(--navy)'}},'$'+parseFloat(bill.amount).toFixed(2))),
+        bill.reason&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'4px 0'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'For'),React.createElement('span',null,bill.reason)),
+        bill.dueDate&&React.createElement('div',{style:{display:'flex',justifyContent:'space-between',padding:'4px 0'}},React.createElement('span',{style:{color:'var(--text-muted)'}},'Due'),React.createElement('span',null,bill.dueDate))),
       err&&React.createElement('div',{className:'message message-error'},err),
       React.createElement('form',{onSubmit:handlePay},
         React.createElement('div',{className:'form-group'},
@@ -4796,9 +4799,9 @@ function PayBillPage() {
           React.createElement('input',{className:'form-input',type:'email',value:email,onChange:e=>setEmail(e.target.value),placeholder:'you@example.com'})),
         React.createElement('div',{className:'form-group'},
           React.createElement('label',{className:'form-label'},'Card Details'),
-          React.createElement('div',{ref:cardMountRef,style:{padding:'14px 14px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
-          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginTop:6}},'Secured by Stripe. We never see or store your card number.')),
-        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:submitting||!cardReady,style:{marginTop:8,fontSize:'var(--fs-lg)',padding:'14px 28px'}},
+          React.createElement('div',{ref:cardMountRef,style:{padding:'12px 12px',border:'1px solid #d4cfc4',borderRadius:8,background:'var(--surface)',minHeight:52}}),
+          React.createElement('p',{style:{fontSize:'var(--fs-sm)',color:'var(--text-subtle)',marginTop:4}},'Secured by Stripe. We never see or store your card number.')),
+        React.createElement('button',{className:'btn btn-primary btn-block',type:'submit',disabled:submitting||!cardReady,style:{marginTop:8,fontSize:'var(--fs-lg)',padding:'12px 24px'}},
           submitting?'Processing...':'Pay $'+parseFloat(bill.amount).toFixed(2)))));
 }
 
