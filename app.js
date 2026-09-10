@@ -33,7 +33,7 @@ function getTodayDow() { return new Date(getTodayStr()+'T12:00:00').getDay(); }
 function holidayScheduleRows(hs){
   if(!hs||!hs.items||!hs.items.length) return null;
   return React.createElement('div',{className:'holiday-schedule'},
-    React.createElement('div',{style:{fontWeight:700,color:'#c49a3c',marginBottom:4}},hs.name),
+    React.createElement('div',{style:{fontWeight:700,color:'#c49a3c',marginBottom:4}},hs.sectionLabel||hs.name),
     hs.items.map((it,i)=>React.createElement('div',{key:i,style:{marginBottom:it.note?6:2}},
       React.createElement('div',{className:'time-row'},
         React.createElement('span',{className:'time-label'},it.category||''),
@@ -690,7 +690,7 @@ function HomePage({navigate}) {
           React.createElement('div',{className:'card-header'},"Today's davening"),
           loading?React.createElement('div',{className:'loading'},React.createElement('div',{className:'spinner'}),'Loading...'):
           schedule?React.createElement('div',null,
-            schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
+            schedule.holidays?.length>0&&React.createElement('div',{style:{marginBottom:10}},schedule.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},String(h).replace(/\s+5\d{3}$/,'')))),
             schedule.holidaySchedule?holidayScheduleRows(schedule.holidaySchedule):[
             schedule.davening?.selichos&&React.createElement('div',{className:'time-row',key:'sl'},React.createElement('span',{className:'time-label'},'Selichos'),React.createElement('span',{className:'time-value'},schedule.davening.selichos)),
             schedule.davening?.shacharis&&React.createElement('div',{className:'time-row',key:'sh'},React.createElement('span',{className:'time-label'},'Shacharis'),React.createElement('span',{className:'time-value'},schedule.davening.shacharis)),
@@ -820,7 +820,7 @@ function SchedulePage({navigate}) {
               React.createElement('div',{className:'day-date'},d.toLocaleDateString('en-US',{month:'short',day:'numeric'})),
               day.hebrewDate&&React.createElement('div',{className:'day-hebrew'},day.hebrewDate),
               day.parsha&&React.createElement('span',{className:'parsha-badge'},day.parsha),
-              day.holidays?.length>0&&day.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},h))),
+              day.holidays?.length>0&&day.holidays.map((h,i)=>React.createElement('span',{className:'holiday-badge',key:i},String(h).replace(/\s+5\d{3}$/,'')))),
             React.createElement('div',{className:'day-card-body'},
               // A Jewish-holiday schedule (Tisha B'Av, etc.) replaces the normal
               // davening rows for that day.
