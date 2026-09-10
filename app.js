@@ -1659,7 +1659,7 @@ function AdminSeating() {
       '@page{size:A4 landscape;margin:12mm}'+
       '*{box-sizing:border-box}'+
       'body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#1a2744;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-      '.page{page-break-after:always;padding:2mm;height:182mm;display:flex;flex-direction:column}.page:last-child{page-break-after:auto}'+
+      '.page{page-break-after:always;padding:2mm;width:273mm;height:182mm;margin:0 auto;display:flex;flex-direction:column}.page:last-child{page-break-after:auto}'+
       '.brand{display:flex;align-items:center;gap:5mm;border-bottom:3px solid #c49a3c;padding-bottom:3mm;margin-bottom:4mm}'+
       '.brand img{height:18mm;width:auto}'+
       '.brand .bt{flex:1}'+
@@ -1676,7 +1676,7 @@ function AdminSeating() {
       '.ph span{white-space:nowrap;font-size:10px;font-weight:700;color:#1a2744;line-height:1;display:inline-block}'+
       '.ps.on .ph{background:#f7f0dc}'+
       '</style></head><body>'+body+
-      '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=15;el.style.fontSize=fs+"px";var g=0;while(el.scrollWidth>box.clientWidth-2&&fs>4&&g<30){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);})();<\/script>'+
+      '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=15;el.style.fontSize=fs+"px";var g=0;while((el.scrollWidth>box.clientWidth-2||el.scrollHeight>box.clientHeight-1)&&fs>5&&g<40){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);window.addEventListener("load",fit);setTimeout(fit,300);window.addEventListener("beforeprint",fit);if(window.matchMedia){var mq=window.matchMedia("print");if(mq.addEventListener)mq.addEventListener("change",fit);else if(mq.addListener)mq.addListener(fit);}})();<\/script>'+
       '</body></html>';
     const w=window.open('','_blank');
     if(!w){setMsg('Please allow pop-ups to print/export the seating chart.');return;}
