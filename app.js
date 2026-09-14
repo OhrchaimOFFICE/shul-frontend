@@ -1526,6 +1526,12 @@ function AdminMemberTags() {
 }
 
 // Seat labels show only the LAST name of the assigned party, sized to fit the box.
+// The bima's footprint in seat-grid space: columns 8-11, seat rows 24-31.
+// Defined once because the on-screen map and the printed chart use different
+// grid coordinate systems (the map gives each seat two rows, the printout one),
+// and hardcoding it twice is how they silently diverge.
+const BIMA={c1:8,c2:11,r1:24,r2:31};
+
 function seatLastName(holder){const p=String(holder||'').trim().split(/\s+/);return p[p.length-1]||'';}
 function seatNameFont(name){const n=(name||'').length;if(n<=6)return '0.72rem';if(n<=8)return '0.62rem';if(n<=10)return '0.54rem';if(n<=13)return '0.46rem';return '0.4rem';}
 function escHtml(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -1642,6 +1648,12 @@ function AdminSeating() {
       const assigned=ss.filter(s=>{const a=data.assignments[s.number];return a&&a.holder;}).length;
       const cells=ss.map(s=>{const a=data.assignments[s.number];const last=a&&a.holder?seatLastName(a.holder):'';
         return '<div class="ps'+(last?' on':'')+'" style="grid-column:'+(s.col-minC+1)+';grid-row:'+(s.row-minR+1)+'"><div class="pn" style="background:'+(s.color||'#FFF176')+'">'+s.number+'</div><div class="ph"><span>'+escHtml(last)+'</span></div></div>';}).join('');
+      // The bima only exists in the men's section, and only if the grid it sits
+      // in actually spans it.
+      const bima=(secName==='mens'&&BIMA.c2-minC+2<=nCols+1&&BIMA.r2-minR+2<=nRows+1)
+        ? '<div class="bima" style="grid-column:'+(BIMA.c1-minC+1)+' / '+(BIMA.c2-minC+2)+
+          ';grid-row:'+(BIMA.r1-minR+1)+' / '+(BIMA.r2-minR+2)+'">BIMA</div>'
+        : '';
       const header='<div class="brand">'+
           '<img src="'+escHtml(logoUrl)+'" alt="" onerror="this.style.display=\'none\'">'+
           '<div class="bt"><div class="nm">Congregation Ohr Chaim</div>'+
@@ -1650,7 +1662,7 @@ function AdminSeating() {
         '</div>';
       return '<div class="page">'+header+
         '<p class="leg">Seat colors mark separate tables — each color change is a new table.</p>'+
-        '<div class="pg" style="grid-template-columns:'+colTpl+';grid-template-rows:'+rowTpl+'">'+cells+'</div></div>';
+        '<div class="pg" style="grid-template-columns:'+colTpl+';grid-template-rows:'+rowTpl+'">'+cells+bima+'</div></div>';
     };
     const body=
       ((which==='ladies'||which==='both')?section('Ladies Section','ladies'):'')+
@@ -1674,7 +1686,7 @@ function AdminSeating() {
       '.pn{color:#1a2744;font-weight:800;font-size:12px;text-align:center;padding:1px 0;border-bottom:1px solid rgba(138,111,43,.4)}'+
       '.ph{flex:1;display:flex;align-items:center;justify-content:center;padding:1px 2px;overflow:hidden}'+
       '.ph span{white-space:nowrap;font-size:10px;font-weight:700;color:#1a2744;line-height:1;display:inline-block}'+
-      '.ps.on .ph{background:#f7f0dc}'+
+      '.ps.on .ph{background:#f7f0dc}'+'.bima{display:flex;align-items:center;justify-content:center;border:2px solid #1a2744;border-radius:3px;background:repeating-linear-gradient(45deg,#e9dcbf,#e9dcbf 8px,#e2d3ad 8px,#e2d3ad 16px);font-weight:800;letter-spacing:4px;font-size:13px;color:#1a2744}'+
       '</style></head><body>'+body+
       '<script>(function(){function fit(){var list=document.querySelectorAll(".ph span");for(var i=0;i<list.length;i++){var el=list[i],box=el.parentNode;var t=(el.textContent||"").trim();if(!t)continue;var fs=15;el.style.fontSize=fs+"px";var g=0;while((el.scrollWidth>box.clientWidth-2||el.scrollHeight>box.clientHeight-1)&&fs>5&&g<40){fs-=0.5;el.style.fontSize=fs+"px";g++;}}}if(document.readyState!=="loading")fit();else document.addEventListener("DOMContentLoaded",fit);window.addEventListener("load",fit);setTimeout(fit,300);window.addEventListener("beforeprint",fit);if(window.matchMedia){var mq=window.matchMedia("print");if(mq.addEventListener)mq.addEventListener("change",fit);else if(mq.addListener)mq.addListener(fit);}})();<\/script>'+
       '</body></html>';
@@ -1778,7 +1790,7 @@ function AdminSeating() {
             },lastName);
             return [num,name];
           }),
-          React.createElement('div',{className:'landmark-box',style:{gridColumn:'9 / 13',gridRow:'26 / 34'}},'BIMA'),
+          React.createElement('div',{className:'landmark-box',style:{gridColumn:(BIMA.c1+1)+' / '+(BIMA.c2+2),gridRow:(BIMA.r1+2)+' / '+(BIMA.r2+3)}},'BIMA'),
           React.createElement('div',{className:'mehitzah-bar',style:{
             gridColumn:'1 / -1',
             gridRow:(mehitzah+2)
