@@ -19,7 +19,7 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(ROOT, 'www');
 
 // Runtime assets the app actually loads.
-const FILES = ['app.js', 'styles.css', 'logo.png', 'email-banner.png', 'native.js'];
+const FILES = ['app.js', 'styles.css', 'hebrew.js', 'logo.png', 'email-banner.png', 'native.js'];
 const DIRS = ['vendor'];
 
 async function main() {

@@ -394,7 +394,7 @@ The App Store build is the same web app wrapped with Capacitor 8. See
 donations/dues/seats are not in-app purchases.
 
 - **Bundle id:** `com.manneeducation.ohrchaim`; display name "Ohr Chaim";
-  iOS 15.0+; `MARKETING_VERSION` 1.0, build number currently **4**
+  iOS 15.0+; `MARKETING_VERSION` 1.1, build number currently **5**
   (`ios/App/App.xcodeproj/project.pbxproj`).
 - **Plugins:** `@capacitor/app`, `browser`, `haptics`, `local-notifications`,
   `push-notifications`, `share`, `splash-screen`, `status-bar`.
@@ -429,13 +429,12 @@ build output are gitignored; commit only source.
 
 ## Operational gotchas
 
-- **`build.mjs` does not copy `hebrew.js`.** `index.html` loads
-  `hebrew.js` (added Sept 2026) but the `FILES` list in `build.mjs` is still
-  `app.js, styles.css, logo.png, email-banner.png, native.js`. Until it is
-  added, an app build will 404 on `hebrew.js` and the Mi Shebeirach
-  English→Hebrew auto-fill will silently do nothing in the iOS app (the site
-  guards on `window.toHebrew`). Add `'hebrew.js'` to `FILES` before the next
-  `npm run build`.
+- **`build.mjs` copies `hebrew.js`** (fixed 2026-09-16; it was missing, so the
+  app build 404'd on it and the Mi Shebeirach English→Hebrew auto-fill silently
+  did nothing in the iOS app). If you add another top-level script to
+  `index.html`, add it to the `FILES` list in `build.mjs` too, or the app build
+  will 404 on it. The site guards on `window.toHebrew`, so this failure is
+  silent rather than loud.
 - **`www/` on disk may be stale.** It is a build artifact from the last
   `npm run build`, not tracked by git. Always rebuild before `cap sync`.
 - **Deploy from `firebase-migration`, not `main`.** `main` still contains the
