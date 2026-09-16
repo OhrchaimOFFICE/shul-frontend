@@ -398,6 +398,14 @@ donations/dues/seats are not in-app purchases.
   (`ios/App/App.xcodeproj/project.pbxproj`).
 - **Plugins:** `@capacitor/app`, `browser`, `haptics`, `local-notifications`,
   `push-notifications`, `share`, `splash-screen`, `status-bar`.
+- **Scene life cycle (required since iOS 27).** `SceneDelegate.swift` plus the
+  `UIApplicationSceneManifest` block in `Info.plist` are mandatory. Building
+  against the iOS 27 SDK makes UIKit assert at launch (`EXC_BREAKPOINT` in
+  `AppDelegate`, with a "scene-based life cycle" note in the console) if the app
+  still uses the old app-delegate-only life cycle. `AppDelegate` keeps the APNs
+  token forwarding and hands UIKit the scene config via
+  `configurationForConnecting`. This needs Capacitor **8.5+** for
+  `SceneDelegateProxy`; the app was bumped 8.4.0 to 8.5.2 on 2026-09-16 for it.
 - **What `native.js` does** (loaded only in the app; a no-op on the web):
   sets a light status bar over the navy header, hides the splash after paint,
   registers for **push** and POSTs the APNs token to `/api/push/register`
