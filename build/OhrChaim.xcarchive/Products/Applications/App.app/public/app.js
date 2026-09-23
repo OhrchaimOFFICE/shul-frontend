@@ -1891,20 +1891,14 @@ function AdminRulesEditor() {
     {key:'shabbosYomTovShacharis',label:'Shabbos & Yom Tov Shacharis',def:'9:00 AM',desc:'Shabbos and Yom Tov mornings'},
     {key:'shabbosMinchaMinsBefore',label:'Shabbos Mincha (mins before shkia)',def:30,desc:'Rounded down to nearest 5 min',type:'number'},
     {key:'fridayStdMinchaMinsBefore',label:'Friday Mincha Std Time (mins before shkia)',def:15,desc:'Also used for Yom Tov Mincha',type:'number'},
-    {key:'earlyShabbos',label:'Early Shabbos Minyan',def:true,type:'boolean',desc:'When off, the early Mincha and early candle-lighting times stop appearing everywhere — schedule, home page and the weekly email. The regular Friday times are unaffected.'},
-    {key:'fridayEarlyMinchaMinsBeforePlag',label:'Friday Early Mincha (mins before plag hamincha)',def:0,desc:'DST Fridays only. 0 = at plag. Rounded down to nearest 5 min. Only used while the Early Shabbos Minyan is on.',type:'number'},
+    {key:'fridayEarlyMinchaMinsBeforePlag',label:'Friday Early Mincha (mins before plag hamincha)',def:0,desc:'DST Fridays only. 0 = at plag. Rounded down to nearest 5 min.',type:'number'},
     {key:'motzeiShabbosMinsBefore',label:'Motzei Shabbos Maariv (mins before tzeis)',def:10,desc:'Minutes before tzeis hakochavim',type:'number'},
   ];
   return React.createElement('div',null,
     msg&&React.createElement('div',{className:'message '+(isErrorMsg(msg)?'message-error':'message-success')},msg),
     React.createElement('div',{className:'rules-grid'},fields.map(f=>React.createElement('div',{className:'rule-card',key:f.key},
       React.createElement('div',{className:'rule-card-title'},f.label),
-      f.type==='boolean'
-        ? (()=>{const on=rules[f.key]!==undefined?!!rules[f.key]:!!f.def;
-            return React.createElement('button',{type:'button',
-              className:'btn btn-sm '+(on?'btn-primary':'btn-outline'),
-              style:{minWidth:120},onClick:()=>upd(f.key,!on)},on?'On':'Off');})()
-        : React.createElement('input',{type:f.type||'text',value:rules[f.key]!==undefined?rules[f.key]:f.def,onChange:e=>upd(f.key,f.type==='number'?parseInt(e.target.value)||0:e.target.value),placeholder:String(f.def)}),
+      React.createElement('input',{type:f.type||'text',value:rules[f.key]!==undefined?rules[f.key]:f.def,onChange:e=>upd(f.key,f.type==='number'?parseInt(e.target.value)||0:e.target.value),placeholder:String(f.def)}),
       React.createElement('div',{className:'rule-description'},f.desc)))),
     React.createElement('div',{style:{marginTop:16}},React.createElement('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?'Saving...':'Save All Rules')),
     React.createElement('div',{className:'card',style:{marginTop:24}},
@@ -2515,10 +2509,6 @@ function AccountPage() {
           React.createElement('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('year')},subBusy?'Loading...':'Pay annually'),
             React.createElement('button',{className:'btn btn-primary',disabled:subBusy,onClick:()=>startSubscription('month')},subBusy?'Loading...':'Pay monthly')))),
-    // Mi Shebeirach names, editable from the account itself rather than only
-    // from the emailed link. Same card the gabbai prints.
-    React.createElement('div',{style:{marginTop:16}},
-      React.createElement(MishebeirachEditor,null)),
     React.createElement('div',{className:'card',style:{marginTop:16,borderColor:'var(--error)'}},
       React.createElement('div',{className:'card-header'},'Delete Account'),
       React.createElement('p',{style:{color:'var(--text-muted)',marginBottom:12}},'Permanently delete your account and personal profile. This cannot be undone. Any active automatic membership payment will be canceled. (Past donation receipts are retained as required for tax and accounting records.)'),
@@ -3944,9 +3934,6 @@ function AdminAnalytics() {
 // A family types names in English; we transliterate to Hebrew live (editable)
 // and they tag each with a relationship. Reachable by the reservation's token.
 function MishebeirachEditor({token,embedded}){
-  // Two ways in: the emailed private link (token), or the Account page,
-  // where the member is already signed in and the server resolves the card.
-  const base=token?('/api/high-holidays/mishebeirach/'+encodeURIComponent(token)):'/api/my-mishebeirach';
   const [meta,setMeta]=useState(null); // {displayName, categories}
   const [entries,setEntries]=useState([]);
   const [loading,setLoading]=useState(true);
@@ -3954,13 +3941,13 @@ function MishebeirachEditor({token,embedded}){
   const [msg,setMsg]=useState('');
   const [saved,setSaved]=useState(false);const [savedCount,setSavedCount]=useState(0);
   useEffect(()=>{let ok=true;
-    apiFetch(base)
+    apiFetch('/api/high-holidays/mishebeirach/'+encodeURIComponent(token))
       .then(d=>{if(!ok)return;
         setMeta({displayName:d.displayName||'',categories:d.categories||[]});
         const rows=(d.entries&&d.entries.length?d.entries:[{english:'',hebrew:'',category:''}]).map(e=>({english:e.english||'',hebrew:e.hebrew||'',category:e.category||'',hebrewEdited:!!(e.hebrew||'').trim()}));
         setEntries(rows);setLoading(false);})
       .catch(err=>{if(ok){setMsg(friendlyError(err,'load this card'));setLoading(false);}});
-    return ()=>{ok=false;};},[base]);
+    return ()=>{ok=false;};},[token]);
   function upd(i,k,v){setEntries(p=>p.map((e,idx)=>{if(idx!==i)return e;
     const n={...e,[k]:v};
     if(k==='english'&&!e.hebrewEdited){n.hebrew=(typeof window!=='undefined'&&window.toHebrew)?window.toHebrew(v):'';}
@@ -3970,7 +3957,7 @@ function MishebeirachEditor({token,embedded}){
   function removeRow(i){setEntries(p=>p.length>1?p.filter((_,idx)=>idx!==i):[{english:'',hebrew:'',category:'',hebrewEdited:false}]);}
   async function save(){if(saving)return;setSaving(true);setMsg('');
     const clean=entries.filter(e=>(e.english||'').trim()||(e.hebrew||'').trim()).map(e=>({english:(e.english||'').trim(),hebrew:(e.hebrew||'').trim(),category:e.category||'Other'}));
-    try{const r=await apiFetch(base,{method:'POST',body:JSON.stringify({entries:clean})});
+    try{const r=await apiFetch('/api/high-holidays/mishebeirach/'+encodeURIComponent(token),{method:'POST',body:JSON.stringify({entries:clean})});
       setSavedCount((r&&r.count)||clean.length);setSaved(true);
       if(typeof window!=='undefined')window.scrollTo({top:0,behavior:'smooth'});}
     catch(err){setMsg(friendlyError(err));}

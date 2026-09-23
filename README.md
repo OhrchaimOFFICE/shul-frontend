@@ -194,6 +194,8 @@ normal text. If you change a colour token, re-check it — `--text-subtle`,
 | `#sponsorship` | `SponsorshipPage` | Book a Kiddush or Seudas Shlishis (`/api/sponsorships/book`) |
 | `#highholidays` | `HighHolidaySeatsPage` | Reserve High Holiday seats — see below |
 | `#mishebeirach?token=…` | `MishebeirachPage` | Token-linked Mi Shebeirach name card — see below |
+
+The same editor also appears on the **Account page** for signed-in members, so names can be added without the emailed link. It posts to `/api/my-mishebeirach` there instead of the token route; the server resolves both to the same card.
 | `#account`, `#signup?token=…` | `AccountPage` | Login / register / invite-prefill, profile, membership, bills, yahrzeits |
 | `#pay?token=…` | `PayBillPage` / `PayBillExternal` | Pay a single bill from an emailed link (native: links out to website) |
 | `#admin` | `AdminPanel` | Admin back-office (admin role required) |
