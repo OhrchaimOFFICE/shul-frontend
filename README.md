@@ -207,8 +207,18 @@ affected by an SPA boot failure. Plain HTML + one inline script; it fetches
 - The sheet's width is fixed at 740 px in **both** screen and print. An earlier version
   reset it to `100%` for print; that relayout meant the fit pass measured something
   other than what actually printed, and the footer spilled to a second page.
-- Narrow screens get a screen-only `transform` on `.shell`; print clears it, so it can
-  never affect pagination.
+- Narrow screens get a screen-only `transform` on `.shell`, with a `.scaler` wrapper
+  absorbing the collapsed height; print clears both, so neither can affect pagination.
+  Two traps here, both of which shipped broken once: `fitWidth()` must measure
+  `documentElement.clientWidth`, **not** the stage (an unscaled 740 px sheet overflows a
+  phone, stretching the document to 740 px, so the stage reports 740 px and the fit
+  concludes nothing needs scaling); and the scaled height must come from
+  `shell.offsetHeight` (layout) rather than `getBoundingClientRect()`, which already
+  carries the transform — multiplying that by `k` applies the scale twice and collapses
+  the sheet mid-table.
+- **macOS Chrome cannot be sized below ~500 px**, so headless screenshots at 375 px are
+  a 500 px layout photographed into a 375 px frame and will look wrongly clipped. Verify
+  narrow-screen behaviour at 520 px, or by reading back the computed scale.
 
 Verify changes by printing to PDF and **looking at the rendered page** — PDF text
 extraction misreports which page content landed on.

@@ -23,7 +23,7 @@
     --sheet-h: 980px;   /* 11in  - 20mm margins @96dpi */
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; overflow-x: hidden; }
   body {
     font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: #e9e6e0;
@@ -60,10 +60,10 @@
     background: #fff;
     padding: 0;
   }
+  .scaler { width: var(--sheet-w); margin: 0 auto; }
   .shell {
     box-shadow: 0 6px 22px rgba(0,0,0,0.16);
     width: var(--sheet-w);
-    margin: 0 auto;
     transform-origin: top left;   /* screen-only shrink for narrow viewports */
   }
 
@@ -129,10 +129,10 @@
     html, body { background: #fff; }
     .bar, .noprint { display: none !important; }
     .stage { padding: 0; }
+    .scaler { width: var(--sheet-w) !important; height: auto !important; }
     .shell {
       box-shadow: none;
       transform: none !important;   /* width fit is a screen concern only */
-      height: auto !important;
       width: var(--sheet-w);
     }
     tr { page-break-inside: avoid; break-inside: avoid; }
@@ -151,9 +151,11 @@
 </div>
 
 <div class="stage">
-  <div class="shell">
-    <div class="sheet" id="sheet">
-      <div class="msg" id="msg">Loading this week’s schedule…</div>
+  <div class="scaler" id="scaler">
+    <div class="shell">
+      <div class="sheet" id="sheet">
+        <div class="msg" id="msg">Loading this week’s schedule…</div>
+      </div>
     </div>
   </div>
 </div>
@@ -302,14 +304,24 @@
   // page is readable without sideways scrolling. This is deliberately a
   // transform, and print clears it, so it can never affect pagination.
   function fitWidth() {
-    var shell = document.querySelector('.shell');
-    var sheet = document.getElementById('sheet');
-    var avail = document.querySelector('.stage').clientWidth;
+    var shell  = document.querySelector('.shell');
+    var scaler = document.getElementById('scaler');
+    var stage  = document.querySelector('.stage');
+    // Measure the VIEWPORT, not the stage. An unscaled 740px sheet overflows a
+    // phone, which stretches the document to 740px, which makes the stage report
+    // 740px, which concludes no scaling is needed - and the sheet stays cut off.
+    var pad = window.getComputedStyle(stage);
+    var avail = document.documentElement.clientWidth
+      - (parseFloat(pad.paddingLeft) || 0) - (parseFloat(pad.paddingRight) || 0);
     var k = Math.min(1, avail / 740);
+
     shell.style.transform = k < 1 ? 'scale(' + k.toFixed(4) + ')' : 'none';
-    shell.style.height = k < 1
-      ? Math.ceil(sheet.getBoundingClientRect().height * k) + 'px'
-      : 'auto';
+    // offsetHeight is the shell's LAYOUT height - unaffected by its own
+    // transform, so it is safe to scale. (getBoundingClientRect already carries
+    // the transform; multiplying that by k applies the scale twice and collapses
+    // the page.) The scaler, not the shell, absorbs the shortfall.
+    scaler.style.width  = Math.ceil(740 * k) + 'px';
+    scaler.style.height = k < 1 ? Math.ceil(shell.offsetHeight * k) + 'px' : 'auto';
   }
 
   function fitToOnePage() {
