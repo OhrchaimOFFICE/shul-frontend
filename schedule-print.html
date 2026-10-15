@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Schedule — Congregation Ohr Chaim</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* One printed page, always. The sheet is laid out at a fixed pixel width that
+     matches Letter minus the @page margin; a fit pass after render scales it
+     down if a holiday week makes the content taller than a single page. */
+  :root {
+    --navy:   #1a2744;
+    --gold:   #c49a3c;
+    --gold-d: #8b6d28;
+    --cream:  #faf8f3;
+    --line:   #d8d2c7;
+    --muted:  #6b6459;
+    --sheet-w: 740px;   /* 8.5in - 20mm margins @96dpi */
+    --sheet-h: 980px;   /* 11in  - 20mm margins @96dpi */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #e9e6e0;
+    color: #231f1a;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* --- screen chrome (never printed) --- */
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--navy); color: #fff;
+  }
+  .bar p { margin: 0; font-size: 14px; color: rgba(255,255,255,0.78); }
+  .btn {
+    font: inherit; font-weight: 700; cursor: pointer;
+    background: var(--gold); color: var(--navy);
+    border: none; border-radius: 6px; padding: 10px 22px;
+    min-height: 44px;
+  }
+  .btn:hover { background: #d4aa4c; }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  .stage { padding: 24px 16px 48px; }
+
+  /* --- the sheet --- */
+  .sheet {
+    width: var(--sheet-w);   /* fixed in BOTH screen and print, so the fit pass
+                                measures the same layout that actually prints */
+    margin: 0 auto;
+    background: #fff;
+    padding: 0;
+  }
+  .shell {
+    box-shadow: 0 6px 22px rgba(0,0,0,0.16);
+    width: var(--sheet-w);
+    margin: 0 auto;
+    transform-origin: top left;   /* screen-only shrink for narrow viewports */
+  }
+
+  header.hd { text-align: center; padding: 0 0 8px; }
+  header.hd img { width: 175px; max-width: 46%; height: auto; display: block; margin: 0 auto 5px; }
+  .range {
+    font-size: 15px; font-weight: 700; color: var(--navy);
+    margin: 0 0 2px;
+  }
+  .hebrange { font-size: 12px; color: var(--muted); margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  .sched th {
+    text-align: left; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+    padding: 5px 8px; border-bottom: 2px solid var(--gold);
+  }
+  .sched td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .sched tr:last-child td { border-bottom: none; }
+
+  .d-name { font-weight: 700; color: var(--navy); font-size: 14px; line-height: 1.2; }
+  .d-date { font-size: 11px; color: var(--muted); }
+  .d-parsha { font-size: 11px; color: var(--gold-d); font-weight: 600; }
+  .col-day { width: 23%; }
+  .col-dav { width: 42%; }
+  .col-zm  { width: 35%; }
+
+  .t { font-size: 13px; line-height: 1.34; }
+  .t b { color: var(--navy); }
+  .z { font-size: 11px; line-height: 1.34; color: var(--muted); }
+
+  /* Shabbos / Yom Tov emphasis — a cream wash rather than a solid navy block,
+     so it still reads as the anchor of the week without soaking a page in ink. */
+  tr.special td { background: var(--cream); }
+  tr.special .col-day { box-shadow: inset 3px 0 0 var(--gold); }
+  tr.special .d-name { color: var(--gold-d); }
+
+  .hol-label { font-weight: 700; color: var(--gold-d); font-size: 12px; margin-bottom: 2px; }
+  .hol-note  { color: var(--muted); font-style: italic; }
+
+  .strip { margin-top: 7px; border-top: 2px solid var(--gold); padding-top: 6px; }
+  .strip h2 {
+    font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 4px;
+  }
+  .cols { display: flex; gap: 18px; align-items: flex-start; }
+  .cols > div { flex: 1; min-width: 0; }
+  .shiur { font-size: 11.5px; line-height: 1.5; }
+  .shiur b { color: var(--navy); }
+  .spons { font-size: 11.5px; line-height: 1.5; }
+  .spons .open { color: var(--gold-d); }
+
+  footer.ft {
+    margin-top: 7px; padding-top: 5px; border-top: 1px solid var(--line);
+    text-align: center; font-size: 10.5px; color: var(--muted);
+  }
+
+  .msg { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 15px; }
+
+  @media print {
+    @page { size: Letter portrait; margin: 10mm; }
+    html, body { background: #fff; }
+    .bar, .noprint { display: none !important; }
+    .stage { padding: 0; }
+    .shell {
+      box-shadow: none;
+      transform: none !important;   /* width fit is a screen concern only */
+      height: auto !important;
+      width: var(--sheet-w);
+    }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+  }
+
+  @media (max-width: 800px) {
+    .stage { padding: 12px 8px 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar noprint">
+  <button class="btn" id="printBtn" type="button">Print this schedule</button>
+  <p id="barNote">Fits on one page.</p>
+</div>
+
+<div class="stage">
+  <div class="shell">
+    <div class="sheet" id="sheet">
+      <div class="msg" id="msg">Loading this week’s schedule…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Shabbos'];
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+  function qs(name) {
+    var m = new RegExp('[?&]' + name + '=([^&]+)').exec(window.location.search);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function dayFmt(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // Mirrors the ordering used by the weekly email so the printed sheet and the
+  // emailed schedule never disagree.
+  function daveningLines(day, d) {
+    var isFri = d.getDay() === 5, isShabbos = d.getDay() === 6;
+    var dv = day.davening || {}, zm = day.zmanim || {};
+    var out = [];
+    if (dv.selichos)     out.push(['Selichos', dv.selichos]);
+    if (dv.shacharis)    out.push(['Shacharis', dv.shacharis]);
+    if (dv.earlyMincha)  out.push(['Early Mincha', dv.earlyMincha]);
+    if (dv.mincha)       out.push(['Mincha', dv.mincha]);
+    if (dv.minchaMaariv) out.push(['Mincha/Maariv', dv.minchaMaariv]);
+    if (dv.maariv)       out.push(['Maariv', dv.maariv]);
+    if (isFri && zm.earlyCandleLighting) out.push(['Early Candle Lighting', zm.earlyCandleLighting]);
+    if ((isFri || day.dayType === 'yomTov') && zm.candleLighting) out.push(['Candle Lighting', zm.candleLighting]);
+    if (isShabbos && zm.tzeis) out.push(['Havdalah', zm.tzeis]);
+    return out;
+  }
+
+  function zmanimLines(day) {
+    var z = day.zmanim || {}, out = [];
+    if (z.sunrise)       out.push(['Sunrise', z.sunrise]);
+    if (z.sofZmanShma)   out.push(['Latest Shema', z.sofZmanShma]);
+    if (z.sofZmanTfilla) out.push(['Latest Tefilla', z.sofZmanTfilla]);
+    if (z.plagHamincha)  out.push(['Plag Hamincha', z.plagHamincha]);
+    if (z.sunset)        out.push(['Sunset', z.sunset]);
+    return out;
+  }
+
+  function pairsHtml(pairs, cls) {
+    return pairs.map(function (p) {
+      return '<div><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</div>';
+    }).join('') || '<div class="' + cls + '">&mdash;</div>';
+  }
+
+  function renderRow(day) {
+    var d = new Date(day.date + 'T12:00:00');
+    var isShabbos = d.getDay() === 6;
+    var hs = day.holidaySchedule;
+    var hasHoliday = !!(hs && hs.items && hs.items.length);
+    var special = isShabbos || hasHoliday || day.dayType === 'yomTov';
+
+    var davCell;
+    if (hasHoliday) {
+      // A holiday schedule REPLACES the day's normal davening times.
+      davCell = '<div class="hol-label">' + esc(hs.sectionLabel || hs.name || '') + '</div>' +
+        hs.items.map(function (it) {
+          return '<div><b>' + esc(it.category || '') + '</b>' +
+            (it.time ? ': ' + esc(it.time) : '') +
+            (it.note ? ' <span class="hol-note">— ' + esc(it.note) + '</span>' : '') +
+            '</div>';
+        }).join('');
+    } else {
+      davCell = pairsHtml(daveningLines(day, d), 't');
+    }
+
+    return '<tr class="' + (special ? 'special' : '') + '">' +
+      '<td class="col-day">' +
+        '<div class="d-name">' + DAYS[d.getDay()] + '</div>' +
+        '<div class="d-date">' + dayFmt(d) + '</div>' +
+        (day.parsha ? '<div class="d-parsha">' + esc(day.parsha) + '</div>' : '') +
+      '</td>' +
+      '<td class="col-dav t">' + davCell + '</td>' +
+      '<td class="col-zm z">' + pairsHtml(zmanimLines(day), 'z') + '</td>' +
+    '</tr>';
+  }
+
+  function shiurimHtml(shiurim) {
+    if (!shiurim || !shiurim.length) return '';
+    var rows = shiurim.slice().sort(function (a, b) {
+      return (a.dayOfWeek || 0) - (b.dayOfWeek || 0);
+    }).map(function (s) {
+      return '<div><b>' + esc(DAYS[s.dayOfWeek] || '') + '</b> &middot; ' +
+        esc(s.title || '') + (s.time ? ' &middot; ' + esc(s.time) : '') +
+        (s.rabbi ? ' &middot; ' + esc(s.rabbi) : '') + '</div>';
+    }).join('');
+    return '<div><h2>Weekly Shiurim</h2><div class="shiur">' + rows + '</div></div>';
+  }
+
+  function sponsHtml(sp, shabbosDate) {
+    if (!sp || !sp.reservations || !shabbosDate) return '';
+    var r = sp.reservations[shabbosDate];
+    if (!r) return '';
+    function line(label, s) {
+      if (s && s.displayName) {
+        return '<div><b>' + label + ':</b> ' + esc(s.displayName) +
+          (s.dedication ? ' <span class="hol-note">— ' + esc(s.dedication) + '</span>' : '') + '</div>';
+      }
+      return '<div><b>' + label + ':</b> <span class="open">available — contact the office</span></div>';
+    }
+    return '<div><h2>Shabbos Sponsorships</h2><div class="spons">' +
+      line('Kiddush', r.kiddush) + line('Seudas Shlishis', r.seudasShlishis) +
+      '</div></div>';
+  }
+
+  // Guarantee a single printed page.
+  //
+  // `zoom` (not `transform: scale`) is what we shrink with: transform is purely
+  // visual and leaves the element occupying its full height in flow, so the
+  // printer still paginates on the unscaled box. `zoom` genuinely reflows.
+  // Reflowing changes line wrapping, which changes height, so converge in a
+  // few passes rather than trusting one division.
+  // 11in - 20mm @page margins = 980px, less a 30px safety band: Chrome's print
+  // box maps a hair differently than the on-screen measurement, and physical
+  // printers have an unprintable edge of their own.
+  var PAGE_H = 950;
+  var MIN_ZOOM = 0.62;     // below this the sheet stops being readable
+
+  function fitHeight() {
+    var sheet = document.getElementById('sheet');
+    var z = 1;
+    sheet.style.zoom = '1';
+    for (var pass = 0; pass < 6; pass++) {
+      var h = sheet.getBoundingClientRect().height;   // reflects current zoom
+      if (h <= PAGE_H + 0.5) break;
+      z = Math.max(MIN_ZOOM, z * (PAGE_H / h) * 0.995);
+      sheet.style.zoom = String(z);
+      if (z <= MIN_ZOOM) break;
+    }
+    return z;
+  }
+
+  // Screen-only: a 740px sheet is wider than a phone. Shrink it visually so the
+  // page is readable without sideways scrolling. This is deliberately a
+  // transform, and print clears it, so it can never affect pagination.
+  function fitWidth() {
+    var shell = document.querySelector('.shell');
+    var sheet = document.getElementById('sheet');
+    var avail = document.querySelector('.stage').clientWidth;
+    var k = Math.min(1, avail / 740);
+    shell.style.transform = k < 1 ? 'scale(' + k.toFixed(4) + ')' : 'none';
+    shell.style.height = k < 1
+      ? Math.ceil(sheet.getBoundingClientRect().height * k) + 'px'
+      : 'auto';
+  }
+
+  function fitToOnePage() {
+    var z = fitHeight();
+    fitWidth();
+    var note = document.getElementById('barNote');
+    if (note) {
+      note.textContent = z < 0.995
+        ? 'Fits on one page (scaled to ' + Math.round(z * 100) + '%).'
+        : 'Fits on one page.';
+    }
+    return z;
+  }
+
+  function fail(message) {
+    document.getElementById('sheet').innerHTML =
+      '<div class="msg">' + esc(message) + '</div>';
+  }
+
+  function build(week, shiurim, spons, startDate) {
+    if (!week || !week.length) { fail('No schedule is available for this week yet.'); return; }
+
+    var first = new Date(week[0].date + 'T12:00:00');
+    var last  = new Date(week[week.length - 1].date + 'T12:00:00');
+    var heb = [week[0].hebrewDateFormatted, week[week.length - 1].hebrewDateFormatted]
+      .filter(Boolean).join(' – ');
+
+    var shabbos = week.filter(function (x) {
+      return new Date(x.date + 'T12:00:00').getDay() === 6;
+    })[0];
+
+    var side = shiurimHtml(shiurim) + sponsHtml(spons, shabbos && shabbos.date);
+
+    document.getElementById('sheet').innerHTML =
+      '<header class="hd">' +
+        '<img src="email-banner-v2.png" alt="Congregation Ohr Chaim">' +
+        '<p class="range">Davening Schedule &middot; ' + dayFmt(first) + ' – ' + dayFmt(last) + '</p>' +
+        (heb ? '<p class="hebrange">' + esc(heb) + '</p>' : '') +
+      '</header>' +
+      '<table class="sched"><thead><tr>' +
+        '<th class="col-day">Day</th><th class="col-dav">Davening</th><th class="col-zm">Zmanim</th>' +
+      '</tr></thead><tbody>' + week.map(renderRow).join('') + '</tbody></table>' +
+      (side ? '<div class="strip"><div class="cols">' + side + '</div></div>' : '') +
+      '<footer class="ft">Congregation Ohr Chaim &middot; 317 W 47th St, Miami Beach, FL 33140 &middot; ohrchaim.org</footer>';
+
+    // Wait for the banner to load before measuring, or the fit pass sees a
+    // zero-height image and concludes the sheet is shorter than it is.
+    var img = document.querySelector('header.hd img');
+    if (img && !img.complete) {
+      img.addEventListener('load', fitToOnePage);
+      img.addEventListener('error', fitToOnePage);
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitToOnePage);
+    }
+    fitToOnePage();
+  }
+
+  function getJSON(url) {
+    return fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) {
+      if (!r.ok) throw new Error(url + ' -> ' + r.status);
+      return r.json();
+    });
+  }
+
+  var start = qs('start');
+  var weekUrl = '/api/schedule/week' + (start ? '?start=' + encodeURIComponent(start) : '');
+
+  Promise.all([
+    getJSON(weekUrl),
+    getJSON('/api/shiurim').catch(function () { return []; }),
+    getJSON('/api/sponsorships').catch(function () { return null; })
+  ]).then(function (res) {
+    var weekData = res[0];
+    var week = weekData && (weekData.week || weekData);
+    var shiurim = res[1];
+    if (shiurim && !Array.isArray(shiurim)) shiurim = shiurim.shiurim || [];
+    build(week, shiurim, res[2], start);
+  }).catch(function (e) {
+    fail('The schedule could not be loaded. Please check your connection and reload.');
+    if (window.console) console.error(e);
+  });
+
+  document.getElementById('printBtn').addEventListener('click', function () {
+    window.print();
+  });
+  window.addEventListener('beforeprint', fitToOnePage);
+  window.addEventListener('resize', function () {
+    clearTimeout(window.__fitT);
+    window.__fitT = setTimeout(fitToOnePage, 120);
+  });
+})();
+</script>
+</body>
+</html>

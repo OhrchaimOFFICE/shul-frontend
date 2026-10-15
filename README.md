@@ -74,7 +74,8 @@ app.js                Entire React app (~4,800 lines)
 hebrew.js             English→Hebrew name transliteration (window.toHebrew)
 styles.css            Design tokens + global stylesheet (see "Design system")
 vendor/               pdf.js (pdf.min.js + pdf.worker.min.js), same-origin
-logo.png, email-banner.png
+schedule-print.html   Standalone one-page printable weekly schedule (no React; see below)
+logo.png, email-banner.png, email-banner-v2.png
 firebase.json         Firebase Hosting config (ignore list, rewrites, headers/CSP, caching)
 .firebaserc           Firebase project (ohr-chaim-site)
 Seating Plan for Web.xlsx   Source spreadsheet for the High Holiday seat layout
@@ -180,6 +181,37 @@ markup that is rendered somewhere else, so their colours must stay literal:
 Contrast was measured, not eyeballed: all token pairings pass **WCAG AA** for
 normal text. If you change a colour token, re-check it — `--text-subtle`,
 `--gold-dark` and `--info` are each sitting just above the 4.5 threshold.
+
+## Printable weekly schedule (`/schedule-print.html`)
+
+A standalone page, deliberately **not** part of the React app: it is linked from the
+weekly schedule email, so it has to render fast, print predictably, and never be
+affected by an SPA boot failure. Plain HTML + one inline script; it fetches
+`/api/schedule/week`, `/api/shiurim` and `/api/sponsorships` itself.
+
+- `?start=YYYY-MM-DD` selects the week. The weekly email passes the first day of the
+  range it covers, so the printed sheet matches the email rather than the week the
+  member happens to open the link in.
+- Three columns (Day / Davening / Zmanim) rather than the email's two: putting zmanim
+  beside the davening times instead of beneath them is what buys the vertical space to
+  reach one page.
+- A holiday schedule **replaces** that day's davening cell, matching the email and the
+  rest of the site.
+- **Fitting is by construction, not by scaling.** The content is tuned to land near
+  940 px against ~980 px of printable Letter height at 10 mm margins. `fitHeight()`
+  only engages on an unusually tall week (long holiday sections, many shiurim) and
+  shrinks with CSS `zoom`, **not** `transform: scale` — a transform is purely visual
+  and leaves the element occupying its full height, so the printer still paginates on
+  the unscaled box. `zoom` genuinely reflows, which changes line wrapping, so the fit
+  iterates to converge.
+- The sheet's width is fixed at 740 px in **both** screen and print. An earlier version
+  reset it to `100%` for print; that relayout meant the fit pass measured something
+  other than what actually printed, and the footer spilled to a second page.
+- Narrow screens get a screen-only `transform` on `.shell`; print clears it, so it can
+  never affect pagination.
+
+Verify changes by printing to PDF and **looking at the rendered page** — PDF text
+extraction misreports which page content landed on.
 
 ## Pages (hash routes)
 
