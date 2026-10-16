@@ -3286,6 +3286,7 @@ function AdminEmailCenter() {
   // Compose form with preview
   const [composeForm,setComposeForm]=useState({subject:'',html:'',targetGroup:'all',personalize:false});
   const [showPreview,setShowPreview]=useState(false);
+  const [imgBusy,setImgBusy]=useState(false);   // inline body image being downscaled
   // Weekly schedule
   const [weeklyStartDate,setWeeklyStartDate]=useState(getTodayStr());
   const [weeklyEndDate,setWeeklyEndDate]=useState(()=>{const d=new Date(getTodayStr()+'T12:00:00');d.setDate(d.getDate()+6);return d.toISOString().split('T')[0];});
@@ -3495,19 +3496,33 @@ function AdminEmailCenter() {
       apiFetch('/api/admin/email/templates').then(setTemplates).catch(()=>{});}catch(e){setMsg(friendlyError(e));}
   }
 
+  // Inline body image. This MUST downscale before embedding: the data URI is
+  // appended into a React-controlled <textarea>, so a raw phone photo (3-8MB,
+  // ~11MB once base64'd) gets re-serialized on every keystroke and every
+  // Preview re-render, and the compose screen locks up with no indication that
+  // anything is happening. 1200px is already generous for a ~600px-wide email.
   function handleImageUpload(target){
     const input=document.createElement('input');
     input.type='file';input.accept='image/*';
-    input.onchange=function(e){
-      const file=e.target.files[0];if(!file)return;
-      const reader=new FileReader();
-      reader.onload=function(ev){
-        const imgTag='<img src="'+ev.target.result+'" style="max-width:100%;height:auto;border-radius:8px;margin:12px 0;" />';
+    input.onchange=async function(e){
+      const file=e.target.files[0];
+      e.target.value='';
+      if(!file)return;
+      if(!/^image\//.test(file.type)){setMsg(ERR_MARK+'\u201c'+file.name+'\u201d is not an image. Pick a JPEG or PNG.');return;}
+      if(file.size>15*1024*1024){setMsg(ERR_MARK+'\u201c'+file.name+'\u201d is '+Math.round(file.size/1048576)+'MB \u2014 too large. Please use an image under 15MB.');return;}
+      setImgBusy(true);setMsg('Preparing image\u2026');
+      try{
+        const b64=await renderImageToJpeg(file,{maxDim:1200,quality:0.8});
+        const imgTag='<img src="data:image/jpeg;base64,'+b64+'" style="max-width:100%;height:auto;border-radius:8px;margin:12px 0;" />';
         if(target==='compose') setComposeForm(p=>({...p,html:p.html+'\n'+imgTag}));
         else if(target==='weekly') setWeeklyCustomText(p=>p+'\n'+imgTag);
         else if(target==='template') setTplForm(p=>({...p,html:p.html+'\n'+imgTag}));
-      };
-      reader.readAsDataURL(file);
+        setMsg('Image added to the body (~'+Math.max(1,Math.round(b64.length*0.75/1024))+'KB).');
+      }catch(err){
+        setMsg(friendlyError(err));
+      }finally{
+        setImgBusy(false);
+      }
     };
     input.click();
   }
@@ -3588,7 +3603,7 @@ function AdminEmailCenter() {
               React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setComposePdfs(prev=>prev.filter((_,j)=>j!==i));},style:{color:'var(--error)',marginLeft:4}},'remove')))),
           React.createElement('span',{style:{fontSize:'var(--fs-xs)',color:'var(--text-subtle)',flexBasis:'100%'}},'JPEG/PNG/PDF attachments display reliably in the email. (“Upload Image” inserts a picture into the body, which some email apps hide.)')),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
-          React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('compose')},'Upload Image'),
+          React.createElement('button',{type:'button',className:'btn btn-outline',disabled:imgBusy,onClick:()=>handleImageUpload('compose')},imgBusy?'Preparing\u2026':'Upload Image'),
           React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>setShowPreview(!showPreview)},showPreview?'Hide Preview':'Preview Email'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendBlast,disabled:sending||!composeForm.subject},sending?'Sending...':'Send to '+getTargetEmails(composeForm.targetGroup).length+' recipients'))),
       showPreview&&React.createElement('div',{className:'card',style:{marginTop:12}},
@@ -3668,7 +3683,7 @@ function AdminEmailCenter() {
             weeklyPdfs.map((p,i)=>React.createElement('span',{key:i},'📄 '+p.name+' ('+p.images.length+'p) ',
               React.createElement('a',{href:'#',onClick:e=>{e.preventDefault();setWeeklyPdfs(prev=>prev.filter((_,j)=>j!==i));setWeeklyPreviewHtml('');},style:{color:'var(--error)',marginLeft:4}},'remove'))))),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:12}},
-          React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>handleImageUpload('weekly')},'Upload Image'),
+          React.createElement('button',{type:'button',className:'btn btn-outline',disabled:imgBusy,onClick:()=>handleImageUpload('weekly')},imgBusy?'Preparing\u2026':'Upload Image'),
           React.createElement('button',{className:'btn btn-outline',onClick:previewWeekly},'Generate Preview'),
           React.createElement('button',{className:'btn btn-primary',onClick:sendWeeklyCustom,disabled:sending},sending?'Sending...':'Send Weekly Email'))),
       weeklyPreviewHtml&&React.createElement('div',{className:'card',style:{marginTop:12}},
@@ -3768,7 +3783,7 @@ function AdminEmailCenter() {
         React.createElement('div',{className:'form-group'},React.createElement('label',{className:'form-label'},'HTML Body (use {{variable}} for placeholders)'),
           React.createElement('textarea',{className:'form-input',rows:8,value:tplForm.html,onChange:e=>setTplForm(p=>({...p,html:e.target.value})),style:{fontFamily:'monospace',fontSize:'var(--fs-sm)'}})),
         React.createElement('div',{style:{display:'flex',gap:8,marginTop:8}},
-          React.createElement('button',{type:'button',className:'btn btn-outline btn-sm',onClick:()=>handleImageUpload('template')},'Upload Image'),
+          React.createElement('button',{type:'button',className:'btn btn-outline btn-sm',disabled:imgBusy,onClick:()=>handleImageUpload('template')},imgBusy?'Preparing\u2026':'Upload Image'),
           React.createElement('button',{className:'btn btn-primary',type:'submit'},tplEditing?'Save Changes':'Save Template'),
           tplEditing&&React.createElement('button',{type:'button',className:'btn btn-outline',onClick:()=>{setTplEditing(false);setTplForm({name:'',subject:'',html:''});}},'Cancel')));
       return React.createElement('div',null,

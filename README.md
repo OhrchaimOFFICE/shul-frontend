@@ -223,6 +223,25 @@ affected by an SPA boot failure. Plain HTML + one inline script; it fetches
 Verify changes by printing to PDF and **looking at the rendered page** — PDF text
 extraction misreports which page content landed on.
 
+## Email Center image uploads
+
+Two different buttons, and they are not interchangeable:
+
+- **Attach flyer (PDF or JPEG)** → `processFlyerFiles()`. Validates type, caps each
+  file at 15 MB, rasterizes PDFs via pdf.js, downscales images to 1600 px, re-encodes
+  as JPEG q0.82, and refuses a combined payload over 20 MB (the backend's JSON limit
+  is 25 MB). Sent as inline CID images at the bottom of the email.
+- **Upload Image** → `handleImageUpload()`. Inserts a `data:` URI straight into the
+  message body. **It must downscale first** (1200 px, q0.80): the body is a
+  React-controlled `<textarea>`, so whatever goes in is re-serialized on every
+  keystroke and on every Preview re-render. It originally embedded the raw file —
+  a 2.5 MB photo became 3.29 MB of base64 in the textarea (an 8 MB iPhone photo,
+  ~11 MB) and the compose screen locked up. Downscaling takes that to ~270 KB in
+  about 12 ms.
+
+Keep the busy flag and the error branch on any future change here: the original had
+neither, so a slow or failed read looked identical to nothing happening.
+
 ## Pages (hash routes)
 
 | Route | Component | Notes |
